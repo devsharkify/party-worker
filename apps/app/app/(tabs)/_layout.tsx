@@ -36,6 +36,15 @@ export default function TabsLayout() {
         name="leaderboard"
         options={{ title: t("leaderboard.title"), tabBarIcon: icon("🏆") }}
       />
+      <Tabs.Screen
+        name="team"
+        options={{
+          title: "నా బృందం",
+          tabBarIcon: icon("👥"),
+          // Only leaders may see / reach the My Team tab.
+          href: user?.isLeader ? undefined : null,
+        }}
+      />
       <Tabs.Screen name="profile" options={{ title: t("profile.title"), tabBarIcon: icon("👤") }} />
     </Tabs>
   );

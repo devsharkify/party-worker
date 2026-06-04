@@ -6,8 +6,19 @@ import type {
   CreativeType,
   EventItem,
   GrievanceStatus,
+  OrgMemberRow,
   OrgUnitNode,
+  OrgUnitType,
+  OnboardResult,
   RenderTemplate,
+  Role,
+} from "@pw/shared";
+import {
+  assignableRoles,
+  childTypeOf,
+  ORG_LEVELS,
+  ORG_TYPE_LABEL,
+  roleFitsUnit,
 } from "@pw/shared";
 import { useAdmin } from "../src/admin-auth";
 import { EmptyState, SectionHeader, SkeletonRow, StatCard, useToast } from "../src/ui";
@@ -144,11 +155,12 @@ function Login() {
 /* Dashboard shell + top navigation                                   */
 /* ================================================================== */
 
-type Section = "overview" | "studio" | "grievances" | "events";
+type Section = "overview" | "studio" | "organization" | "grievances" | "events";
 
 const NAV: { id: Section; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "studio", label: "Studio" },
+  { id: "organization", label: "Organization" },
   { id: "grievances", label: "Grievances" },
   { id: "events", label: "Events" },
 ];
@@ -206,6 +218,7 @@ function Dashboard() {
       <main className="mx-auto max-w-6xl space-y-8 p-6">
         {section === "overview" ? <OverviewSection /> : null}
         {section === "studio" ? <StudioSection /> : null}
+        {section === "organization" ? <OrganizationSection /> : null}
         {section === "grievances" ? <GrievancesSection /> : null}
         {section === "events" ? <EventsSection /> : null}
       </main>
@@ -773,6 +786,453 @@ function Badge({ ok, okText, noText }: { ok: boolean; okText: string; noText: st
     >
       {ok ? okText : noText}
     </span>
+  );
+}
+
+/* ================================================================== */
+/* Organization — hierarchy tree, create unit, onboard members        */
+/* ================================================================== */
+
+/** Readable labels for the roles HQ can assign. */
+const ROLE_LABEL: Record<Role, string> = {
+  worker: "Worker",
+  booth_leader: "Booth Leader",
+  mandal_leader: "Mandal Leader",
+  constituency_leader: "Constituency Leader",
+  district_leader: "District Leader",
+  state_admin: "State Admin",
+  hq_admin: "HQ Admin",
+};
+
+function OrganizationSection() {
+  const { api, user } = useAdmin();
+  const { toast } = useToast();
+  const [tree, setTree] = useState<OrgUnitNode[] | null>(null);
+  const [manageable, setManageable] = useState<OrgUnitNode[] | null>(null);
+
+  const loadTree = useCallback(async () => {
+    try {
+      setTree(await api<OrgUnitNode[]>("/org/tree"));
+    } catch (e) {
+      setTree([]);
+      toast((e as Error).message, "error");
+    }
+  }, [api, toast]);
+
+  const loadManageable = useCallback(async () => {
+    try {
+      setManageable(await api<OrgUnitNode[]>("/org/manageable"));
+    } catch (e) {
+      setManageable([]);
+      toast((e as Error).message, "error");
+    }
+  }, [api, toast]);
+
+  useEffect(() => {
+    void loadTree();
+    void loadManageable();
+  }, [loadTree, loadManageable]);
+
+  return (
+    <div className="space-y-8">
+      <HierarchyTree tree={tree} />
+
+      <div className="grid gap-8 lg:grid-cols-2">
+        <CreateUnit
+          manageable={manageable}
+          create={(body) =>
+            api<OrgUnitNode>("/org/units", { method: "POST", body: JSON.stringify(body) })
+          }
+          onCreated={async (unit) => {
+            // Refresh both the tree (also feeds the Studio audience picker via /org/tree)
+            // and the manageable list so the new unit can be a parent / onboard target.
+            await Promise.all([loadTree(), loadManageable()]);
+            toast(`Created ${ORG_TYPE_LABEL[unit.type]} “${unit.name}”.`, "success");
+          }}
+          onError={(m) => toast(m, "error")}
+        />
+
+        <OnboardMember
+          manageable={manageable}
+          actorRole={user?.role ?? "worker"}
+          onboard={(body) =>
+            api<OnboardResult>("/org/members", { method: "POST", body: JSON.stringify(body) })
+          }
+          loadMembers={(unitId) =>
+            api<OrgMemberRow[]>(`/org/units/${unitId}/members?subtree=true`)
+          }
+          onOnboarded={async (res) => {
+            await Promise.all([loadTree(), loadManageable()]);
+            if (res.recruiterPointsAwarded > 0) {
+              toast(`+${res.recruiterPointsAwarded} pts`, "success");
+            }
+            toast(`Onboarded ${res.member.name}.`, "success");
+          }}
+          onError={(m) => toast(m, "error")}
+        />
+      </div>
+    </div>
+  );
+}
+
+/** Card 1 — read-only indented org hierarchy from GET /org/tree. */
+function HierarchyTree({ tree }: { tree: OrgUnitNode[] | null }) {
+  const loading = tree === null;
+  const count = tree?.length ?? 0;
+  return (
+    <section>
+      <SectionHeader title="Hierarchy tree" count={loading ? undefined : count} />
+      {loading ? (
+        <div className="space-y-3">
+          {[0, 1, 2].map((i) => (
+            <SkeletonRow key={i} />
+          ))}
+        </div>
+      ) : count === 0 ? (
+        <EmptyState
+          glyph="🌳"
+          title="No org units yet"
+          message="Create your first unit below to start the hierarchy."
+        />
+      ) : (
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          {tree!.map((u) => {
+            const depth = Math.max(0, ORG_LEVELS.indexOf(u.type));
+            return (
+              <div
+                key={u.id}
+                className="flex items-center justify-between border-b border-slate-100 px-4 py-3 last:border-b-0"
+                style={{ paddingLeft: `${16 + depth * 22}px` }}
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  {depth > 0 ? <span className="text-slate-300">↳</span> : null}
+                  <span className="truncate font-bold text-slate-900">{u.name}</span>
+                  <span className="rounded-full bg-saffron/15 px-2 py-0.5 text-xs font-bold text-saffron">
+                    {ORG_TYPE_LABEL[u.type]}
+                  </span>
+                </div>
+                <div className="flex shrink-0 items-center gap-3 text-xs font-semibold text-slate-500">
+                  <span title="Members">👥 {u.memberCount}</span>
+                  <span title="Child units">🗂 {u.childrenCount}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** Card 2 — create a new org unit under a chosen parent. */
+function CreateUnit({
+  manageable,
+  create,
+  onCreated,
+  onError,
+}: {
+  manageable: OrgUnitNode[] | null;
+  create: (body: unknown) => Promise<OrgUnitNode>;
+  onCreated: (unit: OrgUnitNode) => Promise<void>;
+  onError: (m: string) => void;
+}) {
+  const [parentId, setParentId] = useState("");
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const loading = manageable === null;
+  const parent = (manageable ?? []).find((u) => u.id === parentId) ?? null;
+  // Child type is derived from the parent's type; null means the parent is a leaf (booth).
+  const childType: OrgUnitType | null = parent ? childTypeOf(parent.type) : null;
+  const canSubmit = !!parent && childType !== null && name.trim().length > 0 && !busy;
+
+  async function submit() {
+    if (!parent || !childType || !name.trim()) return;
+    setBusy(true);
+    try {
+      const unit = await create({ name: name.trim(), type: childType, parentId: parent.id });
+      setName("");
+      setParentId("");
+      await onCreated(unit);
+    } catch (e) {
+      onError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <h2 className="mb-4 text-xl font-bold text-slate-900">Create unit</h2>
+      <div className="space-y-3">
+        <label className="flex flex-col gap-1">
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Parent unit
+          </span>
+          <select
+            className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/30 disabled:opacity-60"
+            value={parentId}
+            onChange={(e) => setParentId(e.target.value)}
+            disabled={loading}
+          >
+            <option value="">{loading ? "Loading…" : "Select a parent…"}</option>
+            {(manageable ?? []).map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name} · {ORG_TYPE_LABEL[u.type]}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {parent ? (
+          childType ? (
+            <div className="rounded-lg bg-navy/5 px-3 py-2 text-sm font-semibold text-navy">
+              Will create a: {ORG_TYPE_LABEL[childType]}
+            </div>
+          ) : (
+            <div className="rounded-lg bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700">
+              {ORG_TYPE_LABEL[parent.type]} is the lowest level — no child units can be created
+              under it.
+            </div>
+          )
+        ) : null}
+
+        <label className="flex flex-col gap-1">
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Name</span>
+          <input
+            className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/30"
+            placeholder={childType ? `New ${ORG_TYPE_LABEL[childType]} name` : "Unit name"}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && canSubmit && submit()}
+          />
+        </label>
+      </div>
+      <div className="mt-4 flex justify-end">
+        <button
+          onClick={submit}
+          disabled={!canSubmit}
+          className="rounded-lg bg-navy px-5 py-2 font-bold text-white transition hover:brightness-110 disabled:opacity-50"
+        >
+          {busy ? "Creating…" : "Create unit"}
+        </button>
+      </div>
+    </section>
+  );
+}
+
+/** Card 3 — onboard a member into a unit, with a subtree roster below. */
+function OnboardMember({
+  manageable,
+  actorRole,
+  onboard,
+  loadMembers,
+  onOnboarded,
+  onError,
+}: {
+  manageable: OrgUnitNode[] | null;
+  actorRole: Role;
+  onboard: (body: unknown) => Promise<OnboardResult>;
+  loadMembers: (unitId: string) => Promise<OrgMemberRow[]>;
+  onOnboarded: (res: OnboardResult) => Promise<void>;
+  onError: (m: string) => void;
+}) {
+  const [orgUnitId, setOrgUnitId] = useState("");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [role, setRole] = useState<Role>("worker");
+  const [designation, setDesignation] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [roster, setRoster] = useState<OrgMemberRow[] | null>(null);
+
+  const loading = manageable === null;
+  const unit = (manageable ?? []).find((u) => u.id === orgUnitId) ?? null;
+
+  // Roles this admin may assign, narrowed to those that fit the selected unit's type.
+  const roleOptions = useMemo<Role[]>(() => {
+    const assignable = assignableRoles(actorRole);
+    if (!unit) return assignable;
+    return assignable.filter((r) => roleFitsUnit(r, unit.type));
+  }, [actorRole, unit]);
+
+  // Keep the selected role valid for the current unit.
+  useEffect(() => {
+    if (!roleOptions.includes(role)) {
+      setRole(roleOptions[0] ?? "worker");
+    }
+  }, [roleOptions, role]);
+
+  const refreshRoster = useCallback(
+    async (unitId: string) => {
+      if (!unitId) {
+        setRoster(null);
+        return;
+      }
+      setRoster(null);
+      try {
+        setRoster(await loadMembers(unitId));
+      } catch (e) {
+        setRoster([]);
+        onError((e as Error).message);
+      }
+    },
+    [loadMembers, onError],
+  );
+
+  // Load the roster whenever a unit is selected.
+  useEffect(() => {
+    void refreshRoster(orgUnitId);
+  }, [orgUnitId, refreshRoster]);
+
+  const canSubmit = !!unit && name.trim().length > 0 && phone.trim().length > 0 && !busy;
+
+  async function submit() {
+    if (!unit || !name.trim() || !phone.trim()) return;
+    setBusy(true);
+    try {
+      const res = await onboard({
+        name: name.trim(),
+        phone: phone.trim(),
+        role,
+        orgUnitId: unit.id,
+        ...(designation.trim() ? { designation: designation.trim() } : {}),
+      });
+      setName("");
+      setPhone("");
+      setDesignation("");
+      await onOnboarded(res);
+      await refreshRoster(unit.id); // show the freshly onboarded member
+    } catch (e) {
+      onError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <h2 className="mb-4 text-xl font-bold text-slate-900">Onboard member</h2>
+      <div className="space-y-3">
+        <label className="flex flex-col gap-1">
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Unit</span>
+          <select
+            className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/30 disabled:opacity-60"
+            value={orgUnitId}
+            onChange={(e) => setOrgUnitId(e.target.value)}
+            disabled={loading}
+          >
+            <option value="">{loading ? "Loading…" : "Select a unit…"}</option>
+            {(manageable ?? []).map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name} · {ORG_TYPE_LABEL[u.type]}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <input
+            className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/30"
+            placeholder="Full name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <input
+            className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/30"
+            placeholder="Phone (e.g. 9000001234)"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+          />
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Role
+            </span>
+            <select
+              className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/30 disabled:opacity-60"
+              value={role}
+              onChange={(e) => setRole(e.target.value as Role)}
+              disabled={!unit}
+            >
+              {roleOptions.map((r) => (
+                <option key={r} value={r}>
+                  {ROLE_LABEL[r]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <input
+            className="self-end rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/30"
+            placeholder="Designation (optional)"
+            value={designation}
+            onChange={(e) => setDesignation(e.target.value)}
+          />
+        </div>
+      </div>
+      <div className="mt-4 flex justify-end">
+        <button
+          onClick={submit}
+          disabled={!canSubmit}
+          className="rounded-lg bg-saffron px-5 py-2 font-bold text-white transition hover:brightness-105 disabled:opacity-50"
+        >
+          {busy ? "Onboarding…" : "Onboard member"}
+        </button>
+      </div>
+
+      {/* Roster for the selected unit (subtree) */}
+      {orgUnitId ? (
+        <div className="mt-6 border-t border-slate-100 pt-5">
+          <SectionHeader
+            title={`Roster${unit ? ` — ${unit.name}` : ""}`}
+            count={roster === null ? undefined : roster.length}
+          />
+          {roster === null ? (
+            <div className="space-y-3">
+              {[0, 1].map((i) => (
+                <SkeletonRow key={i} />
+              ))}
+            </div>
+          ) : roster.length === 0 ? (
+            <EmptyState glyph="🧑‍🤝‍🧑" title="No members" message="Onboard the first member above." />
+          ) : (
+            <div className="space-y-2">
+              {roster.map((m) => (
+                <div
+                  key={m.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span
+                      className={`h-2.5 w-2.5 shrink-0 rounded-full ${
+                        m.membershipActive ? "bg-green-500" : "bg-slate-300"
+                      }`}
+                      title={m.membershipActive ? "Membership active" : "Membership inactive"}
+                    />
+                    <div className="min-w-0">
+                      <div className="truncate font-bold text-slate-900">{m.name}</div>
+                      <div className="text-xs text-slate-500">
+                        {ROLE_LABEL[m.role]} · {TIER_LABEL[m.tier] ?? m.tier} · {m.phone}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right text-xs">
+                    <div className="font-extrabold text-navy">
+                      {m.weeklyLeaguePoints.toLocaleString()}{" "}
+                      <span className="font-semibold text-slate-400">wk</span>
+                    </div>
+                    <div className="text-slate-400">
+                      {m.lifetimeReputation.toLocaleString()} lifetime
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : null}
+    </section>
   );
 }
 
