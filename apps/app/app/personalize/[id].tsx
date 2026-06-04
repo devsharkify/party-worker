@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
@@ -25,6 +25,8 @@ export default function Personalize() {
   const router = useRouter();
   const { data: item, loading, error, reload } = useApi<FeedItem>(`/feed/${id}`);
   const [reported, setReported] = useState(false);
+  // Captured on native (react-native-view-shot) from the rendered preview below.
+  const canvasRef = useRef<View>(null);
 
   // On open: composite the personalized poster (web canvas) and upload it, so the
   // shared image is real. If capture isn't possible (native, or CORS-tainted),
@@ -42,7 +44,7 @@ export default function Personalize() {
           designation: user?.designation,
           booth: user?.boothName ?? user?.orgUnitName ?? "",
           aiLabel: t("common.aiLabelText"),
-        });
+        }, canvasRef);
         dataUrl = out ?? undefined;
       } catch {
         /* ignore capture failure */
@@ -89,7 +91,7 @@ export default function Personalize() {
       </View>
 
       {/* On-device composite preview: HQ asset + the worker's photo/name/booth + burned AI label */}
-      <View style={st.canvas}>
+      <View ref={canvasRef} collapsable={false} style={st.canvas}>
         <Image
           source={{ uri: item.sourceUrl }}
           style={StyleSheet.absoluteFill}

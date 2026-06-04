@@ -45,7 +45,10 @@ function drawCover(
   ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
 }
 
-export async function captureComposite(input: CompositeInput): Promise<string | null> {
+export async function captureComposite(
+  input: CompositeInput,
+  _viewRef?: unknown,
+): Promise<string | null> {
   try {
     if (typeof document === "undefined") return null;
     const canvas = document.createElement("canvas");

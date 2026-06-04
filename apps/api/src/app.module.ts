@@ -25,6 +25,7 @@ import { InvitesModule } from "./invites/invites.module";
 import { ContentAnalyticsModule } from "./contentanalytics/content-analytics.module";
 import { ConsentModule } from "./consent/consent.module";
 import { SchedulingModule } from "./scheduling/scheduling.module";
+import { QueueModule } from "./queue/queue.module";
 import { AppController } from "./app.controller";
 
 @Module({
@@ -55,6 +56,7 @@ import { AppController } from "./app.controller";
     ContentAnalyticsModule,
     ConsentModule,
     SchedulingModule,
+    QueueModule,
   ],
   controllers: [AppController],
 })

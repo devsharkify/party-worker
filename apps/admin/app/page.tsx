@@ -22,6 +22,7 @@ import {
 } from "@pw/shared";
 import { useAdmin } from "../src/admin-auth";
 import { EmptyState, SectionHeader, SkeletonRow, StatCard, useToast } from "../src/ui";
+import { TemplateDesigner } from "../src/template-designer";
 
 export default function Page() {
   const { user, loading } = useAdmin();
@@ -155,11 +156,19 @@ function Login() {
 /* Dashboard shell + top navigation                                   */
 /* ================================================================== */
 
-type Section = "overview" | "studio" | "organization" | "grievances" | "events" | "broadcast";
+type Section =
+  | "overview"
+  | "studio"
+  | "templates"
+  | "organization"
+  | "grievances"
+  | "events"
+  | "broadcast";
 
 const NAV: { id: Section; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "studio", label: "Studio" },
+  { id: "templates", label: "Templates" },
   { id: "organization", label: "Organization" },
   { id: "grievances", label: "Grievances" },
   { id: "events", label: "Events" },
@@ -219,6 +228,7 @@ function Dashboard() {
       <main className="mx-auto max-w-6xl space-y-8 p-6">
         {section === "overview" ? <OverviewSection /> : null}
         {section === "studio" ? <StudioSection /> : null}
+        {section === "templates" ? <TemplateDesigner /> : null}
         {section === "organization" ? <OrganizationSection /> : null}
         {section === "grievances" ? <GrievancesSection /> : null}
         {section === "events" ? <EventsSection /> : null}

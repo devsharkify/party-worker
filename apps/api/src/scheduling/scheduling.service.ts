@@ -3,14 +3,9 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-  OnModuleDestroy,
-  OnModuleInit,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreativesService } from "../creatives/creatives.service";
-
-/** How often the in-process tick scans for due creatives. */
-const TICK_INTERVAL_MS = 60_000;
 
 /** Shape returned by the schedule/unschedule endpoints. */
 export interface ScheduleResult {
@@ -27,40 +22,24 @@ export interface ScheduledCreativeRow {
 }
 
 /**
- * Content scheduling. Persists a future publish time on a Creative and runs a
- * lightweight in-process tick that auto-publishes creatives once they're due,
- * routing each through CreativesService.publish (which enforces the MCMC
- * compliance gate). Uncertified creatives throw and are simply skipped.
+ * Content scheduling. Persists a future publish time on a Creative and exposes
+ * `publishDue()`, which auto-publishes creatives once they're due by routing
+ * each through CreativesService.publish (which enforces the MCMC compliance
+ * gate). Uncertified creatives throw and are simply skipped.
  *
- * This hand-rolled setInterval is fine for a single instance. In production
- * this work would move to a real scheduler (BullMQ delayed jobs / cron on a
- * dedicated worker) so it survives restarts and doesn't fan out per-instance.
- *
- * The tick is disabled entirely when NODE_ENV==='test' so it never perturbs
- * the test runner.
+ * The periodic invocation of `publishDue()` is owned by the BullMQ queue
+ * (see QueueModule): a repeatable "scheduled-publish" job fires every 60s on a
+ * dedicated worker so the work survives restarts and doesn't fan out per
+ * instance. This service is now pure business logic with no in-process timer.
  */
 @Injectable()
-export class SchedulingService implements OnModuleInit, OnModuleDestroy {
+export class SchedulingService {
   private readonly logger = new Logger(SchedulingService.name);
-  private timer: NodeJS.Timeout | null = null;
-  private ticking = false;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly creatives: CreativesService,
   ) {}
-
-  onModuleInit(): void {
-    if (process.env.NODE_ENV === "test") return;
-    this.timer = setInterval(() => void this.tick(), TICK_INTERVAL_MS);
-    // unref() so the timer never keeps the process alive on shutdown.
-    this.timer.unref?.();
-  }
-
-  onModuleDestroy(): void {
-    if (this.timer) clearInterval(this.timer);
-    this.timer = null;
-  }
 
   /** Schedule a creative to auto-publish at a future ISO instant. */
   async schedule(id: string, scheduledAtIso: string): Promise<ScheduleResult> {
@@ -107,33 +86,31 @@ export class SchedulingService implements OnModuleInit, OnModuleDestroy {
   /**
    * One pass: publish every due, unpublished creative. Each publish is wrapped
    * in try/catch so an uncertified creative (which the compliance gate rejects)
-   * is skipped and logged rather than aborting the whole pass. A guard flag
-   * prevents overlapping ticks from running concurrently.
+   * is skipped and logged rather than aborting the whole pass. Returns the
+   * count actually published so the caller (the BullMQ worker) can log/observe.
+   *
+   * Safe to call concurrently from at most one queue worker; BullMQ guarantees
+   * a single active instance of the repeatable job.
    */
-  private async tick(): Promise<void> {
-    if (this.ticking) return;
-    this.ticking = true;
-    try {
-      const due = await this.prisma.creative.findMany({
-        where: { scheduledAt: { lte: new Date() }, published: false },
-        select: { id: true },
-      });
-      for (const { id } of due) {
-        try {
-          await this.creatives.publish(id);
-          this.logger.log(`Auto-published scheduled creative ${id}`);
-        } catch (err) {
-          // Most likely the MCMC compliance gate rejecting an uncertified
-          // creative. Skip it; a later tick can retry once it's certified.
-          this.logger.warn(
-            `Skipped scheduled creative ${id}: ${(err as Error).message}`,
-          );
-        }
+  async publishDue(): Promise<{ published: number }> {
+    const due = await this.prisma.creative.findMany({
+      where: { scheduledAt: { lte: new Date() }, published: false },
+      select: { id: true },
+    });
+    let published = 0;
+    for (const { id } of due) {
+      try {
+        await this.creatives.publish(id);
+        published += 1;
+        this.logger.log(`Auto-published scheduled creative ${id}`);
+      } catch (err) {
+        // Most likely the MCMC compliance gate rejecting an uncertified
+        // creative. Skip it; a later run can retry once it's certified.
+        this.logger.warn(
+          `Skipped scheduled creative ${id}: ${(err as Error).message}`,
+        );
       }
-    } catch (err) {
-      this.logger.error("Scheduling tick failed", err as Error);
-    } finally {
-      this.ticking = false;
     }
+    return { published };
   }
 }
