@@ -10,6 +10,7 @@ import { PrimaryButton } from "../../src/components/ui";
 import { SkeletonBlock } from "../../src/components/Skeleton";
 import { StateView } from "../../src/components/StateView";
 import { RemoteImage } from "../../src/components/RemoteImage";
+import { captureComposite } from "../../src/lib/composite";
 import { colors, radius } from "../../src/theme";
 
 /** Crude device-tier detection — native would use RAM/SoC; web is treated as high. */
@@ -25,16 +26,33 @@ export default function Personalize() {
   const { data: item, loading, error, reload } = useApi<FeedItem>(`/feed/${id}`);
   const [reported, setReported] = useState(false);
 
-  // Pre-render: report the on-device render as soon as the post opens (so sharing feels instant).
+  // On open: composite the personalized poster (web canvas) and upload it, so the
+  // shared image is real. If capture isn't possible (native, or CORS-tainted),
+  // fall back to reporting a preview-only render.
   useEffect(() => {
-    if (item && !reported) {
-      setReported(true);
-      void api(`/feed/${id}/render`, {
+    if (!item || reported) return;
+    setReported(true);
+    void (async () => {
+      let dataUrl: string | undefined;
+      try {
+        const out = await captureComposite({
+          sourceUrl: item.sourceUrl,
+          photoUrl: user?.photoUrl,
+          name: user?.name ?? "",
+          designation: user?.designation,
+          booth: user?.boothName ?? user?.orgUnitName ?? "",
+          aiLabel: t("common.aiLabelText"),
+        });
+        dataUrl = out ?? undefined;
+      } catch {
+        /* ignore capture failure */
+      }
+      await api(`/feed/${id}/render`, {
         method: "POST",
-        body: JSON.stringify({ deviceTier: detectTier(), usedServerFallback: false }),
+        body: JSON.stringify({ deviceTier: detectTier(), usedServerFallback: !dataUrl, dataUrl }),
       }).catch(() => undefined);
-    }
-  }, [item, reported, api, id]);
+    })();
+  }, [item, reported, api, id, user, t]);
 
   if (error && !item) {
     return (
