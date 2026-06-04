@@ -17,6 +17,14 @@ import { GrievancesModule } from "./grievances/grievances.module";
 import { AdminModule } from "./admin/admin.module";
 import { MaintenanceModule } from "./maintenance/maintenance.module";
 import { TeamModule } from "./team/team.module";
+import { ActivityModule } from "./activity/activity.module";
+import { AnnouncementsModule } from "./announcements/announcements.module";
+import { TeamStatsModule } from "./teamstats/teamstats.module";
+import { RecruitsModule } from "./recruits/recruits.module";
+import { InvitesModule } from "./invites/invites.module";
+import { ContentAnalyticsModule } from "./contentanalytics/content-analytics.module";
+import { ConsentModule } from "./consent/consent.module";
+import { SchedulingModule } from "./scheduling/scheduling.module";
 import { AppController } from "./app.controller";
 
 @Module({
@@ -39,6 +47,14 @@ import { AppController } from "./app.controller";
     AdminModule,
     MaintenanceModule,
     TeamModule,
+    ActivityModule,
+    AnnouncementsModule,
+    TeamStatsModule,
+    RecruitsModule,
+    InvitesModule,
+    ContentAnalyticsModule,
+    ConsentModule,
+    SchedulingModule,
   ],
   controllers: [AppController],
 })

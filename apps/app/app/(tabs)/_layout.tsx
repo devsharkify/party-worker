@@ -11,7 +11,7 @@ const icon = (ch: string) =>
   };
 
 export default function TabsLayout() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user, loading } = useAuth();
 
   if (!loading && !user) return <Redirect href="/login" />;
@@ -35,6 +35,10 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="leaderboard"
         options={{ title: t("leaderboard.title"), tabBarIcon: icon("🏆") }}
+      />
+      <Tabs.Screen
+        name="updates"
+        options={{ title: i18n.language === "te" ? "అప్‌డేట్లు" : "Updates", tabBarIcon: icon("🔔") }}
       />
       <Tabs.Screen
         name="team"

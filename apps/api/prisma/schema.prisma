@@ -271,6 +271,7 @@ model Creative {
   createdBy       User         @relation("CreativeCreatedBy", fields: [createdById], references: [id])
   published       Boolean      @default(false)
   publishedAt     DateTime?
+  scheduledAt     DateTime?
   createdAt       DateTime     @default(now())
 
   renders     PersonalizedRender[]
@@ -481,6 +482,35 @@ model ConsentRecord {
   createdAt DateTime       @default(now())
 
   @@unique([userId, purpose])
+}
+
+// HQ (or a leader) broadcast to all workers or an org subtree. createdById is a
+// plain scalar FK (no relation) to keep the User model untouched.
+model Announcement {
+  id              String   @id @default(cuid())
+  title           String
+  body            String
+  targetOrgUnitId String?
+  createdById     String
+  createdAt       DateTime @default(now())
+
+  @@index([targetOrgUnitId])
+  @@index([createdAt])
+}
+
+// A leader-generated invite to self-register into a specific unit + role.
+model InviteLink {
+  id           String    @id @default(cuid())
+  token        String    @unique
+  orgUnitId    String
+  role         Role      @default(worker)
+  createdById  String
+  createdAt    DateTime  @default(now())
+  expiresAt    DateTime?
+  acceptedById String?
+  acceptedAt   DateTime?
+
+  @@index([orgUnitId])
 }
 
 model Payment {

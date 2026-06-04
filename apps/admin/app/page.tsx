@@ -155,7 +155,7 @@ function Login() {
 /* Dashboard shell + top navigation                                   */
 /* ================================================================== */
 
-type Section = "overview" | "studio" | "organization" | "grievances" | "events";
+type Section = "overview" | "studio" | "organization" | "grievances" | "events" | "broadcast";
 
 const NAV: { id: Section; label: string }[] = [
   { id: "overview", label: "Overview" },
@@ -163,6 +163,7 @@ const NAV: { id: Section; label: string }[] = [
   { id: "organization", label: "Organization" },
   { id: "grievances", label: "Grievances" },
   { id: "events", label: "Events" },
+  { id: "broadcast", label: "Broadcast & Insights" },
 ];
 
 function Dashboard() {
@@ -221,6 +222,7 @@ function Dashboard() {
         {section === "organization" ? <OrganizationSection /> : null}
         {section === "grievances" ? <GrievancesSection /> : null}
         {section === "events" ? <EventsSection /> : null}
+        {section === "broadcast" ? <BroadcastSection /> : null}
       </main>
     </div>
   );
@@ -1594,6 +1596,477 @@ function CreateEvent({
           {busy ? "Creating…" : "Create event"}
         </button>
       </div>
+    </section>
+  );
+}
+
+/* ================================================================== */
+/* Broadcast & Insights — announcements, content perf, scheduling     */
+/* ================================================================== */
+
+interface Announcement {
+  id: string;
+  title: string;
+  body: string;
+  targetOrgUnitId: string | null;
+  createdAt: string;
+}
+
+interface ContentPerformanceRow {
+  creativeId: string;
+  title: string;
+  type: string;
+  shares: number;
+  reach: number;
+  renders: number;
+}
+
+interface TopAmplifier {
+  userId: string;
+  name: string;
+  tier: string;
+  reach: number;
+  shares: number;
+}
+
+interface ScheduledCreative {
+  id: string;
+  title: string;
+  scheduledAt: string;
+  mcmcCertified: boolean;
+}
+
+function BroadcastSection() {
+  const { api } = useAdmin();
+  const { toast } = useToast();
+  const [org, setOrg] = useState<OrgUnitNode[] | null>(null);
+
+  // Org tree powers both the composer audience picker and label resolution.
+  const loadOrg = useCallback(async () => {
+    try {
+      setOrg(await api<OrgUnitNode[]>("/org/tree"));
+    } catch {
+      setOrg([]);
+    }
+  }, [api]);
+
+  useEffect(() => {
+    void loadOrg();
+  }, [loadOrg]);
+
+  // Resolve a target unit id to a readable name; null/unknown → "All workers".
+  const resolveAudience = useCallback(
+    (targetOrgUnitId: string | null): string => {
+      if (!targetOrgUnitId) return "All workers";
+      const unit = org?.find((u) => u.id === targetOrgUnitId);
+      return unit ? `${unit.name} · ${ORG_TYPE_LABEL[unit.type]}` : "All workers";
+    },
+    [org],
+  );
+
+  return (
+    <div className="space-y-8">
+      <AnnouncementsCard
+        org={org}
+        resolveAudience={resolveAudience}
+        create={(body) =>
+          api<Announcement>("/announcements", { method: "POST", body: JSON.stringify(body) })
+        }
+        list={() => api<Announcement[]>("/announcements")}
+        onError={(m) => toast(m, "error")}
+        onSent={() => toast("Announcement sent.", "success")}
+      />
+
+      <div className="grid gap-8 lg:grid-cols-3">
+        <ContentPerformanceCard
+          loadPerformance={() => api<ContentPerformanceRow[]>("/admin/content-performance")}
+          loadAmplifiers={() => api<TopAmplifier[]>("/admin/top-amplifiers")}
+          onError={(m) => toast(m, "error")}
+        />
+        <SchedulingCard
+          list={() => api<ScheduledCreative[]>("/admin/scheduled")}
+          cancel={(id) => api(`/creatives/${id}/schedule`, { method: "DELETE" })}
+          onError={(m) => toast(m, "error")}
+          onCancelled={(title) => toast(`Cancelled schedule for “${title}”.`, "success")}
+        />
+      </div>
+    </div>
+  );
+}
+
+/** Card 1 — compose an announcement + list recent broadcasts. */
+function AnnouncementsCard({
+  org,
+  resolveAudience,
+  create,
+  list,
+  onError,
+  onSent,
+}: {
+  org: OrgUnitNode[] | null;
+  resolveAudience: (targetOrgUnitId: string | null) => string;
+  create: (body: unknown) => Promise<Announcement>;
+  list: () => Promise<Announcement[]>;
+  onError: (m: string) => void;
+  onSent: () => void;
+}) {
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  // "" = All workers (org-wide); otherwise an org unit id.
+  const [targetOrgUnitId, setTargetOrgUnitId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [items, setItems] = useState<Announcement[] | null>(null);
+
+  const orgLoading = org === null;
+
+  const refresh = useCallback(async () => {
+    try {
+      setItems(await list());
+    } catch (e) {
+      setItems([]);
+      onError((e as Error).message);
+    }
+  }, [list, onError]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const canSubmit = title.trim().length > 0 && body.trim().length > 0 && !busy;
+
+  async function submit() {
+    if (!title.trim() || !body.trim()) return;
+    setBusy(true);
+    try {
+      await create({
+        title: title.trim(),
+        body: body.trim(),
+        // Specific subtree → send the id; "All workers" → omit (whole org).
+        ...(targetOrgUnitId ? { targetOrgUnitId } : {}),
+      });
+      setTitle("");
+      setBody("");
+      setTargetOrgUnitId("");
+      onSent();
+      await refresh();
+    } catch (e) {
+      onError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const loading = items === null;
+  const count = items?.length ?? 0;
+
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <h2 className="mb-4 text-xl font-bold text-slate-900">Announcements</h2>
+      <div className="space-y-3">
+        <input
+          className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/30"
+          placeholder="Announcement title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+        />
+        <textarea
+          className="min-h-[88px] w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/30"
+          placeholder="Write your message to workers…"
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+        />
+        <label className="flex flex-col gap-1">
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Audience
+          </span>
+          <select
+            className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/30 disabled:opacity-60"
+            value={targetOrgUnitId}
+            onChange={(e) => setTargetOrgUnitId(e.target.value)}
+            disabled={orgLoading}
+          >
+            <option value="">All workers (org-wide)</option>
+            {(org ?? []).map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name} · {ORG_TYPE_LABEL[u.type]}
+              </option>
+            ))}
+          </select>
+          <span className="text-xs text-slate-400">
+            {orgLoading
+              ? "Loading org tree…"
+              : (org?.length ?? 0) === 0
+                ? "Org tree unavailable — sending to all workers."
+                : "Broadcast to everyone, or scope to one part of the org tree."}
+          </span>
+        </label>
+      </div>
+      <div className="mt-4 flex justify-end">
+        <button
+          onClick={submit}
+          disabled={!canSubmit}
+          className="rounded-lg bg-saffron px-5 py-2 font-bold text-white transition hover:brightness-105 disabled:opacity-50"
+        >
+          {busy ? "Sending…" : "Send announcement"}
+        </button>
+      </div>
+
+      {/* Recent announcements */}
+      <div className="mt-6 border-t border-slate-100 pt-5">
+        <SectionHeader title="Recent announcements" count={loading ? undefined : count} />
+        {loading ? (
+          <div className="space-y-3">
+            {[0, 1].map((i) => (
+              <SkeletonRow key={i} />
+            ))}
+          </div>
+        ) : count === 0 ? (
+          <EmptyState glyph="📣" title="No announcements yet" message="Send your first broadcast above." />
+        ) : (
+          <div className="space-y-3">
+            {items!.map((a) => {
+              const orgWide = !a.targetOrgUnitId;
+              return (
+                <div
+                  key={a.id}
+                  className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="font-bold text-slate-900">{a.title}</div>
+                    <span className="shrink-0 text-xs text-slate-400">{formatDate(a.createdAt)}</span>
+                  </div>
+                  <p className="mt-1 whitespace-pre-line text-sm text-slate-600">{a.body}</p>
+                  <div className="mt-2">
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold ${
+                        orgWide ? "bg-navy/10 text-navy" : "bg-saffron/15 text-saffron"
+                      }`}
+                    >
+                      <span aria-hidden>{orgWide ? "🌐" : "🎯"}</span>
+                      {resolveAudience(a.targetOrgUnitId)}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/** Card 2 — content performance table + top amplifiers mini-list. */
+function ContentPerformanceCard({
+  loadPerformance,
+  loadAmplifiers,
+  onError,
+}: {
+  loadPerformance: () => Promise<ContentPerformanceRow[]>;
+  loadAmplifiers: () => Promise<TopAmplifier[]>;
+  onError: (m: string) => void;
+}) {
+  const [rows, setRows] = useState<ContentPerformanceRow[] | null>(null);
+  const [amplifiers, setAmplifiers] = useState<TopAmplifier[] | null>(null);
+
+  const load = useCallback(async () => {
+    const [perf, amps] = await Promise.allSettled([loadPerformance(), loadAmplifiers()]);
+    if (perf.status === "fulfilled") setRows(perf.value);
+    else {
+      setRows([]);
+      onError((perf.reason as Error).message);
+    }
+    if (amps.status === "fulfilled") setAmplifiers(amps.value);
+    else setAmplifiers([]);
+  }, [loadPerformance, loadAmplifiers, onError]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const rowsLoading = rows === null;
+  const rowCount = rows?.length ?? 0;
+  const ampsLoading = amplifiers === null;
+  const ampCount = amplifiers?.length ?? 0;
+
+  return (
+    <section className="lg:col-span-2">
+      <SectionHeader title="Content performance" count={rowsLoading ? undefined : rowCount} />
+      {rowsLoading ? (
+        <div className="space-y-3">
+          {[0, 1, 2].map((i) => (
+            <SkeletonRow key={i} />
+          ))}
+        </div>
+      ) : rowCount === 0 ? (
+        <EmptyState glyph="📊" title="No performance data" message="Published creatives appear here once shared." />
+      ) : (
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs font-bold uppercase tracking-wide text-slate-400">
+                <th className="px-4 py-3">Title</th>
+                <th className="px-4 py-3">Type</th>
+                <th className="px-4 py-3 text-right">Shares</th>
+                <th className="px-4 py-3 text-right">Reach</th>
+                <th className="px-4 py-3 text-right">Renders</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows!.map((r) => (
+                <tr key={r.creativeId} className="border-b border-slate-100 last:border-b-0">
+                  <td className="px-4 py-3 font-bold text-slate-900">{r.title}</td>
+                  <td className="px-4 py-3 capitalize text-slate-500">{r.type}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-slate-700">
+                    {r.shares.toLocaleString()}
+                  </td>
+                  <td className="px-4 py-3 text-right font-extrabold text-navy">
+                    {r.reach.toLocaleString()}
+                  </td>
+                  <td className="px-4 py-3 text-right font-semibold text-slate-700">
+                    {r.renders.toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Top amplifiers mini-list */}
+      <div className="mt-6">
+        <SectionHeader title="Top amplifiers" count={ampsLoading ? undefined : ampCount} />
+        {ampsLoading ? (
+          <div className="space-y-3">
+            {[0, 1].map((i) => (
+              <SkeletonRow key={i} />
+            ))}
+          </div>
+        ) : ampCount === 0 ? (
+          <EmptyState glyph="🚀" title="No amplifiers yet" message="Workers who drive reach appear here." />
+        ) : (
+          <div className="space-y-2">
+            {amplifiers!.map((a, i) => (
+              <div
+                key={a.userId}
+                className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
+              >
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`grid h-7 w-7 place-items-center rounded-full text-xs font-extrabold ${
+                      i === 0
+                        ? "bg-saffron text-white"
+                        : i === 1
+                          ? "bg-slate-300 text-slate-700"
+                          : i === 2
+                            ? "bg-amber-700/80 text-white"
+                            : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    {i + 1}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="truncate font-bold text-slate-900">{a.name}</div>
+                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      {TIER_LABEL[a.tier] ?? a.tier}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="font-extrabold text-navy">{a.reach.toLocaleString()}</div>
+                  <div className="text-xs text-slate-400">reach</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/** Card 3 — scheduled creatives with cancel controls. */
+function SchedulingCard({
+  list,
+  cancel,
+  onError,
+  onCancelled,
+}: {
+  list: () => Promise<ScheduledCreative[]>;
+  cancel: (id: string) => Promise<unknown>;
+  onError: (m: string) => void;
+  onCancelled: (title: string) => void;
+}) {
+  const [items, setItems] = useState<ScheduledCreative[] | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      setItems(await list());
+    } catch (e) {
+      setItems([]);
+      onError((e as Error).message);
+    }
+  }, [list, onError]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  async function onCancel(item: ScheduledCreative) {
+    setBusyId(item.id);
+    try {
+      await cancel(item.id);
+      onCancelled(item.title);
+      await refresh();
+    } catch (e) {
+      onError((e as Error).message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  const loading = items === null;
+  const count = items?.length ?? 0;
+
+  return (
+    <section>
+      <SectionHeader title="Scheduled" count={loading ? undefined : count} />
+      {loading ? (
+        <div className="space-y-3">
+          {[0, 1].map((i) => (
+            <SkeletonRow key={i} />
+          ))}
+        </div>
+      ) : count === 0 ? (
+        <EmptyState glyph="⏰" title="Nothing scheduled" message="Scheduled creatives appear here." />
+      ) : (
+        <div className="space-y-3">
+          {items!.map((s) => (
+            <div
+              key={s.id}
+              className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="font-bold text-slate-900">{s.title}</div>
+                  <div className="mt-0.5 text-sm text-slate-500">{formatDateTime(s.scheduledAt)}</div>
+                </div>
+                <Badge ok={s.mcmcCertified} okText="MCMC ✓" noText="Uncertified" />
+              </div>
+              <div className="mt-3 flex justify-end border-t border-slate-100 pt-3">
+                <button
+                  onClick={() => onCancel(s)}
+                  disabled={busyId === s.id}
+                  className="rounded-md bg-rose-100 px-3 py-1 text-sm font-bold text-rose-700 transition hover:bg-rose-200 disabled:opacity-50"
+                >
+                  {busyId === s.id ? "Cancelling…" : "Cancel"}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
