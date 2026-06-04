@@ -49,14 +49,14 @@ export class AuthController {
 
   @Post("request-otp")
   @UseGuards(RateLimitGuard)
-  @RateLimit({ limit: 8, windowMs: 10 * 60_000 })
+  @RateLimit({ limit: 30, windowMs: 10 * 60_000 })
   async requestOtp(@Body(new ZodValidationPipe(requestOtpSchema)) dto: RequestOtpBody) {
     return this.auth.requestOtp(dto.phone);
   }
 
   @Post("verify-otp")
   @UseGuards(RateLimitGuard)
-  @RateLimit({ limit: 8, windowMs: 10 * 60_000 })
+  @RateLimit({ limit: 30, windowMs: 10 * 60_000 })
   async verifyOtp(
     @Body(new ZodValidationPipe(verifyOtpSchema)) dto: VerifyBody,
     @Res({ passthrough: true }) reply: FastifyReply,

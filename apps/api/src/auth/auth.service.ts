@@ -30,20 +30,26 @@ export class AuthService {
   ) {}
 
   async requestOtp(phone: string): Promise<{ sent: true; devHint?: string }> {
-    const since = new Date(Date.now() - 3600_000);
-    const recent = await this.prisma.otpChallenge.count({
-      where: { phone, createdAt: { gte: since } },
-    });
-    if (recent >= 5) {
-      throw new HttpException(
-        "Too many OTP requests. Please try again later.",
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
-
     // Demo/test numbers (and fake mode) skip real SMS and accept the dev code.
     const isTestNumber =
       this.env.OTP_PROVIDER === "fake" || phone.startsWith(this.env.OTP_BYPASS_PREFIX);
+
+    // Per-phone hourly throttle protects against targeting one real number with
+    // SMS spam (cost + nuisance). Test numbers send no SMS, so they're exempt —
+    // otherwise shared-IP demos / booth offices would lock themselves out.
+    if (!isTestNumber) {
+      const since = new Date(Date.now() - 3600_000);
+      const recent = await this.prisma.otpChallenge.count({
+        where: { phone, createdAt: { gte: since } },
+      });
+      if (recent >= 5) {
+        throw new HttpException(
+          "Too many OTP requests. Please try again later.",
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+    }
+
     const code = isTestNumber ? this.env.DEV_OTP_CODE : genOtpCode();
 
     await this.prisma.otpChallenge.create({
