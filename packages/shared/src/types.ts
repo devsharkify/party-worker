@@ -48,6 +48,30 @@ export interface OrgUnitNode {
   memberCount: number;
 }
 
+/** A member row shown in a leader's team / org-unit roster. */
+export interface OrgMemberRow {
+  id: string;
+  name: string;
+  phone: string;
+  photoUrl: string | null;
+  role: Role;
+  tier: Tier;
+  designation: string | null;
+  orgUnitId: string;
+  orgUnitName: string;
+  lifetimeReputation: number;
+  weeklyLeaguePoints: number;
+  membershipActive: boolean;
+  isLeader: boolean;
+}
+
+/** Result of onboarding a member into the hierarchy. */
+export interface OnboardResult {
+  member: OrgMemberRow;
+  /** points credited to the recruiter for growing the network */
+  recruiterPointsAwarded: number;
+}
+
 export interface MembershipCard {
   userId: string;
   name: string;

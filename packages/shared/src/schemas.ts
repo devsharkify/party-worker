@@ -8,6 +8,8 @@ import {
   ConsentPurpose,
   DeviceTier,
   GrievanceStatus,
+  OrgUnitType,
+  Role,
 } from "./enums";
 
 /** RSVP status a worker can set for an event. */
@@ -183,6 +185,25 @@ export const createEventSchema = z.object({
   orgUnitId: z.string().optional(),
 });
 export type CreateEventDto = z.infer<typeof createEventSchema>;
+
+// --- Org hierarchy management (leaders build their own subtree) ---
+/** Create a child org unit (a new "audience" / team) under a parent. */
+export const createOrgUnitSchema = z.object({
+  name: z.string().min(1).max(120),
+  type: OrgUnitType,
+  parentId: z.string().min(1),
+});
+export type CreateOrgUnitDto = z.infer<typeof createOrgUnitSchema>;
+
+/** A leader onboards a member (worker or sub-leader) into a unit they manage. */
+export const onboardMemberSchema = z.object({
+  name: z.string().min(1).max(120),
+  phone: phoneSchema,
+  role: Role,
+  orgUnitId: z.string().min(1),
+  designation: z.string().max(120).optional(),
+});
+export type OnboardMemberDto = z.infer<typeof onboardMemberSchema>;
 
 // --- Pagination ---
 export const paginationSchema = z.object({

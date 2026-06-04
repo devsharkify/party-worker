@@ -16,6 +16,7 @@ import { EventsModule } from "./events/events.module";
 import { GrievancesModule } from "./grievances/grievances.module";
 import { AdminModule } from "./admin/admin.module";
 import { MaintenanceModule } from "./maintenance/maintenance.module";
+import { TeamModule } from "./team/team.module";
 import { AppController } from "./app.controller";
 
 @Module({
@@ -37,6 +38,7 @@ import { AppController } from "./app.controller";
     GrievancesModule,
     AdminModule,
     MaintenanceModule,
+    TeamModule,
   ],
   controllers: [AppController],
 })
