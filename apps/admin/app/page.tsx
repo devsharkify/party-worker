@@ -835,6 +835,17 @@ function GrievancesSection() {
                   {g.description ? (
                     <p className="mt-1 whitespace-pre-line text-sm text-slate-600">{g.description}</p>
                   ) : null}
+                  {g.citizenName || g.citizenPhone || g.location ? (
+                    <p className="mt-1 text-xs text-slate-500">
+                      {g.citizenName ? (
+                        <>
+                          Citizen <span className="font-semibold text-slate-700">{g.citizenName}</span>
+                        </>
+                      ) : null}
+                      {g.citizenPhone ? <> · {g.citizenPhone}</> : null}
+                      {g.location ? <> · 📍 {g.location}</> : null}
+                    </p>
+                  ) : null}
                   <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
                     <span>
                       Filed by <span className="font-semibold text-slate-600">{g.filedByName}</span>

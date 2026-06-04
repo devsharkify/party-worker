@@ -107,6 +107,12 @@ enum GrievanceStatus {
   rejected
 }
 
+enum RsvpStatus {
+  going
+  maybe
+  no
+}
+
 enum ScoreReason {
   share
   recruit_initial
@@ -420,8 +426,9 @@ model Rsvp {
   eventId   String
   event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status    RsvpStatus @default(going)
+  createdAt DateTime   @default(now())
 
   @@unique([eventId, userId])
 }
@@ -441,12 +448,16 @@ model CheckIn {
 }
 
 model Grievance {
-  id          String          @id @default(cuid())
-  title       String
-  description String?
-  lat         Float?
-  lng         Float?
-  photoKey    String?
+  id           String          @id @default(cuid())
+  title        String
+  category     String?
+  description  String?
+  citizenName  String?
+  citizenPhone String?
+  location     String?
+  lat          Float?
+  lng          Float?
+  photoKey     String?
   status      GrievanceStatus @default(open)
   filedById   String
   filedBy     User            @relation("GrievanceFiledBy", fields: [filedById], references: [id])

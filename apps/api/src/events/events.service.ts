@@ -28,7 +28,7 @@ export class EventsService {
       where: { startsAt: { gte: since } },
       orderBy: { startsAt: "asc" },
       include: {
-        rsvps: { where: { userId }, select: { id: true } },
+        rsvps: { where: { userId }, select: { id: true, status: true } },
         checkIns: { where: { userId }, select: { id: true } },
       },
     });
@@ -44,7 +44,7 @@ export class EventsService {
       lng: e.lng,
       qrToken: e.qrToken,
       orgUnitId: e.orgUnitId,
-      rsvpStatus: e.rsvps.length > 0 ? ("going" as RsvpStatus) : null,
+      rsvpStatus: e.rsvps[0] ? (e.rsvps[0].status as RsvpStatus) : null,
       checkedIn: e.checkIns.length > 0,
     }));
   }
@@ -84,8 +84,8 @@ export class EventsService {
     await this.prisma.event.findUniqueOrThrow({ where: { id: eventId } });
     await this.prisma.rsvp.upsert({
       where: { eventId_userId: { eventId, userId } },
-      create: { eventId, userId },
-      update: {},
+      create: { eventId, userId, status },
+      update: { status },
     });
     return { eventId, status };
   }

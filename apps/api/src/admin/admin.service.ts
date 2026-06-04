@@ -101,7 +101,11 @@ export class AdminService {
     return rows.map((g) => ({
       id: g.id,
       title: g.title,
+      category: g.category,
       description: g.description,
+      citizenName: g.citizenName,
+      citizenPhone: g.citizenPhone,
+      location: g.location,
       status: g.status as GrievanceStatus,
       createdAt: g.createdAt.toISOString(),
       filedByName: g.filedBy?.name ?? "Unknown",
@@ -130,7 +134,11 @@ export class AdminService {
     return {
       id: updated.id,
       title: updated.title,
+      category: updated.category,
       description: updated.description,
+      citizenName: updated.citizenName,
+      citizenPhone: updated.citizenPhone,
+      location: updated.location,
       status: updated.status as GrievanceStatus,
       createdAt: updated.createdAt.toISOString(),
       filedByName: updated.filedBy?.name ?? "Unknown",

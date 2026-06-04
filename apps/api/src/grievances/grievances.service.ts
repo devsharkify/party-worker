@@ -14,24 +14,17 @@ export class GrievancesService {
     private readonly scoring: ScoringService,
   ) {}
 
-  /**
-   * The Grievance model stores title/description only, so optional citizen
-   * contact + location are appended to the description to avoid losing them.
-   */
-  private composeDescription(dto: CreateGrievanceDto): string | null {
-    const extras: string[] = [];
-    if (dto.citizenName) extras.push(`Citizen: ${dto.citizenName}`);
-    if (dto.citizenPhone) extras.push(`Phone: ${dto.citizenPhone}`);
-    if (dto.location) extras.push(`Location: ${dto.location}`);
-    const parts = [dto.description?.trim(), extras.join(" · ")].filter(Boolean);
-    return parts.length ? parts.join("\n\n") : null;
-  }
-
   async create(userId: string, dto: CreateGrievanceDto): Promise<GrievanceCreated> {
+    // `title` carries the category label chosen in the app; citizen contact and
+    // location are first-class columns (structured, filterable, privacy-scoped).
     const grievance = await this.prisma.grievance.create({
       data: {
         title: dto.title,
-        description: this.composeDescription(dto),
+        category: dto.title,
+        description: dto.description?.trim() || null,
+        citizenName: dto.citizenName || null,
+        citizenPhone: dto.citizenPhone || null,
+        location: dto.location || null,
         filedById: userId,
       },
     });
@@ -58,6 +51,10 @@ export class GrievancesService {
       title: g.title,
       status: g.status,
       createdAt: g.createdAt.toISOString(),
+      description: g.description,
+      citizenName: g.citizenName,
+      citizenPhone: g.citizenPhone,
+      location: g.location,
       photoUrl: g.photoKey ? g.photoKey : null,
     }));
   }

@@ -160,6 +160,10 @@ export interface GrievanceSummary {
   title: string;
   status: GrievanceStatus;
   createdAt: string;
+  description: string | null;
+  citizenName: string | null;
+  citizenPhone: string | null;
+  location: string | null;
   photoUrl: string | null;
 }
 
@@ -242,7 +246,11 @@ export interface AdminStats {
 export interface AdminGrievanceRow {
   id: string;
   title: string;
+  category: string | null;
   description: string | null;
+  citizenName: string | null;
+  citizenPhone: string | null;
+  location: string | null;
   status: GrievanceStatus;
   createdAt: string;
   /** the worker who filed it */
