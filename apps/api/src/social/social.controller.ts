@@ -1,5 +1,6 @@
-import { Body, Controller, Get, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Post, Query, Req, Res, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
+import type { FastifyReply, FastifyRequest } from "fastify";
 import { SocialAccountType } from "@pw/shared";
 import { z } from "zod";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
@@ -11,6 +12,11 @@ import { SocialService } from "./social.service";
 const connectSchema = z.object({
   type: SocialAccountType.default("creator"),
   handle: z.string().optional(),
+});
+
+const publishSchema = z.object({
+  creativeId: z.string().min(1),
+  kind: z.enum(["feed", "story", "reel"]).default("feed"),
 });
 
 @ApiTags("social")
@@ -39,8 +45,42 @@ export class SocialController {
     return this.social.disconnectInstagram(user.id);
   }
 
+  @Post("instagram/publish")
+  publish(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(publishSchema))
+    dto: { creativeId: string; kind: "feed" | "story" | "reel" },
+  ) {
+    return this.social.publishToInstagram(user.id, dto.creativeId, dto.kind);
+  }
+
   @Post("instagram/sync")
   sync(@CurrentUser() user: AuthUser) {
     return this.social.syncInstagram(user.id);
+  }
+}
+
+/**
+ * Public Meta OAuth redirect target (no JWT — the user arrives here from Meta).
+ * The signed `state` carries the worker id; we exchange the code and redirect back.
+ */
+@ApiTags("social")
+@Controller("social/instagram")
+export class SocialOAuthController {
+  constructor(private readonly social: SocialService) {}
+
+  @Get("callback")
+  async callback(
+    @Query("code") code: string | undefined,
+    @Query("state") state: string | undefined,
+    @Req() _req: FastifyRequest,
+    @Res() reply: FastifyReply,
+  ): Promise<void> {
+    if (!code || !state) {
+      reply.code(400).send("Missing code/state");
+      return;
+    }
+    const { redirectUrl } = await this.social.handleOAuthCallback(code, state);
+    reply.redirect(redirectUrl);
   }
 }

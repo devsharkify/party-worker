@@ -413,6 +413,8 @@ interface CreativeRow {
   mcmcCertified: boolean;
   aiLabeled: boolean;
   mcmcCertId: string | null;
+  /** Org subtree this creative is published to; null = whole org (all workers). */
+  targetOrgUnitId: string | null;
 }
 
 function StudioSection() {
@@ -456,6 +458,7 @@ function StudioSection() {
     <div className="space-y-8">
       {/* ===== Create creative ===== */}
       <CreateCreative
+        org={org}
         onCreated={async () => {
           await loadCreatives();
           toast("Draft created.", "success");
@@ -479,6 +482,7 @@ function StudioSection() {
                 <CreativeCard
                   key={c.id}
                   c={c}
+                  org={org}
                   onCertify={async (certId) => {
                     await api(`/creatives/${c.id}/certify`, {
                       method: "POST",
@@ -545,11 +549,13 @@ function TemplateCard({ t }: { t: RenderTemplate }) {
 }
 
 function CreateCreative({
+  org,
   onCreated,
   uploadFile,
   create,
   onError,
 }: {
+  org: OrgUnitNode[] | null;
   onCreated: () => Promise<void>;
   uploadFile: (f: File) => Promise<{ key: string }>;
   create: (body: unknown) => Promise<unknown>;
@@ -560,7 +566,11 @@ function CreateCreative({
   const [te, setTe] = useState("");
   const [en, setEn] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  // "" = All workers (org-wide); otherwise an org unit id.
+  const [targetOrgUnitId, setTargetOrgUnitId] = useState("");
   const [busy, setBusy] = useState(false);
+
+  const orgLoading = org === null;
 
   async function submit() {
     if (!title) return;
@@ -573,11 +583,14 @@ function CreateCreative({
         sourceKey,
         captionVariants: { te, en },
         languages: ["te", "en"],
+        // Specific subtree → send the id; "All workers" → omit (whole org).
+        ...(targetOrgUnitId ? { targetOrgUnitId } : {}),
       });
       setTitle("");
       setTe("");
       setEn("");
       setFile(null);
+      setTargetOrgUnitId("");
       await onCreated();
     } catch (e) {
       onError((e as Error).message);
@@ -617,6 +630,31 @@ function CreateCreative({
           value={en}
           onChange={(e) => setEn(e.target.value)}
         />
+        <label className="flex flex-col gap-1 sm:col-span-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Audience
+          </span>
+          <select
+            className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/30 disabled:opacity-60"
+            value={targetOrgUnitId}
+            onChange={(e) => setTargetOrgUnitId(e.target.value)}
+            disabled={orgLoading}
+          >
+            <option value="">All workers (org-wide)</option>
+            {(org ?? []).map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name} · {u.type}
+              </option>
+            ))}
+          </select>
+          <span className="text-xs text-slate-400">
+            {orgLoading
+              ? "Loading org tree…"
+              : (org?.length ?? 0) === 0
+                ? "Org tree unavailable — publishing to all workers."
+                : "Broadcast to everyone, or scope to one part of the org tree."}
+          </span>
+        </label>
       </div>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
         <input
@@ -638,15 +676,25 @@ function CreateCreative({
 
 function CreativeCard({
   c,
+  org,
   onCertify,
   onPublish,
 }: {
   c: CreativeRow;
+  org: OrgUnitNode[] | null;
   onCertify: (certId: string) => Promise<void>;
   onPublish: () => Promise<void>;
 }) {
   const [certId, setCertId] = useState("MCMC/TG/2026/");
   const [busy, setBusy] = useState(false);
+
+  // Resolve the target unit from the cached org tree; fall back to the raw id.
+  const audience = (() => {
+    if (!c.targetOrgUnitId) return "All workers";
+    const unit = org?.find((u) => u.id === c.targetOrgUnitId);
+    return unit ? `${unit.name} · ${unit.type}` : c.targetOrgUnitId;
+  })();
+  const orgWide = !c.targetOrgUnitId;
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-md">
@@ -660,6 +708,16 @@ function CreativeCard({
           <Badge ok={c.mcmcCertified} okText="MCMC ✓" noText="Uncertified" />
           <Badge ok={c.aiLabeled} okText="AI-labeled" noText="No AI label" />
         </div>
+      </div>
+      <div className="mt-2">
+        <span
+          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold ${
+            orgWide ? "bg-navy/10 text-navy" : "bg-saffron/15 text-saffron"
+          }`}
+        >
+          <span aria-hidden>{orgWide ? "🌐" : "🎯"}</span>
+          {audience}
+        </span>
       </div>
       {!c.published ? (
         <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">

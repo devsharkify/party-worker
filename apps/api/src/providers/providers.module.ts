@@ -7,6 +7,7 @@ import {
   ASSISTED_SHARE,
   DefaultAssistedShareProvider,
   INSTAGRAM_PROVIDER,
+  InstagramGraphProvider,
   MockInstagramProvider,
 } from "./posting.provider";
 import { MockPaymentProvider, PAYMENT_PROVIDER } from "./payment.provider";
@@ -23,7 +24,10 @@ const providers: Provider[] = [
   { provide: STORAGE_PROVIDER, useClass: LocalStorageProvider },
   { provide: PUSH_PROVIDER, useClass: MockPushProvider },
   { provide: ASSISTED_SHARE, useClass: DefaultAssistedShareProvider },
-  { provide: INSTAGRAM_PROVIDER, useClass: MockInstagramProvider },
+  {
+    provide: INSTAGRAM_PROVIDER,
+    useClass: env.INSTAGRAM_PROVIDER === "graph" ? InstagramGraphProvider : MockInstagramProvider,
+  },
   { provide: PAYMENT_PROVIDER, useClass: MockPaymentProvider },
 ];
 

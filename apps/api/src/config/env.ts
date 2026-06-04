@@ -35,6 +35,19 @@ const EnvSchema = z.object({
   PUSH_PROVIDER: z.enum(["mock", "fcm"]).default("mock"),
   INSTAGRAM_PROVIDER: z.enum(["mock", "graph"]).default("mock"),
   META_OAUTH_REDIRECT: z.string().default("http://localhost:4000/social/instagram/callback"),
+  // Meta Graph (Instagram) — used when INSTAGRAM_PROVIDER=graph. Empty in dev.
+  META_APP_ID: z.string().default(""),
+  META_APP_SECRET: z.string().default(""),
+  META_GRAPH_VERSION: z.string().default("v21.0"),
+  INSTAGRAM_SCOPES: z
+    .string()
+    .default(
+      "instagram_basic,instagram_content_publish,instagram_manage_insights,pages_show_list,business_management",
+    ),
+  // 32+ char secret used to AES-256-GCM encrypt stored OAuth tokens.
+  SOCIAL_TOKEN_ENC_KEY: z.string().default("dev-social-token-encryption-key-change-me!"),
+  // Where the OAuth callback sends the user back (the app/admin) after linking.
+  SOCIAL_CONNECT_RETURN_URL: z.string().default("http://localhost:8081/profile"),
 
   PAYMENT_PROVIDER: z.enum(["mock", "razorpay"]).default("mock"),
   MEMBERSHIP_FEE_INR: z.coerce.number().default(100),

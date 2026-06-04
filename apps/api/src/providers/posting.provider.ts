@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import type { ShareChannel } from "@pw/shared";
+import { loadEnv } from "../config/env";
 
 export const ASSISTED_SHARE = Symbol("ASSISTED_SHARE");
 export const INSTAGRAM_PROVIDER = Symbol("INSTAGRAM_PROVIDER");
@@ -36,7 +37,7 @@ export class DefaultAssistedShareProvider implements AssistedShareProvider {
 // --- Instagram Graph (opt-in, connected Creator/Business accounts only) ---
 
 export interface IgPublishInput {
-  account: { handle: string; accessToken?: string };
+  account: { handle: string; accessToken?: string; igUserId?: string };
   mediaUrl: string;
   caption: string;
   kind: "feed" | "story" | "reel";
@@ -79,5 +80,116 @@ export class MockInstagramProvider implements InstagramProvider {
       likes: Math.floor(reach / 8),
       comments: Math.floor(reach / 40),
     };
+  }
+}
+
+/**
+ * Real Instagram Graph API provider (used when INSTAGRAM_PROVIDER=graph).
+ * Content Publishing: create a media container then publish it. Insights: read
+ * reach/likes/comments on a published media. Requires a connected Business/Creator
+ * account (igUserId) and a valid page access token, plus app review for
+ * instagram_content_publish + instagram_manage_insights in production.
+ */
+@Injectable()
+export class InstagramGraphProvider implements InstagramProvider {
+  private readonly log = new Logger("InstagramGraphProvider");
+  private readonly env = loadEnv();
+  private get base(): string {
+    return `https://graph.facebook.com/${this.env.META_GRAPH_VERSION}`;
+  }
+
+  async publish(input: IgPublishInput): Promise<{ remoteId: string }> {
+    const igUserId = input.account.igUserId;
+    const token = input.account.accessToken;
+    if (!igUserId || !token) {
+      throw new Error("Instagram account is not fully connected (missing account id or token)");
+    }
+
+    // 1) Create the media container.
+    const createParams = new URLSearchParams({ caption: input.caption, access_token: token });
+    if (input.kind === "story") {
+      createParams.set("media_type", "STORIES");
+      createParams.set("image_url", input.mediaUrl);
+    } else if (input.kind === "reel") {
+      createParams.set("media_type", "REELS");
+      createParams.set("video_url", input.mediaUrl);
+    } else {
+      createParams.set("image_url", input.mediaUrl);
+    }
+    const container = await this.graphPost(`${this.base}/${igUserId}/media`, createParams);
+
+    // 2) Video/reel containers process async — wait until FINISHED.
+    if (input.kind === "reel") await this.waitForContainer(container.id, token);
+
+    // 3) Publish the container.
+    const published = await this.graphPost(
+      `${this.base}/${igUserId}/media_publish`,
+      new URLSearchParams({ creation_id: container.id, access_token: token }),
+    );
+    this.log.log(`IG published ${input.kind} as @${input.account.handle} -> ${published.id}`);
+    return { remoteId: String(published.id) };
+  }
+
+  async getInsights(input: { mediaId: string; accessToken?: string }): Promise<IgInsights> {
+    const token = input.accessToken;
+    if (!token) throw new Error("Missing Instagram access token for insights");
+
+    const insights = await this.graphGet(`${this.base}/${input.mediaId}/insights`, {
+      metric: "reach",
+      access_token: token,
+    }).catch(() => ({ data: [] }));
+    const reach = this.metricValue(insights, "reach");
+
+    const media = await this.graphGet(`${this.base}/${input.mediaId}`, {
+      fields: "like_count,comments_count,media_type",
+      access_token: token,
+    }).catch(() => ({}));
+
+    return {
+      reach,
+      views: reach, // per-media "views" varies by type; reach is the stable proxy
+      likes: Number(media.like_count ?? 0),
+      comments: Number(media.comments_count ?? 0),
+    };
+  }
+
+  private metricValue(resp: { data?: { name: string; values?: { value: number }[] }[] }, name: string): number {
+    const item = (resp.data ?? []).find((d) => d.name === name);
+    return Number(item?.values?.[0]?.value ?? 0);
+  }
+
+  private async waitForContainer(creationId: string, token: string): Promise<void> {
+    for (let i = 0; i < 12; i++) {
+      const status = await this.graphGet(`${this.base}/${creationId}`, {
+        fields: "status_code",
+        access_token: token,
+      });
+      if (status.status_code === "FINISHED") return;
+      if (status.status_code === "ERROR") throw new Error("Instagram media processing failed");
+      await new Promise((r) => setTimeout(r, 2500));
+    }
+    throw new Error("Instagram media processing timed out");
+  }
+
+  private async graphPost(url: string, params: URLSearchParams): Promise<any> {
+    const res = await fetch(url, { method: "POST", body: params });
+    const json: any = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      this.log.error(`Graph POST failed (${res.status}): ${JSON.stringify(json?.error ?? json)}`);
+      throw new Error(json?.error?.message ?? "Instagram Graph request failed");
+    }
+    return json;
+  }
+
+  private async graphGet(url: string, params: Record<string, string>): Promise<any> {
+    const u = new URL(url);
+    for (const [k, v] of Object.entries(params)) u.searchParams.set(k, v);
+    const res = await fetch(u);
+    const json: any = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      this.log.error(`Graph GET failed (${res.status}): ${JSON.stringify(json?.error ?? json)}`);
+      throw new Error(json?.error?.message ?? "Instagram Graph request failed");
+    }
+    return json;
   }
 }
