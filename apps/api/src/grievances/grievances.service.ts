@@ -1,10 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import type { CreateGrievanceDto, GrievanceCreated, GrievanceSummary } from "@pw/shared";
+import { SCORING } from "@pw/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { ScoringService } from "../scoring/scoring.service";
 
-/** Points credited to a worker for filing a citizen grievance. */
-const FILE_POINTS = 5;
+/** Points credited to a worker for filing a citizen grievance (single source of truth in @pw/shared). */
+const FILE_POINTS = SCORING.GRIEVANCE_FILE;
 
 @Injectable()
 export class GrievancesService {

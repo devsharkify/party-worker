@@ -7,11 +7,12 @@ import type {
   RsvpResult,
   RsvpStatus,
 } from "@pw/shared";
+import { SCORING } from "@pw/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { ScoringService } from "../scoring/scoring.service";
 
-/** Points credited for a QR-verified event check-in. */
-const CHECKIN_POINTS = 15;
+/** Points credited for a QR-verified event check-in (single source of truth in @pw/shared). */
+const CHECKIN_POINTS = SCORING.EVENT_CHECKIN;
 
 @Injectable()
 export class EventsService {
