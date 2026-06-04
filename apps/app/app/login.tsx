@@ -13,7 +13,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "../src/auth/auth-context";
 import { setLanguage } from "../src/i18n";
 import { PrimaryButton } from "../src/components/ui";
-import { colors, radius } from "../src/theme";
+import { colors, radius, shadow } from "../src/theme";
 
 export default function Login() {
   const { t, i18n } = useTranslation();
@@ -74,7 +74,9 @@ export default function Login() {
           ))}
         </View>
 
-        <Text style={st.logo}>★</Text>
+        <View style={st.logoRing}>
+          <Text style={st.logo}>★</Text>
+        </View>
         <Text style={st.title}>{t("common.appName")}</Text>
         <Text style={st.subtitle}>{t("auth.loginSubtitle")}</Text>
 
@@ -139,10 +141,28 @@ const st = StyleSheet.create({
   langActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   langText: { color: colors.textMutedOnDark, fontWeight: "600" },
   langTextActive: { color: "#fff" },
-  logo: { fontSize: 56, textAlign: "center", color: colors.primary },
-  title: { fontSize: 30, fontWeight: "800", color: "#fff", textAlign: "center", marginTop: 8 },
+  logoRing: {
+    alignSelf: "center",
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: "rgba(255,153,51,0.14)",
+    borderWidth: 2,
+    borderColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logo: { fontSize: 44, textAlign: "center", color: colors.primary, lineHeight: 52 },
+  title: { fontSize: 30, fontWeight: "800", color: "#fff", textAlign: "center", marginTop: 14 },
   subtitle: { fontSize: 15, color: colors.textMutedOnDark, textAlign: "center", marginTop: 6, marginBottom: 28 },
-  card: { backgroundColor: "#fff", borderRadius: radius.xl, padding: 22 },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: radius.xl,
+    padding: 22,
+    ...shadow,
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+  },
   label: { fontSize: 14, fontWeight: "700", color: colors.text, marginBottom: 8 },
   input: {
     borderWidth: 1,

@@ -27,6 +27,11 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen name="feed" options={{ title: t("feed.title"), tabBarIcon: icon("🏠") }} />
+      <Tabs.Screen name="events" options={{ title: t("events.title"), tabBarIcon: icon("📅") }} />
+      <Tabs.Screen
+        name="grievances"
+        options={{ title: t("grievances.title"), tabBarIcon: icon("📣") }}
+      />
       <Tabs.Screen
         name="leaderboard"
         options={{ title: t("leaderboard.title"), tabBarIcon: icon("🏆") }}

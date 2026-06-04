@@ -1,0 +1,29 @@
+import { Body, Controller, Get, Post, UseGuards } from "@nestjs/common";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
+import { createGrievanceSchema, type CreateGrievanceDto } from "@pw/shared";
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { CurrentUser } from "../auth/current-user.decorator";
+import type { AuthUser } from "../auth/auth.types";
+import { ZodValidationPipe } from "../common/zod-validation.pipe";
+import { GrievancesService } from "./grievances.service";
+
+@ApiTags("grievances")
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
+@Controller("grievances")
+export class GrievancesController {
+  constructor(private readonly grievances: GrievancesService) {}
+
+  @Post()
+  create(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(createGrievanceSchema)) dto: CreateGrievanceDto,
+  ) {
+    return this.grievances.create(user.id, dto);
+  }
+
+  @Get("mine")
+  mine(@CurrentUser() user: AuthUser) {
+    return this.grievances.listMine(user.id);
+  }
+}

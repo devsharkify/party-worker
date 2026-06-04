@@ -10,7 +10,7 @@ import type {
   ConsentPurpose,
   GrievanceStatus,
 } from "./enums";
-import type { TemplateZone, CaptionVariants } from "./schemas";
+import type { TemplateZone, CaptionVariants, RsvpStatus } from "./schemas";
 
 /** Public shape of a user returned to clients (no secrets). */
 export interface UserPublic {
@@ -161,4 +161,45 @@ export interface GrievanceSummary {
   status: GrievanceStatus;
   createdAt: string;
   photoUrl: string | null;
+}
+
+/** An upcoming event, with the viewer's own RSVP/check-in state. */
+export interface EventItem {
+  id: string;
+  title: string;
+  description: string | null;
+  startsAt: string;
+  location: string | null;
+  lat: number | null;
+  lng: number | null;
+  /** the event's QR token (used by the demo check-in button) */
+  qrToken: string;
+  orgUnitId: string | null;
+  /** the viewer's RSVP, if any */
+  rsvpStatus: RsvpStatus | null;
+  /** whether the viewer has already checked in */
+  checkedIn: boolean;
+}
+
+/** Result of POST /events/:id/rsvp. */
+export interface RsvpResult {
+  eventId: string;
+  status: RsvpStatus;
+}
+
+/** Result of POST /events/:id/checkin. */
+export interface CheckInResult {
+  checkedIn: boolean;
+  /** points credited for this check-in (0 if already checked in) */
+  pointsAwarded: number;
+}
+
+/** Result of POST /grievances. */
+export interface GrievanceCreated {
+  id: string;
+  title: string;
+  status: GrievanceStatus;
+  createdAt: string;
+  /** points credited for filing (0 if none) */
+  pointsAwarded: number;
 }

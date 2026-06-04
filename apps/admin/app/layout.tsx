@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import { AdminAuthProvider } from "../src/admin-auth";
+import { ToastProvider } from "../src/ui";
 
 export const metadata: Metadata = {
   title: "Party Worker — HQ Admin",
@@ -10,8 +11,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>
-        <AdminAuthProvider>{children}</AdminAuthProvider>
+      <body className="antialiased">
+        <AdminAuthProvider>
+          <ToastProvider>{children}</ToastProvider>
+        </AdminAuthProvider>
       </body>
     </html>
   );

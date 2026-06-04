@@ -9,6 +9,10 @@ import {
   DeviceTier,
 } from "./enums";
 
+/** RSVP status a worker can set for an event. */
+export const RsvpStatus = z.enum(["going", "maybe", "no"]);
+export type RsvpStatus = z.infer<typeof RsvpStatus>;
+
 /** Indian phone: +91XXXXXXXXXX or a bare 10-digit number starting 6-9. */
 export const phoneSchema = z
   .string()
@@ -135,6 +139,28 @@ export const startMembershipSchema = z.object({
   amountInr: z.number().int().positive().optional(),
 });
 export type StartMembershipDto = z.infer<typeof startMembershipSchema>;
+
+// --- Events ---
+export const rsvpEventSchema = z.object({
+  status: RsvpStatus,
+});
+export type RsvpEventDto = z.infer<typeof rsvpEventSchema>;
+
+export const checkInEventSchema = z.object({
+  /** the event's QR token; in the demo the screen posts the event's own token */
+  qrToken: z.string().min(1),
+});
+export type CheckInEventDto = z.infer<typeof checkInEventSchema>;
+
+// --- Grievances ---
+export const createGrievanceSchema = z.object({
+  title: z.string().min(1).max(140),
+  description: z.string().max(2000).optional(),
+  citizenName: z.string().max(120).optional(),
+  citizenPhone: z.string().max(20).optional(),
+  location: z.string().max(200).optional(),
+});
+export type CreateGrievanceDto = z.infer<typeof createGrievanceSchema>;
 
 // --- Pagination ---
 export const paginationSchema = z.object({

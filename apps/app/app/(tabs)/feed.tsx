@@ -1,55 +1,107 @@
-import { ActivityIndicator, FlatList, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import type { FeedItem } from "@pw/shared";
 import { useApi } from "../../src/hooks";
 import { Pill } from "../../src/components/ui";
-import { colors, radius } from "../../src/theme";
+import { FeedCardSkeleton } from "../../src/components/Skeleton";
+import { StateView } from "../../src/components/StateView";
+import { RemoteImage } from "../../src/components/RemoteImage";
+import { colors, radius, shadow } from "../../src/theme";
+
+const L = {
+  refresh: { te: "లాగి రిఫ్రెష్ చేయండి", en: "Pull to refresh" },
+  errorTitle: { te: "ఫీడ్ లోడ్ కాలేదు", en: "Couldn’t load the feed" },
+  emptyTitle: { te: "ఇంకా కంటెంట్ లేదు", en: "Nothing here yet" },
+};
 
 export default function Feed() {
   const { t, i18n } = useTranslation();
+  const lang = i18n.language as "te" | "en";
   const router = useRouter();
-  const { data, loading } = useApi<FeedItem[]>("/feed");
+  const { data, loading, refreshing, error, reload, refresh } = useApi<FeedItem[]>("/feed");
 
+  // Initial load → skeleton list.
   if (loading && !data) {
     return (
-      <View style={st.center}>
-        <ActivityIndicator color={colors.primary} size="large" />
+      <View style={st.skeletonWrap}>
+        {[0, 1, 2].map((i) => (
+          <FeedCardSkeleton key={i} />
+        ))}
+      </View>
+    );
+  }
+
+  // Hard error with no cached data → full error state + retry.
+  if (error && !data) {
+    return (
+      <View style={st.fill}>
+        <StateView
+          glyph="⚠️"
+          tone="error"
+          title={L.errorTitle[lang] ?? L.errorTitle.en}
+          message={error}
+          retryLabel={t("common.retry")}
+          onRetry={reload}
+        />
       </View>
     );
   }
 
   return (
     <FlatList
-      style={{ backgroundColor: colors.cardMuted }}
-      contentContainerStyle={{ padding: 14 }}
+      style={st.fill}
+      contentContainerStyle={st.content}
       data={data ?? []}
       keyExtractor={(i) => i.creativeId}
-      ListEmptyComponent={<Text style={st.empty}>{t("feed.empty")}</Text>}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={refresh}
+          tintColor={colors.primary}
+          colors={[colors.primary]}
+        />
+      }
+      ListEmptyComponent={
+        <StateView
+          glyph="📣"
+          title={L.emptyTitle[lang] ?? L.emptyTitle.en}
+          message={t("feed.empty")}
+        />
+      }
       renderItem={({ item }) => {
         const caption =
-          item.captionVariants[i18n.language as "te" | "en"] ?? item.captionVariants.te ?? "";
+          item.captionVariants[lang] ?? item.captionVariants.te ?? "";
         return (
-          <Pressable style={st.card} onPress={() => router.push(`/personalize/${item.creativeId}`)}>
-            <Image
-              source={{ uri: item.personalizedUrl ?? item.thumbnailUrl ?? item.sourceUrl }}
-              style={st.image}
-              resizeMode="cover"
-            />
-            <View style={st.body}>
+          <Pressable
+            style={({ pressed }) => [st.card, pressed && st.cardPressed]}
+            onPress={() => router.push(`/personalize/${item.creativeId}`)}
+          >
+            <View style={st.imageWrap}>
+              <RemoteImage
+                uri={item.personalizedUrl ?? item.thumbnailUrl ?? item.sourceUrl}
+                width="100%"
+                height={200}
+              />
               <View style={st.badges}>
                 {item.isNew ? <Pill label={t("feed.new")} color={colors.green} /> : null}
                 {item.personalizedUrl ? (
                   <Pill label={t("feed.personalizedBadge")} color={colors.primary} />
                 ) : null}
-                {item.aiLabeled ? <Pill label="AI" color={colors.textMuted} /> : null}
+                {item.aiLabeled ? <Pill label="AI" color="#475569" /> : null}
               </View>
-              <Text style={st.title}>{item.title}</Text>
+            </View>
+            <View style={st.body}>
+              <Text style={st.title} numberOfLines={2}>
+                {item.title}
+              </Text>
               <Text style={st.caption} numberOfLines={2}>
                 {caption}
               </Text>
               <View style={st.cta}>
-                <Text style={st.ctaText}>{t("feed.openToPersonalize")} →</Text>
+                <Text style={st.ctaText}>{t("feed.openToPersonalize")}</Text>
+                <Text style={st.ctaArrow}>→</Text>
               </View>
             </View>
           </Pressable>
@@ -60,8 +112,9 @@ export default function Feed() {
 }
 
 const st = StyleSheet.create({
-  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.cardMuted },
-  empty: { textAlign: "center", color: colors.textMuted, marginTop: 40 },
+  fill: { flex: 1, backgroundColor: colors.cardMuted },
+  content: { padding: 14, paddingBottom: 32 },
+  skeletonWrap: { flex: 1, backgroundColor: colors.cardMuted, padding: 14 },
   card: {
     backgroundColor: "#fff",
     borderRadius: radius.lg,
@@ -69,12 +122,15 @@ const st = StyleSheet.create({
     marginBottom: 14,
     borderWidth: 1,
     borderColor: colors.border,
+    ...shadow,
   },
-  image: { width: "100%", height: 200, backgroundColor: colors.bgElevated },
+  cardPressed: { opacity: 0.94, transform: [{ scale: 0.995 }] },
+  imageWrap: { position: "relative" },
   body: { padding: 14 },
-  badges: { flexDirection: "row", gap: 6, marginBottom: 8, flexWrap: "wrap" },
+  badges: { position: "absolute", top: 10, left: 10, flexDirection: "row", gap: 6, flexWrap: "wrap" },
   title: { fontSize: 18, fontWeight: "800", color: colors.text },
-  caption: { fontSize: 14, color: colors.textMuted, marginTop: 4 },
-  cta: { marginTop: 12 },
-  ctaText: { color: colors.primaryDark, fontWeight: "700" },
+  caption: { fontSize: 14, color: colors.textMuted, marginTop: 4, lineHeight: 20 },
+  cta: { marginTop: 12, flexDirection: "row", alignItems: "center", gap: 6 },
+  ctaText: { color: colors.primaryDark, fontWeight: "800" },
+  ctaArrow: { color: colors.primaryDark, fontWeight: "800", fontSize: 16 },
 });

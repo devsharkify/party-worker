@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Image, Platform, StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
+import { Image } from "expo-image";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import type { DeviceTier, FeedItem } from "@pw/shared";
 import { useAuth } from "../../src/auth/auth-context";
 import { useApi } from "../../src/hooks";
 import { PrimaryButton } from "../../src/components/ui";
+import { SkeletonBlock } from "../../src/components/Skeleton";
+import { StateView } from "../../src/components/StateView";
+import { RemoteImage } from "../../src/components/RemoteImage";
 import { colors, radius } from "../../src/theme";
 
 /** Crude device-tier detection — native would use RAM/SoC; web is treated as high. */
@@ -15,10 +19,10 @@ function detectTier(): DeviceTier {
 
 export default function Personalize() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { user, api } = useAuth();
   const router = useRouter();
-  const { data: item, loading } = useApi<FeedItem>(`/feed/${id}`);
+  const { data: item, loading, error, reload } = useApi<FeedItem>(`/feed/${id}`);
   const [reported, setReported] = useState(false);
 
   // Pre-render: report the on-device render as soon as the post opens (so sharing feels instant).
@@ -32,10 +36,29 @@ export default function Personalize() {
     }
   }, [item, reported, api, id]);
 
-  if (loading || !item) {
+  if (error && !item) {
     return (
       <View style={st.center}>
-        <ActivityIndicator color={colors.primary} size="large" />
+        <Stack.Screen options={{ title: t("personalize.title") }} />
+        <StateView
+          glyph="⚠️"
+          tone="error"
+          dark
+          title={t("personalize.title")}
+          message={error}
+          retryLabel={t("common.retry")}
+          onRetry={reload}
+        />
+      </View>
+    );
+  }
+
+  if (loading || !item) {
+    return (
+      <View style={st.wrap}>
+        <Stack.Screen options={{ title: t("personalize.title") }} />
+        <SkeletonBlock width={120} height={16} dark style={{ marginBottom: 14 }} />
+        <SkeletonBlock width="100%" height={420} rounded={radius.lg} dark style={{ maxWidth: 340 }} />
       </View>
     );
   }
@@ -43,21 +66,32 @@ export default function Personalize() {
   return (
     <View style={st.wrap}>
       <Stack.Screen options={{ title: t("personalize.title") }} />
-      <Text style={st.ready}>{t("personalize.ready")}</Text>
+      <View style={st.readyPill}>
+        <Text style={st.ready}>● {t("personalize.ready")}</Text>
+      </View>
 
       {/* On-device composite preview: HQ asset + the worker's photo/name/booth + burned AI label */}
       <View style={st.canvas}>
-        <Image source={{ uri: item.sourceUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        <Image
+          source={{ uri: item.sourceUrl }}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+          transition={220}
+        />
         <View style={st.scrim} />
         <View style={st.identity}>
-          <Image source={{ uri: user?.photoUrl ?? undefined }} style={st.photo} />
+          <View style={st.photoWrap}>
+            <RemoteImage uri={user?.photoUrl} width={64} height={64} radius={32} placeholderColor="#cbd5e1" />
+          </View>
           <View style={{ flex: 1 }}>
             <Text style={st.name} numberOfLines={1}>
               {user?.name}
             </Text>
-            <Text style={st.designation} numberOfLines={1}>
-              {user?.designation}
-            </Text>
+            {user?.designation ? (
+              <Text style={st.designation} numberOfLines={1}>
+                {user.designation}
+              </Text>
+            ) : null}
             <Text style={st.booth} numberOfLines={1}>
               {user?.boothName ?? user?.orgUnitName}
             </Text>
@@ -70,7 +104,9 @@ export default function Personalize() {
       </View>
 
       <Text style={st.fallbackNote}>{t("personalize.fallbackNote")}</Text>
-      <PrimaryButton title={t("common.share")} onPress={() => router.push(`/share/${id}`)} />
+      <View style={st.btnWrap}>
+        <PrimaryButton title={t("common.share")} onPress={() => router.push(`/share/${id}`)} />
+      </View>
     </View>
   );
 }
@@ -78,7 +114,14 @@ export default function Personalize() {
 const st = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.bg, padding: 16, alignItems: "center" },
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.bg },
-  ready: { color: colors.gold, fontWeight: "700", marginBottom: 12 },
+  readyPill: {
+    backgroundColor: "rgba(255,213,74,0.16)",
+    borderRadius: radius.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    marginBottom: 14,
+  },
+  ready: { color: colors.gold, fontWeight: "800", fontSize: 13 },
   canvas: {
     width: "100%",
     maxWidth: 340,
@@ -87,7 +130,7 @@ const st = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: colors.bgElevated,
   },
-  scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.18)" },
+  scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.22)" },
   identity: {
     position: "absolute",
     left: 16,
@@ -97,7 +140,7 @@ const st = StyleSheet.create({
     alignItems: "center",
     gap: 12,
   },
-  photo: { width: 64, height: 64, borderRadius: 32, borderWidth: 3, borderColor: "#fff", backgroundColor: "#ccc" },
+  photoWrap: { borderRadius: 35, borderWidth: 3, borderColor: "#fff", padding: 0, overflow: "hidden" },
   name: { color: "#fff", fontSize: 22, fontWeight: "800", textShadowColor: "#000", textShadowRadius: 6 },
   designation: { color: colors.gold, fontSize: 14, fontWeight: "700" },
   booth: { color: "#fff", fontSize: 13 },
@@ -113,4 +156,5 @@ const st = StyleSheet.create({
   },
   aiText: { color: "#fff", fontSize: 11, fontWeight: "600" },
   fallbackNote: { color: colors.textMutedOnDark, fontSize: 12, marginVertical: 14 },
+  btnWrap: { width: "100%", maxWidth: 340 },
 });
