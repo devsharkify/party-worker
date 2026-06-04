@@ -15,6 +15,7 @@ import { ZodValidationPipe } from "../common/zod-validation.pipe";
 import { UsersService } from "../users/users.service";
 import { AuthService } from "./auth.service";
 import { JwtAuthGuard } from "./jwt-auth.guard";
+import { RateLimit, RateLimitGuard } from "./rate-limit.guard";
 import { CurrentUser } from "./current-user.decorator";
 import { REFRESH_COOKIE, type AuthUser } from "./auth.types";
 
@@ -47,11 +48,15 @@ export class AuthController {
   }
 
   @Post("request-otp")
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ limit: 8, windowMs: 10 * 60_000 })
   async requestOtp(@Body(new ZodValidationPipe(requestOtpSchema)) dto: RequestOtpBody) {
     return this.auth.requestOtp(dto.phone);
   }
 
   @Post("verify-otp")
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ limit: 8, windowMs: 10 * 60_000 })
   async verifyOtp(
     @Body(new ZodValidationPipe(verifyOtpSchema)) dto: VerifyBody,
     @Res({ passthrough: true }) reply: FastifyReply,

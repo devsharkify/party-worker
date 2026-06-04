@@ -1,5 +1,12 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
-import type { CheckInResult, EventItem, RsvpResult, RsvpStatus } from "@pw/shared";
+import { randomBytes } from "node:crypto";
+import type {
+  CheckInResult,
+  CreateEventDto,
+  EventItem,
+  RsvpResult,
+  RsvpStatus,
+} from "@pw/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { ScoringService } from "../scoring/scoring.service";
 
@@ -39,6 +46,36 @@ export class EventsService {
       rsvpStatus: e.rsvps.length > 0 ? ("going" as RsvpStatus) : null,
       checkedIn: e.checkIns.length > 0,
     }));
+  }
+
+  /** Admin: create an event with a server-generated unique QR token. */
+  async create(dto: CreateEventDto): Promise<EventItem> {
+    const qrToken = `evt_${randomBytes(16).toString("hex")}`;
+    const event = await this.prisma.event.create({
+      data: {
+        title: dto.title,
+        description: dto.description ?? null,
+        startsAt: new Date(dto.startsAt),
+        location: dto.location ?? null,
+        lat: dto.lat ?? null,
+        lng: dto.lng ?? null,
+        qrToken,
+        orgUnitId: dto.orgUnitId ?? null,
+      },
+    });
+    return {
+      id: event.id,
+      title: event.title,
+      description: event.description,
+      startsAt: event.startsAt.toISOString(),
+      location: event.location,
+      lat: event.lat,
+      lng: event.lng,
+      qrToken: event.qrToken,
+      orgUnitId: event.orgUnitId,
+      rsvpStatus: null,
+      checkedIn: false,
+    };
   }
 
   /** Upsert the viewer's RSVP for an event. */

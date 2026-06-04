@@ -203,3 +203,55 @@ export interface GrievanceCreated {
   /** points credited for filing (0 if none) */
   pointsAwarded: number;
 }
+
+// ---------------------------------------------------------------------------
+// Admin dashboard
+// ---------------------------------------------------------------------------
+
+/** A single top-performer row on the admin dashboard. */
+export interface AdminTopPerformer {
+  userId: string;
+  name: string;
+  tier: Tier;
+  weeklyLeaguePoints: number;
+}
+
+/** Aggregate numbers for GET /admin/stats. */
+export interface AdminStats {
+  /** total worker-role users */
+  workers: number;
+  /** users with an active membership */
+  membersActive: number;
+  creativesTotal: number;
+  creativesPublished: number;
+  /** published creatives that carry an MCMC certificate */
+  mcmcCertified: number;
+  totalShares: number;
+  /** sum of ReachEvent.uniqueCount across all shares */
+  totalReach: number;
+  grievances: Record<GrievanceStatus, number> & {
+    open: number;
+    inProgress: number;
+    resolved: number;
+  };
+  events: number;
+  topPerformers: AdminTopPerformer[];
+}
+
+/** A grievance row for the admin queue (GET /admin/grievances). */
+export interface AdminGrievanceRow {
+  id: string;
+  title: string;
+  description: string | null;
+  status: GrievanceStatus;
+  createdAt: string;
+  /** the worker who filed it */
+  filedByName: string;
+  /** the filing worker's booth (their org unit name) */
+  boothName: string | null;
+}
+
+/** Result of admin scoring-maintenance endpoints. */
+export interface MaintenanceResult {
+  affected: number;
+}

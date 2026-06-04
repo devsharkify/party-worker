@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import {
+  applyDecay,
   nextTierProgress,
   POOL,
   tierForReputation,
@@ -159,5 +160,63 @@ export class ScoringService {
       viewerRank: viewerIndex >= 0 ? viewerIndex + 1 : null,
       entries: this.toEntries(cohort, userId),
     };
+  }
+
+  // -------------------------------------------------------------------------
+  // Maintenance — invoked by the admin endpoints and the daily interval.
+  // -------------------------------------------------------------------------
+
+  /** Reset every worker's weekly league points to 0 (start of a new league week). */
+  async resetWeekly(): Promise<{ affected: number }> {
+    const res = await this.prisma.user.updateMany({ data: { weeklyLeaguePoints: 0 } });
+    return { affected: res.count };
+  }
+
+  /**
+   * Decay lifetimeReputation for users inactive > INACTIVE_DAYS. Reduction uses
+   * the shared applyDecay() weighted by whole weeks inactive; tier is recomputed
+   * and a 'decay' ScoreEntry is recorded. Returns how many users were adjusted.
+   */
+  async applyDecayForInactive(): Promise<{ affected: number }> {
+    const INACTIVE_DAYS = 7;
+    const DAY_MS = 24 * 3600_000;
+    const cutoff = new Date(Date.now() - INACTIVE_DAYS * DAY_MS);
+
+    const stale = await this.prisma.user.findMany({
+      where: { lastActiveAt: { lt: cutoff }, lifetimeReputation: { gt: 0 } },
+      select: { id: true, lifetimeReputation: true, lastActiveAt: true, tier: true },
+    });
+
+    let affected = 0;
+    for (const u of stale) {
+      const lastActive = u.lastActiveAt ?? cutoff;
+      const inactiveWeeks = Math.floor((Date.now() - lastActive.getTime()) / (7 * DAY_MS));
+      if (inactiveWeeks <= 0) continue;
+
+      const decayed = applyDecay(u.lifetimeReputation, inactiveWeeks);
+      const delta = decayed - u.lifetimeReputation; // negative
+      if (delta === 0) continue;
+
+      const tier = tierForReputation(decayed);
+      await this.prisma.$transaction([
+        this.prisma.user.update({
+          where: { id: u.id },
+          // lastActiveAt is intentionally NOT touched, so decay doesn't reset inactivity.
+          data: { lifetimeReputation: decayed, tier },
+        }),
+        this.prisma.scoreEntry.create({
+          data: {
+            userId: u.id,
+            reason: "decay",
+            points: delta,
+            weeklyDelta: 0,
+            lifetimeDelta: delta,
+            meta: { inactiveWeeks } as any,
+          },
+        }),
+      ]);
+      affected += 1;
+    }
+    return { affected };
   }
 }

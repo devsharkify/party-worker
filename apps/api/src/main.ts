@@ -19,6 +19,23 @@ async function bootstrap() {
     new FastifyAdapter({ trustProxy: true }),
   );
 
+  // Baseline security headers on every response. Hand-rolled (no helmet dep).
+  const isProd = env.NODE_ENV === "production";
+  const fastify = app.getHttpAdapter().getInstance();
+  fastify.addHook("onSend", (_req, reply, payload, done) => {
+    reply.header("X-Content-Type-Options", "nosniff");
+    reply.header("X-Frame-Options", "DENY");
+    reply.header("Referrer-Policy", "no-referrer");
+    reply.header("X-DNS-Prefetch-Control", "off");
+    if (isProd) {
+      reply.header(
+        "Strict-Transport-Security",
+        "max-age=15552000; includeSubDomains",
+      );
+    }
+    done(null, payload);
+  });
+
   await app.register(fastifyCookie as any);
   await app.register(fastifyMultipart as any, {
     limits: { fileSize: 100 * 1024 * 1024 },

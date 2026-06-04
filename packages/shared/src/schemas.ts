@@ -7,6 +7,7 @@ import {
   SocialPlatform,
   ConsentPurpose,
   DeviceTier,
+  GrievanceStatus,
 } from "./enums";
 
 /** RSVP status a worker can set for an event. */
@@ -161,6 +162,27 @@ export const createGrievanceSchema = z.object({
   location: z.string().max(200).optional(),
 });
 export type CreateGrievanceDto = z.infer<typeof createGrievanceSchema>;
+
+/** Admin update of a grievance's workflow status. */
+export const updateGrievanceStatusSchema = z.object({
+  status: GrievanceStatus,
+});
+export type UpdateGrievanceStatusDto = z.infer<typeof updateGrievanceStatusSchema>;
+
+// --- Admin: event creation ---
+/** ISO datetime accepted as a string; coerced to Date server-side. */
+export const createEventSchema = z.object({
+  title: z.string().min(1).max(160),
+  description: z.string().max(2000).optional(),
+  /** ISO-8601 timestamp of when the event starts */
+  startsAt: z.string().datetime({ offset: true }),
+  location: z.string().max(200).optional(),
+  lat: z.number().min(-90).max(90).optional(),
+  lng: z.number().min(-180).max(180).optional(),
+  /** org subtree this event belongs to (null = whole org) */
+  orgUnitId: z.string().optional(),
+});
+export type CreateEventDto = z.infer<typeof createEventSchema>;
 
 // --- Pagination ---
 export const paginationSchema = z.object({

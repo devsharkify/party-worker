@@ -14,6 +14,8 @@ import { SocialModule } from "./social/social.module";
 import { PaymentsModule } from "./payments/payments.module";
 import { EventsModule } from "./events/events.module";
 import { GrievancesModule } from "./grievances/grievances.module";
+import { AdminModule } from "./admin/admin.module";
+import { MaintenanceModule } from "./maintenance/maintenance.module";
 import { AppController } from "./app.controller";
 
 @Module({
@@ -33,6 +35,8 @@ import { AppController } from "./app.controller";
     PaymentsModule,
     EventsModule,
     GrievancesModule,
+    AdminModule,
+    MaintenanceModule,
   ],
   controllers: [AppController],
 })
