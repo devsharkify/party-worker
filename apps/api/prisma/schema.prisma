@@ -1,0 +1,486 @@
+// Party Worker — data model. Enums mirror packages/shared/src/enums.ts exactly.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum OrgUnitType {
+  state
+  district
+  constituency
+  mandal
+  booth
+}
+
+enum Role {
+  worker
+  booth_leader
+  mandal_leader
+  constituency_leader
+  district_leader
+  state_admin
+  hq_admin
+}
+
+enum Tier {
+  karyakarta
+  sevak
+  pramukh
+  nayak
+  ratna
+}
+
+enum Language {
+  te
+  en
+}
+
+enum SocialPlatform {
+  whatsapp
+  instagram
+  facebook
+  youtube
+  x
+}
+
+enum SocialAccountType {
+  personal
+  creator
+  business
+}
+
+enum CreativeType {
+  image
+  video
+  carousel
+}
+
+enum ShareChannel {
+  whatsapp_status
+  whatsapp
+  instagram_story
+  instagram_feed
+  facebook
+  copy_link
+  other
+}
+
+enum ReachSource {
+  whatsapp_link
+  instagram_insights
+}
+
+enum ConsentPurpose {
+  data_processing
+  social_linking
+  content_resharing
+  location
+}
+
+enum DeviceTier {
+  low
+  mid
+  high
+}
+
+enum PaymentStatus {
+  created
+  pending
+  success
+  failed
+}
+
+enum GrievanceStatus {
+  open
+  routed
+  in_progress
+  resolved
+  rejected
+}
+
+enum ScoreReason {
+  share
+  recruit_initial
+  recruit_bonus
+  event_checkin
+  grievance_file
+  grievance_resolve
+  streak
+  decay
+  fraud_reversal
+}
+
+// ---------------------------------------------------------------------------
+// Org hierarchy
+// ---------------------------------------------------------------------------
+
+model OrgUnit {
+  id        String      @id @default(cuid())
+  name      String
+  type      OrgUnitType
+  parentId  String?
+  parent    OrgUnit?    @relation("OrgTree", fields: [parentId], references: [id])
+  children  OrgUnit[]   @relation("OrgTree")
+  users     User[]
+  creatives Creative[]  @relation("CreativeTarget")
+  events    Event[]
+  pools     LeaderboardPool[]
+  createdAt DateTime    @default(now())
+
+  @@index([parentId])
+  @@index([type])
+}
+
+// ---------------------------------------------------------------------------
+// Users + auth
+// ---------------------------------------------------------------------------
+
+model User {
+  id                 String     @id @default(cuid())
+  phone              String     @unique
+  name               String
+  photoUrl           String?
+  designation        String?
+  orgUnitId          String
+  orgUnit            OrgUnit    @relation(fields: [orgUnitId], references: [id])
+  role               Role       @default(worker)
+  tier               Tier       @default(karyakarta)
+  preferredLanguage  Language   @default(te)
+  lifetimeReputation Int        @default(0)
+  weeklyLeaguePoints Int        @default(0)
+  streakDays         Int        @default(0)
+  lastActiveAt       DateTime?
+  membershipActive   Boolean    @default(false)
+
+  recruitedById String?
+  recruitedBy   User?     @relation("Recruits", fields: [recruitedById], references: [id])
+  recruits      User[]    @relation("Recruits")
+  recruitedAt   DateTime?
+
+  socialAccounts   SocialAccount[]
+  renders          PersonalizedRender[]
+  shareEvents      ShareEvent[]
+  scoreEntries     ScoreEntry[]
+  consents         ConsentRecord[]
+  payments         Payment[]
+  refreshTokens    RefreshToken[]
+  poolMemberships  PoolMembership[]
+  rsvps            Rsvp[]
+  checkIns         CheckIn[]
+  grievancesFiled  Grievance[]          @relation("GrievanceFiledBy")
+  grievancesRouted Grievance[]          @relation("GrievanceRoutedTo")
+  creativesCreated Creative[]           @relation("CreativeCreatedBy")
+  templatesCreated Template[]           @relation("TemplateCreatedBy")
+
+  createdAt DateTime @default(now())
+
+  @@index([orgUnitId])
+  @@index([role])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  familyId  String
+  revoked   Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([familyId])
+}
+
+model OtpChallenge {
+  id        String   @id @default(cuid())
+  phone     String
+  codeHash  String
+  attempts  Int      @default(0)
+  consumed  Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([phone])
+}
+
+model SocialAccount {
+  id              String            @id @default(cuid())
+  userId          String
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform        SocialPlatform
+  type            SocialAccountType @default(personal)
+  handle          String?
+  connected       Boolean           @default(false)
+  accessTokenEnc  String?
+  refreshTokenEnc String?
+  tokenExpiresAt  DateTime?
+  createdAt       DateTime          @default(now())
+
+  @@unique([userId, platform])
+}
+
+// ---------------------------------------------------------------------------
+// Content
+// ---------------------------------------------------------------------------
+
+model Template {
+  id           String     @id @default(cuid())
+  name         String
+  canvasWidth  Int        @default(1080)
+  canvasHeight Int        @default(1920)
+  zones        Json
+  createdById  String?
+  createdBy    User?      @relation("TemplateCreatedBy", fields: [createdById], references: [id])
+  creatives    Creative[]
+  createdAt    DateTime   @default(now())
+}
+
+model Creative {
+  id              String       @id @default(cuid())
+  title           String
+  type            CreativeType
+  sourceKey       String
+  thumbnailKey    String?
+  templateId      String?
+  template        Template?    @relation(fields: [templateId], references: [id])
+  captionVariants Json
+  languages       Language[]
+  mcmcCertified   Boolean      @default(false)
+  mcmcCertId      String?
+  aiLabeled       Boolean      @default(true)
+  targetOrgUnitId String?
+  targetOrgUnit   OrgUnit?     @relation("CreativeTarget", fields: [targetOrgUnitId], references: [id])
+  createdById     String
+  createdBy       User         @relation("CreativeCreatedBy", fields: [createdById], references: [id])
+  published       Boolean      @default(false)
+  publishedAt     DateTime?
+  createdAt       DateTime     @default(now())
+
+  renders     PersonalizedRender[]
+  shareEvents ShareEvent[]
+
+  @@index([published])
+  @@index([targetOrgUnitId])
+}
+
+model PersonalizedRender {
+  id                String     @id @default(cuid())
+  userId            String
+  user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  creativeId        String
+  creative          Creative   @relation(fields: [creativeId], references: [id], onDelete: Cascade)
+  deviceTier        DeviceTier @default(mid)
+  cachedUrl         String?
+  usedServerFallback Boolean   @default(false)
+  createdAt         DateTime   @default(now())
+
+  @@unique([userId, creativeId])
+}
+
+// ---------------------------------------------------------------------------
+// Sharing + reach
+// ---------------------------------------------------------------------------
+
+model ShareEvent {
+  id                String       @id @default(cuid())
+  userId            String
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  creativeId        String
+  creative          Creative     @relation(fields: [creativeId], references: [id], onDelete: Cascade)
+  channel           ShareChannel
+  trackedLinkId     String       @unique
+  basePointsAwarded Int          @default(0)
+  shareIntentAt     DateTime     @default(now())
+  createdAt         DateTime     @default(now())
+
+  reachEvents ReachEvent[]
+  reachHits   ReachHit[]
+
+  @@index([userId])
+  @@index([creativeId])
+}
+
+// Aggregated reach per share (or per IG media). uniqueCount drives scoring.
+model ReachEvent {
+  id            String      @id @default(cuid())
+  shareEventId  String?
+  shareEvent    ShareEvent? @relation(fields: [shareEventId], references: [id], onDelete: Cascade)
+  trackedLinkId String?
+  igMediaId     String?
+  source        ReachSource
+  uniqueCount   Int         @default(0)
+  views         Int         @default(0)
+  likes         Int         @default(0)
+  comments      Int         @default(0)
+  awardedPoints Int         @default(0)
+  updatedAt     DateTime    @updatedAt
+  createdAt     DateTime    @default(now())
+
+  @@unique([shareEventId, source])
+  @@index([trackedLinkId])
+  @@index([igMediaId])
+}
+
+// Dedup ledger for unique link taps. dedupHash = SHA256(daily_salt + IP/24 + UA + ids).
+// Daily salt is ephemeral so hashes are not reversible (DPDP-clean).
+model ReachHit {
+  id            String     @id @default(cuid())
+  trackedLinkId String
+  shareEventId  String?
+  shareEvent    ShareEvent? @relation(fields: [shareEventId], references: [id], onDelete: Cascade)
+  dedupHash     String
+  day           String // YYYY-MM-DD bucket for the 24h dedup window
+  createdAt     DateTime   @default(now())
+
+  @@unique([trackedLinkId, dedupHash, day])
+  @@index([trackedLinkId])
+}
+
+// ---------------------------------------------------------------------------
+// Scoring + leaderboards
+// ---------------------------------------------------------------------------
+
+model ScoreEntry {
+  id            String      @id @default(cuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reason        ScoreReason
+  points        Int
+  weeklyDelta   Int         @default(0)
+  lifetimeDelta Int         @default(0)
+  meta          Json?
+  createdAt     DateTime    @default(now())
+
+  @@index([userId])
+  @@index([reason])
+}
+
+model LeaderboardPool {
+  id          String   @id @default(cuid())
+  tier        Tier
+  weekStart   DateTime
+  orgUnitId   String?
+  orgUnit     OrgUnit? @relation(fields: [orgUnitId], references: [id])
+  sealed      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  members PoolMembership[]
+
+  @@index([tier, weekStart])
+}
+
+model PoolMembership {
+  id       String          @id @default(cuid())
+  poolId   String
+  pool     LeaderboardPool @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  points   Int             @default(0)
+  rank     Int?
+  promoted Boolean?
+  demoted  Boolean?
+
+  @@unique([poolId, userId])
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Events, grievances, consent, payments
+// ---------------------------------------------------------------------------
+
+model Event {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  startsAt    DateTime
+  location    String?
+  lat         Float?
+  lng         Float?
+  qrToken     String   @unique
+  orgUnitId   String?
+  orgUnit     OrgUnit? @relation(fields: [orgUnitId], references: [id])
+  createdAt   DateTime @default(now())
+
+  rsvps    Rsvp[]
+  checkIns CheckIn[]
+}
+
+model Rsvp {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([eventId, userId])
+}
+
+model CheckIn {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lat       Float?
+  lng       Float?
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@unique([eventId, userId])
+}
+
+model Grievance {
+  id          String          @id @default(cuid())
+  title       String
+  description String?
+  lat         Float?
+  lng         Float?
+  photoKey    String?
+  status      GrievanceStatus @default(open)
+  filedById   String
+  filedBy     User            @relation("GrievanceFiledBy", fields: [filedById], references: [id])
+  routedToId  String?
+  routedTo    User?           @relation("GrievanceRoutedTo", fields: [routedToId], references: [id])
+  createdAt   DateTime        @default(now())
+  resolvedAt  DateTime?
+
+  @@index([status])
+}
+
+model ConsentRecord {
+  id        String         @id @default(cuid())
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose   ConsentPurpose
+  granted   Boolean        @default(false)
+  grantedAt DateTime?
+  revokedAt DateTime?
+  createdAt DateTime       @default(now())
+
+  @@unique([userId, purpose])
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amountInr   Int
+  status      PaymentStatus @default(created)
+  provider    String        @default("mock")
+  providerRef String?
+  createdAt   DateTime      @default(now())
+  paidAt      DateTime?
+
+  @@index([userId])
+}

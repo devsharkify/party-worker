@@ -1,0 +1,34 @@
+# Canonical local infra (Postgres + Redis). On this machine both already run via
+# `brew services`, so docker is optional — this is for clean/other environments.
+#   docker compose up -d
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pw_postgres
+    environment:
+      POSTGRES_USER: party
+      POSTGRES_PASSWORD: party
+      POSTGRES_DB: party_worker
+    ports:
+      - "5432:5432"
+    volumes:
+      - pw_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U party -d party_worker"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: pw_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pw_pgdata:
