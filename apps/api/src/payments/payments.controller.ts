@@ -8,7 +8,23 @@ import type { AuthUser } from "../auth/auth.types";
 import { ZodValidationPipe } from "../common/zod-validation.pipe";
 import { PaymentsService } from "./payments.service";
 
-const verifySchema = z.object({ orderId: z.string(), signature: z.string().optional() });
+// signature can be a plain string OR a Razorpay checkout object
+// { paymentId: string; razorpaySignature: string }.
+// When an object is provided it is serialized to JSON so the provider
+// receives a consistent string type.
+const signatureField = z
+  .union([
+    z.string(),
+    z.object({ paymentId: z.string(), razorpaySignature: z.string() }),
+  ])
+  .optional();
+
+const verifySchema = z.object({ orderId: z.string(), signature: signatureField });
+
+type VerifyDto = {
+  orderId: string;
+  signature?: string | { paymentId: string; razorpaySignature: string };
+};
 
 @ApiTags("payments")
 @ApiBearerAuth()
@@ -28,8 +44,15 @@ export class PaymentsController {
   @Post("membership/verify")
   verify(
     @CurrentUser() user: AuthUser,
-    @Body(new ZodValidationPipe(verifySchema)) dto: { orderId: string; signature?: string },
+    @Body(new ZodValidationPipe(verifySchema)) dto: VerifyDto,
   ) {
-    return this.payments.verifyMembership(user.id, dto.orderId, dto.signature);
+    // Normalize signature to a string so all providers receive a consistent type.
+    const sig =
+      dto.signature == null
+        ? undefined
+        : typeof dto.signature === "string"
+          ? dto.signature
+          : JSON.stringify(dto.signature);
+    return this.payments.verifyMembership(user.id, dto.orderId, sig);
   }
 }

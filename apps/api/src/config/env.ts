@@ -17,7 +17,10 @@ const EnvSchema = z.object({
   JWT_REFRESH_TTL: z.coerce.number().default(5184000),
   COOKIE_DOMAIN: z.string().default("localhost"),
 
-  OTP_PROVIDER: z.enum(["fake", "msg91", "authkey"]).default("fake"),
+  // "fake"      — no SMS/WhatsApp, logs code to console (dev default)
+  // "authkey"   — Authkey.io SMS gateway (requires AUTHKEY_* vars)
+  // "whatsapp"  — Meta WhatsApp Business Cloud API (requires WHATSAPP_* vars)
+  OTP_PROVIDER: z.enum(["fake", "msg91", "authkey", "whatsapp"]).default("fake"),
   DEV_OTP_CODE: z.string().default("000000"),
   // Demo/test numbers (seeded accounts) bypass real SMS and accept DEV_OTP_CODE,
   // so the demo keeps working even when a real SMS provider is live.
@@ -28,11 +31,19 @@ const EnvSchema = z.object({
   AUTHKEY_COMPANY: z.string().default("Party Worker"),
   AUTHKEY_COUNTRY_CODE: z.string().default("91"),
 
+  // Meta WhatsApp Business Cloud API — used when OTP_PROVIDER=whatsapp.
+  // Leave blank in dev; the provider will log a warning and skip delivery.
+  WHATSAPP_ACCESS_TOKEN: z.string().optional(),
+  WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
+
   STORAGE_PROVIDER: z.enum(["local", "r2", "b2"]).default("local"),
   STORAGE_LOCAL_DIR: z.string().default(".storage"),
   STORAGE_PUBLIC_BASE: z.string().default("http://localhost:4000/media"),
 
   PUSH_PROVIDER: z.enum(["mock", "fcm"]).default("mock"),
+  // Firebase Cloud Messaging — used when PUSH_PROVIDER=fcm.
+  FCM_PROVIDER: z.string().optional(),
+  FCM_SERVICE_ACCOUNT_JSON: z.string().optional(),
   INSTAGRAM_PROVIDER: z.enum(["mock", "graph"]).default("mock"),
   META_OAUTH_REDIRECT: z.string().default("http://localhost:4000/social/instagram/callback"),
   // Meta Graph (Instagram) — used when INSTAGRAM_PROVIDER=graph. Empty in dev.
@@ -49,11 +60,24 @@ const EnvSchema = z.object({
   // Where the OAuth callback sends the user back (the app/admin) after linking.
   SOCIAL_CONNECT_RETURN_URL: z.string().default("http://localhost:8081/profile"),
 
+  // Set PAYMENT_PROVIDER=razorpay to use Razorpay; also set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.
   PAYMENT_PROVIDER: z.enum(["mock", "razorpay"]).default("mock"),
   MEMBERSHIP_FEE_INR: z.coerce.number().default(100),
+  // Razorpay API credentials — required when PAYMENT_PROVIDER=razorpay.
+  // Key ID and Key Secret from the Razorpay Dashboard (Settings > API Keys).
+  RAZORPAY_KEY_ID: z.string().optional(),
+  RAZORPAY_KEY_SECRET: z.string().optional(),
 
   MCMC_MODE: z.enum(["on", "off"]).default("on"),
   AI_LABEL_MIN_AREA_PCT: z.coerce.number().default(10),
+
+  // Sarvam AI — used by AiService for translation/caption generation.
+  // Leave blank in dev; service will return the original text as a fallback.
+  SARVAM_API_KEY: z.string().optional(),
+
+  // Shared secret checked by the /r/:id/hit and /r/:id/dest endpoints.
+  // Must match CF_WEBHOOK_SECRET in wrangler.jsonc (or Workers secrets).
+  CF_WEBHOOK_SECRET: z.string().default("dev-secret"),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

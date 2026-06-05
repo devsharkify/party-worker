@@ -8,6 +8,7 @@ import { FeedCardSkeleton } from "../../src/components/Skeleton";
 import { StateView } from "../../src/components/StateView";
 import { RemoteImage } from "../../src/components/RemoteImage";
 import { colors, radius, shadow } from "../../src/theme";
+import { useIsOnline } from "../../src/lib/offline";
 
 const L = {
   refresh: { te: "లాగి రిఫ్రెష్ చేయండి", en: "Pull to refresh" },
@@ -20,6 +21,7 @@ export default function Feed() {
   const lang = i18n.language as "te" | "en";
   const router = useRouter();
   const { data, loading, refreshing, error, reload, refresh } = useApi<FeedItem[]>("/feed");
+  const isOnline = useIsOnline();
 
   // Initial load → skeleton list.
   if (loading && !data) {
@@ -49,72 +51,93 @@ export default function Feed() {
   }
 
   return (
-    <FlatList
-      style={st.fill}
-      contentContainerStyle={st.content}
-      data={data ?? []}
-      keyExtractor={(i) => i.creativeId}
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={refresh}
-          tintColor={colors.primary}
-          colors={[colors.primary]}
-        />
-      }
-      ListEmptyComponent={
-        <StateView
-          glyph="📣"
-          title={L.emptyTitle[lang] ?? L.emptyTitle.en}
-          message={t("feed.empty")}
-        />
-      }
-      renderItem={({ item }) => {
-        const caption =
-          item.captionVariants[lang] ?? item.captionVariants.te ?? "";
-        return (
-          <Pressable
-            style={({ pressed }) => [st.card, pressed && st.cardPressed]}
-            onPress={() => router.push(`/personalize/${item.creativeId}`)}
-          >
-            <View style={st.imageWrap}>
-              <RemoteImage
-                uri={item.personalizedUrl ?? item.thumbnailUrl ?? item.sourceUrl}
-                width="100%"
-                height={200}
-              />
-              <View style={st.badges}>
-                {item.isNew ? <Pill label={t("feed.new")} color={colors.green} /> : null}
-                {item.personalizedUrl ? (
-                  <Pill label={t("feed.personalizedBadge")} color={colors.primary} />
-                ) : null}
-                {item.aiLabeled ? <Pill label="AI" color="#475569" /> : null}
+    <View style={st.fill}>
+      {!isOnline && (
+        <View style={st.offlineBanner}>
+          <Text style={st.offlineBannerText}>
+            📡 ఆఫ్‌లైన్ — Cached content
+          </Text>
+        </View>
+      )}
+      <FlatList
+        style={st.list}
+        contentContainerStyle={st.content}
+        data={data ?? []}
+        keyExtractor={(i) => i.creativeId}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={refresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
+        ListEmptyComponent={
+          <StateView
+            glyph="📣"
+            title={L.emptyTitle[lang] ?? L.emptyTitle.en}
+            message={t("feed.empty")}
+          />
+        }
+        renderItem={({ item }) => {
+          const caption =
+            item.captionVariants[lang] ?? item.captionVariants.te ?? "";
+          return (
+            <Pressable
+              style={({ pressed }) => [st.card, pressed && st.cardPressed]}
+              onPress={() => router.push(`/personalize/${item.creativeId}`)}
+            >
+              <View style={st.imageWrap}>
+                <RemoteImage
+                  uri={item.personalizedUrl ?? item.thumbnailUrl ?? item.sourceUrl}
+                  width="100%"
+                  height={200}
+                />
+                <View style={st.badges}>
+                  {item.isNew ? <Pill label={t("feed.new")} color={colors.green} /> : null}
+                  {item.personalizedUrl ? (
+                    <Pill label={t("feed.personalizedBadge")} color={colors.primary} />
+                  ) : null}
+                  {item.aiLabeled ? <Pill label="AI" color="#475569" /> : null}
+                </View>
               </View>
-            </View>
-            <View style={st.body}>
-              <Text style={st.title} numberOfLines={2}>
-                {item.title}
-              </Text>
-              <Text style={st.caption} numberOfLines={2}>
-                {caption}
-              </Text>
-              <View style={st.cta}>
-                <Text style={st.ctaText}>{t("feed.openToPersonalize")}</Text>
-                <Text style={st.ctaArrow}>→</Text>
+              <View style={st.body}>
+                <Text style={st.title} numberOfLines={2}>
+                  {item.title}
+                </Text>
+                <Text style={st.caption} numberOfLines={2}>
+                  {caption}
+                </Text>
+                <View style={st.cta}>
+                  <Text style={st.ctaText}>{t("feed.openToPersonalize")}</Text>
+                  <Text style={st.ctaArrow}>→</Text>
+                </View>
               </View>
-            </View>
-          </Pressable>
-        );
-      }}
-    />
+            </Pressable>
+          );
+        }}
+      />
+    </View>
   );
 }
 
 const st = StyleSheet.create({
   fill: { flex: 1, backgroundColor: colors.cardMuted },
+  list: { flex: 1 },
   content: { padding: 14, paddingBottom: 32 },
   skeletonWrap: { flex: 1, backgroundColor: colors.cardMuted, padding: 14 },
+  offlineBanner: {
+    backgroundColor: "#fef08a",
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    alignItems: "center",
+  },
+  offlineBannerText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#713f12",
+  },
   card: {
     backgroundColor: "#fff",
     borderRadius: radius.lg,

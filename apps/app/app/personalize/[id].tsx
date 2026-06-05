@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Platform, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
+import * as Clipboard from "expo-clipboard";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import type { DeviceTier, FeedItem } from "@pw/shared";
@@ -27,6 +28,12 @@ export default function Personalize() {
   const [reported, setReported] = useState(false);
   // Captured on native (react-native-view-shot) from the rendered preview below.
   const canvasRef = useRef<View>(null);
+
+  // AI Caption state
+  const [caption, setCaption] = useState<string | null>(null);
+  const [captionLoading, setCaptionLoading] = useState(false);
+  const [captionError, setCaptionError] = useState(false);
+  const [captionCopied, setCaptionCopied] = useState(false);
 
   // On open: composite the personalized poster (web canvas) and upload it, so the
   // shared image is real. If capture isn't possible (native, or CORS-tainted),
@@ -56,6 +63,35 @@ export default function Personalize() {
     })();
   }, [item, reported, api, id, user, t]);
 
+  const handleAiCaption = async () => {
+    if (!item) return;
+    setCaptionLoading(true);
+    setCaptionError(false);
+    setCaption(null);
+    setCaptionCopied(false);
+    try {
+      const result = await api<{ caption: string }>("/ai/caption", {
+        method: "POST",
+        body: JSON.stringify({
+          title: item.title,
+          lang: user?.preferredLanguage ?? "te",
+        }),
+      });
+      setCaption(result.caption);
+    } catch {
+      setCaptionError(true);
+    } finally {
+      setCaptionLoading(false);
+    }
+  };
+
+  const handleCopyCaption = async () => {
+    if (!caption) return;
+    await Clipboard.setStringAsync(caption);
+    setCaptionCopied(true);
+    setTimeout(() => setCaptionCopied(false), 2000);
+  };
+
   if (error && !item) {
     return (
       <View style={st.center}>
@@ -84,7 +120,11 @@ export default function Personalize() {
   }
 
   return (
-    <View style={st.wrap}>
+    <ScrollView
+      style={st.scroll}
+      contentContainerStyle={st.wrap}
+      keyboardShouldPersistTaps="handled"
+    >
       <Stack.Screen options={{ title: t("personalize.title") }} />
       <View style={st.readyPill}>
         <Text style={st.ready}>● {t("personalize.ready")}</Text>
@@ -124,15 +164,56 @@ export default function Personalize() {
       </View>
 
       <Text style={st.fallbackNote}>{t("personalize.fallbackNote")}</Text>
+
+      {/* AI Caption section */}
+      <View style={st.captionWrap}>
+        <Pressable
+          onPress={handleAiCaption}
+          disabled={captionLoading}
+          style={({ pressed }) => [
+            st.captionBtn,
+            { opacity: pressed || captionLoading ? 0.75 : 1 },
+          ]}
+        >
+          {captionLoading ? (
+            <ActivityIndicator color={colors.gold} size="small" />
+          ) : (
+            <Text style={st.captionBtnText}>✨ {t("personalize.aiCaption")}</Text>
+          )}
+        </Pressable>
+
+        {captionError && !captionLoading && (
+          <Text style={st.captionUnavailable}>Caption unavailable</Text>
+        )}
+
+        {caption && !captionError && (
+          <Pressable onPress={handleCopyCaption} style={st.captionTextWrap}>
+            <ScrollView
+              scrollEnabled
+              style={st.captionScroll}
+              nestedScrollEnabled
+            >
+              <Text style={st.captionText} selectable>
+                {caption}
+              </Text>
+            </ScrollView>
+            <Text style={st.captionCopyHint}>
+              {captionCopied ? t("personalize.captionCopied") : "Tap to copy"}
+            </Text>
+          </Pressable>
+        )}
+      </View>
+
       <View style={st.btnWrap}>
         <PrimaryButton title={t("common.share")} onPress={() => router.push(`/share/${id}`)} />
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const st = StyleSheet.create({
-  wrap: { flex: 1, backgroundColor: colors.bg, padding: 16, alignItems: "center" },
+  scroll: { flex: 1, backgroundColor: colors.bg },
+  wrap: { padding: 16, alignItems: "center", paddingBottom: 32 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.bg },
   readyPill: {
     backgroundColor: "rgba(255,213,74,0.16)",
@@ -176,5 +257,32 @@ const st = StyleSheet.create({
   },
   aiText: { color: "#fff", fontSize: 11, fontWeight: "600" },
   fallbackNote: { color: colors.textMutedOnDark, fontSize: 12, marginVertical: 14 },
+
+  // AI Caption styles
+  captionWrap: { width: "100%", maxWidth: 340, marginBottom: 16 },
+  captionBtn: {
+    height: 46,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    borderColor: colors.gold,
+    backgroundColor: "rgba(255,213,74,0.10)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+  },
+  captionBtnText: { color: colors.gold, fontSize: 15, fontWeight: "700" },
+  captionUnavailable: { color: colors.textMutedOnDark, fontSize: 13, marginTop: 10, textAlign: "center" },
+  captionTextWrap: {
+    marginTop: 12,
+    backgroundColor: colors.bgElevated,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.borderOnDark,
+    padding: 12,
+  },
+  captionScroll: { maxHeight: 120 },
+  captionText: { color: colors.textOnDark, fontSize: 14, lineHeight: 22 },
+  captionCopyHint: { color: colors.textMutedOnDark, fontSize: 11, marginTop: 8, textAlign: "right" },
+
   btnWrap: { width: "100%", maxWidth: 340 },
 });

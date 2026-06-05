@@ -10,6 +10,25 @@
     "splash": {
       "backgroundColor": "#0b1f3a"
     },
+    "ios": {
+      "associatedDomains": ["applinks:partyworker.app"]
+    },
+    "android": {
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "partyworker.app",
+              "pathPrefix": "/invite"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    },
     "web": {
       "bundler": "metro",
       "output": "single"

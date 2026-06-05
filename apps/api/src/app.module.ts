@@ -26,6 +26,9 @@ import { ContentAnalyticsModule } from "./contentanalytics/content-analytics.mod
 import { ConsentModule } from "./consent/consent.module";
 import { SchedulingModule } from "./scheduling/scheduling.module";
 import { QueueModule } from "./queue/queue.module";
+import { AiModule } from "./ai/ai.module";
+import { PushModule } from "./push/push.module";
+import { AnalyticsModule } from "./analytics/analytics.module";
 import { AppController } from "./app.controller";
 
 @Module({
@@ -57,6 +60,9 @@ import { AppController } from "./app.controller";
     ConsentModule,
     SchedulingModule,
     QueueModule,
+    AiModule,
+    PushModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
 })

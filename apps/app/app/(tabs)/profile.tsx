@@ -1,5 +1,7 @@
 import { useState } from "react";
 import {
+  Alert,
+  Linking,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -18,6 +20,19 @@ import { QrPayload } from "../../src/components/QrPayload";
 import { RemoteImage } from "../../src/components/RemoteImage";
 import { colors, radius, shadow, tierColor } from "../../src/theme";
 
+interface ReachByPlatform {
+  platform: string;
+  count: number;
+}
+
+interface MyAnalytics {
+  totalShares: number;
+  totalReach: number;
+  totalPoints: number;
+  bestCreative: { title: string; reach: number } | null;
+  reachByPlatform: ReachByPlatform[];
+}
+
 const L = {
   scanHint: { te: "ధృవీకరణ కోసం స్కాన్ చేయండి", en: "Scan to verify membership" },
   social: { te: "సోషల్ ఖాతాలు", en: "Social accounts" },
@@ -30,6 +45,7 @@ export default function Profile() {
   const card = useApi<MembershipCard>("/users/me/card");
   const summary = useApi<ScoreSummary>("/scoring/summary");
   const social = useApi<SocialAccountInfo[]>("/social");
+  const reach = useApi<MyAnalytics>("/me/analytics");
   const [busy, setBusy] = useState<string | undefined>();
 
   const ig = social.data?.find((s) => s.platform === "instagram");
@@ -51,10 +67,35 @@ export default function Profile() {
   async function payMembership() {
     setBusy("pay");
     try {
-      const order = await api<{ orderId: string }>("/payments/membership/start", {
-        method: "POST",
-        body: JSON.stringify({}),
-      });
+      const order = await api<{ orderId: string; amountInr: number; status: string }>(
+        "/payments/membership/start",
+        { method: "POST", body: JSON.stringify({}) },
+      );
+
+      // Mock orders (dev mode) — auto-verify without opening a URL.
+      if (order.orderId.startsWith("mock_order_")) {
+        await api("/payments/membership/verify", {
+          method: "POST",
+          body: JSON.stringify({ orderId: order.orderId }),
+        });
+        await Promise.all([card.reload(), refreshUser()]);
+        return;
+      }
+
+      // Real Razorpay order — open the Razorpay hosted payment page.
+      const razorpayUrl = `https://rzp.io/i/${order.orderId}`;
+      const canOpen = await Linking.canOpenURL(razorpayUrl);
+      if (canOpen) {
+        await Linking.openURL(razorpayUrl);
+      } else {
+        Alert.alert(
+          t("membership.title"),
+          `Pay \u20b9${order.amountInr} at:\n${razorpayUrl}`,
+          [{ text: t("common.ok") }],
+        );
+      }
+
+      // After the user returns, poll the order status (no JS SDK on native).
       await api("/payments/membership/verify", {
         method: "POST",
         body: JSON.stringify({ orderId: order.orderId }),
@@ -71,7 +112,7 @@ export default function Profile() {
   const anyRefreshing = card.refreshing || summary.refreshing || social.refreshing;
 
   function refreshAll() {
-    void Promise.all([card.refresh(), summary.refresh(), social.refresh()]);
+    void Promise.all([card.refresh(), summary.refresh(), social.refresh(), reach.refresh()]);
   }
 
   return (
@@ -214,11 +255,30 @@ export default function Profile() {
       </View>
 
       {/* ===== Membership CTA ===== */}
-      {c && !c.membershipActive ? (
+      {c ? (
         <View style={st.section}>
-          <Text style={st.sectionTitle}>{t("membership.title")}</Text>
-          <Text style={st.note}>{t("membership.fee")}</Text>
-          <PrimaryButton title={t("membership.pay")} onPress={payMembership} loading={busy === "pay"} />
+          <View style={st.memCtaHeader}>
+            <Text style={st.sectionTitle}>{t("membership.title")}</Text>
+            {c.membershipActive ? (
+              <View style={st.activeBadge}>
+                <Text style={st.activeBadgeText}>Active Member</Text>
+              </View>
+            ) : (
+              <View style={st.inactiveBadge}>
+                <Text style={st.inactiveBadgeText}>Not Active</Text>
+              </View>
+            )}
+          </View>
+          {!c.membershipActive ? (
+            <>
+              <Text style={st.note}>{t("membership.fee")}</Text>
+              <PrimaryButton
+                title={t("membership.pay")}
+                onPress={payMembership}
+                loading={busy === "pay"}
+              />
+            </>
+          ) : null}
         </View>
       ) : null}
 
@@ -240,10 +300,94 @@ export default function Profile() {
         </View>
       </View>
 
+      {/* ===== My Reach ===== */}
+      <MyReachCard reachData={reach.data} loading={reach.loading} />
+
       <Pressable onPress={logout} style={st.logout}>
         <Text style={st.logoutText}>{t("common.logout")}</Text>
       </Pressable>
     </ScrollView>
+  );
+}
+
+const PLATFORM_EMOJI: Record<string, string> = {
+  whatsapp: "📱",
+  instagram: "📸",
+  facebook: "👥",
+  youtube: "▶️",
+  x: "✕",
+  other: "🔗",
+};
+
+function MyReachCard({
+  reachData,
+  loading,
+}: {
+  reachData: MyAnalytics | null;
+  loading: boolean;
+}) {
+  if (loading) {
+    return (
+      <View style={st.section}>
+        <SkeletonBlock width={120} height={16} style={{ marginBottom: 12 }} />
+        <View style={{ flexDirection: "row", gap: 12 }}>
+          <SkeletonBlock width="45%" height={56} rounded={8} />
+          <SkeletonBlock width="45%" height={56} rounded={8} />
+        </View>
+        <SkeletonBlock width="70%" height={14} style={{ marginTop: 12 }} />
+      </View>
+    );
+  }
+
+  // Gracefully hide on error or before data loads
+  if (!reachData) return null;
+
+  return (
+    <View style={st.section}>
+      <Text style={st.sectionTitle}>My Reach</Text>
+
+      {/* Shares + Reach tiles */}
+      <View style={st.scoreRow}>
+        <View style={st.stat}>
+          <Text style={st.statValue}>{reachData.totalShares.toLocaleString()}</Text>
+          <Text style={st.statLabel}>Total Shares</Text>
+        </View>
+        <View style={[st.stat, { backgroundColor: colors.primarySoft }]}>
+          <Text style={[st.statValue, { color: colors.primaryDark }]}>
+            {reachData.totalReach.toLocaleString()}
+          </Text>
+          <Text style={st.statLabel}>Total Reach</Text>
+        </View>
+      </View>
+
+      {/* Best creative */}
+      {reachData.bestCreative ? (
+        <View style={st.reachBestCard}>
+          <Text style={st.reachBestLabel}>Top Creative</Text>
+          <Text style={st.reachBestTitle} numberOfLines={2}>
+            {reachData.bestCreative.title}
+          </Text>
+          <Text style={st.reachBestReach}>
+            {reachData.bestCreative.reach.toLocaleString()} reach
+          </Text>
+        </View>
+      ) : null}
+
+      {/* Platform reach chips */}
+      {reachData.reachByPlatform.length > 0 ? (
+        <View style={st.platformRow}>
+          {reachData.reachByPlatform.map((p) => (
+            <View key={p.platform} style={st.platformChip}>
+              <Text style={st.platformChipText}>
+                {PLATFORM_EMOJI[p.platform] ?? "🔗"}{" "}
+                {p.platform.charAt(0).toUpperCase() + p.platform.slice(1)}{" "}
+                {p.count.toLocaleString()}
+              </Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -322,6 +466,29 @@ const st = StyleSheet.create({
   lang: { flex: 1, alignItems: "center", paddingVertical: 12, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border },
   langActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   langText: { fontWeight: "700", color: colors.text },
+  memCtaHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
+  activeBadge: { backgroundColor: "rgba(34,197,94,0.12)", borderRadius: 99, paddingHorizontal: 12, paddingVertical: 4 },
+  activeBadgeText: { color: "#16a34a", fontWeight: "800", fontSize: 12 },
+  inactiveBadge: { backgroundColor: "rgba(156,163,175,0.16)", borderRadius: 99, paddingHorizontal: 12, paddingVertical: 4 },
+  inactiveBadgeText: { color: colors.textMuted, fontWeight: "700", fontSize: 12 },
   logout: { marginTop: 20, marginBottom: 20, alignItems: "center", padding: 14 },
   logoutText: { color: colors.danger, fontWeight: "700", fontSize: 16 },
+  // My Reach card
+  reachBestCard: {
+    marginTop: 12,
+    backgroundColor: colors.cardMuted,
+    borderRadius: radius.md,
+    padding: 12,
+  },
+  reachBestLabel: { fontSize: 11, fontWeight: "700", color: colors.textMuted, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 2 },
+  reachBestTitle: { fontSize: 15, fontWeight: "800", color: colors.text },
+  reachBestReach: { fontSize: 13, fontWeight: "600", color: colors.primaryDark, marginTop: 3 },
+  platformRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 },
+  platformChip: {
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  platformChipText: { fontSize: 13, fontWeight: "700", color: colors.primaryDark },
 });

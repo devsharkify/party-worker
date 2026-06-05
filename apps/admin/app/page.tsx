@@ -23,6 +23,7 @@ import {
 import { useAdmin } from "../src/admin-auth";
 import { EmptyState, SectionHeader, SkeletonRow, StatCard, useToast } from "../src/ui";
 import { TemplateDesigner } from "../src/template-designer";
+import { AnalyticsSection } from "../src/analytics-section";
 
 export default function Page() {
   const { user, loading } = useAdmin();
@@ -163,7 +164,8 @@ type Section =
   | "organization"
   | "grievances"
   | "events"
-  | "broadcast";
+  | "broadcast"
+  | "analytics";
 
 const NAV: { id: Section; label: string }[] = [
   { id: "overview", label: "Overview" },
@@ -173,6 +175,7 @@ const NAV: { id: Section; label: string }[] = [
   { id: "grievances", label: "Grievances" },
   { id: "events", label: "Events" },
   { id: "broadcast", label: "Broadcast & Insights" },
+  { id: "analytics", label: "Analytics" },
 ];
 
 function Dashboard() {
@@ -233,6 +236,7 @@ function Dashboard() {
         {section === "grievances" ? <GrievancesSection /> : null}
         {section === "events" ? <EventsSection /> : null}
         {section === "broadcast" ? <BroadcastSection /> : null}
+        {section === "analytics" ? <AnalyticsSection /> : null}
       </main>
     </div>
   );

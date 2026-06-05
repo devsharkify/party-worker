@@ -55,6 +55,16 @@ export class AuthService {
     await this.prisma.otpChallenge.create({
       data: { phone, codeHash: sha256(code), expiresAt: new Date(Date.now() + 5 * 60_000) },
     });
+    /**
+     * Dispatch the OTP via the configured provider.
+     * - OTP_PROVIDER=authkey  → Authkey.io SMS
+     * - OTP_PROVIDER=whatsapp → Meta WhatsApp Business Cloud API; if the API
+     *   call fails the provider logs the error and returns without throwing,
+     *   so the challenge record is still saved and the user can retry.
+     *   Fallback logic (e.g. SMS after WhatsApp failure) lives inside the
+     *   provider itself — this call site does not need to change.
+     * - OTP_PROVIDER=fake     → logs code to console, no real delivery.
+     */
     if (!isTestNumber) await this.otp.send(phone, code);
 
     return { sent: true, devHint: isTestNumber ? this.env.DEV_OTP_CODE : undefined };

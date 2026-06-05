@@ -186,6 +186,7 @@ model User {
   grievancesRouted Grievance[]          @relation("GrievanceRoutedTo")
   creativesCreated Creative[]           @relation("CreativeCreatedBy")
   templatesCreated Template[]           @relation("TemplateCreatedBy")
+  deviceTokens     DeviceToken[]
 
   createdAt DateTime @default(now())
 
@@ -523,6 +524,22 @@ model Payment {
   providerRef String?
   createdAt   DateTime      @default(now())
   paidAt      DateTime?
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Push notifications
+// ---------------------------------------------------------------------------
+
+model DeviceToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  platform  String   // "ios" | "android" | "web"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId])
 }

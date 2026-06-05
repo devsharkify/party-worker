@@ -1,0 +1,12 @@
+{
+  "name": "pw-redirect",
+  "main": "src/worker.ts",
+  "compatibility_date": "2024-05-24",
+  "vars": {
+    "API_BASE_URL": "https://your-api.example.com",
+    "CF_WEBHOOK_SECRET": "dev-secret"
+  },
+  "routes": [
+    { "pattern": "links.yourparty.com/r/*", "zone_name": "yourparty.com" }
+  ]
+}
