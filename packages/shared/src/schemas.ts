@@ -164,6 +164,11 @@ export const createGrievanceSchema = z.object({
   citizenName: z.string().max(120).optional(),
   citizenPhone: z.string().max(20).optional(),
   location: z.string().max(200).optional(),
+  /** Storage key for an attached photo (from /creatives/upload or /media/upload) */
+  photoKey: z.string().optional(),
+  /** GPS coordinates of the incident */
+  lat: z.number().min(-90).max(90).optional(),
+  lng: z.number().min(-180).max(180).optional(),
 });
 export type CreateGrievanceDto = z.infer<typeof createGrievanceSchema>;
 

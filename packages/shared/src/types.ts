@@ -193,6 +193,22 @@ export interface GrievanceSummary {
   citizenPhone: string | null;
   location: string | null;
   photoUrl: string | null;
+  lat: number | null;
+  lng: number | null;
+}
+
+/** Anonymized grievance from the same org subtree — no citizen contact info. */
+export interface AreaGrievanceSummary {
+  id: string;
+  title: string;
+  status: GrievanceStatus;
+  createdAt: string;
+  description: string | null;
+  location: string | null;
+  photoUrl: string | null;
+  lat: number | null;
+  lng: number | null;
+  orgUnitName: string;
 }
 
 /** An upcoming event, with the viewer's own RSVP/check-in state. */

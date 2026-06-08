@@ -26,4 +26,10 @@ export class GrievancesController {
   mine(@CurrentUser() user: AuthUser) {
     return this.grievances.listMine(user.id);
   }
+
+  /** Anonymized recent grievances from the worker's org subtree. */
+  @Get("area")
+  area(@CurrentUser() user: AuthUser) {
+    return this.grievances.listArea(user.id);
+  }
 }
