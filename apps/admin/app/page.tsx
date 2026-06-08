@@ -100,7 +100,7 @@ function Login() {
         <div className="mx-auto mb-3 grid h-16 w-16 place-items-center rounded-full border-2 border-saffron bg-saffron/10 text-3xl text-saffron">
           ★
         </div>
-        <h1 className="text-center text-2xl font-extrabold">Party Worker — HQ</h1>
+        <h1 className="text-center text-2xl font-extrabold">myTRS — HQ</h1>
         <p className="mb-6 text-center text-sm text-slate-500">Content studio &amp; compliance</p>
 
         {step === "phone" ? (
@@ -187,7 +187,7 @@ function Dashboard() {
       <header className="sticky top-0 z-40 border-b border-white/10 bg-navy text-white shadow-sm">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 pt-4">
           <div className="flex items-baseline gap-3">
-            <span className="text-lg font-extrabold">★ Party Worker HQ</span>
+            <span className="text-lg font-extrabold">★ myTRS HQ</span>
             <span className="hidden text-sm text-slate-300 sm:inline">Content Studio &amp; Compliance</span>
           </div>
           <div className="flex items-center gap-3 text-sm">

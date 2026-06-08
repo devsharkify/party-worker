@@ -107,7 +107,7 @@ export default function AcceptInvite() {
         <View style={st.logoRing}>
           <Text style={st.logo}>★</Text>
         </View>
-        <Text style={st.title}>Party Worker</Text>
+        <Text style={st.title}>myTRS</Text>
 
         {state === "loading" && (
           <View style={st.center}>

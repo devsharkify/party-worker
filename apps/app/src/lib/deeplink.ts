@@ -6,16 +6,16 @@ import { useRouter } from "expo-router";
  * Extracts an invite token from a deep link URL.
  *
  * Supports:
- *   https://partyworker.app/invite/TOKEN
- *   partyworker://invite/TOKEN
- *   partyworker://accept-invite/TOKEN  (Expo Router path)
+ *   https://mytrs.app/invite/TOKEN
+ *   mytrs://invite/TOKEN
+ *   mytrs://accept-invite/TOKEN  (Expo Router path)
  */
 export function getInviteTokenFromUrl(url: string): string | null {
   try {
     // Normalise both custom-scheme and https links into a parseable form.
-    // The URL constructor can't handle custom schemes like partyworker:// on all
+    // The URL constructor can't handle custom schemes like mytrs:// on all
     // runtimes, so we normalise them to https first.
-    const normalised = url.replace(/^partyworker:\/\//, "https://partyworker.app/");
+    const normalised = url.replace(/^mytrs:\/\//, "https://mytrs.app/");
     const parsed = new URL(normalised);
 
     // Match /invite/TOKEN or /accept-invite/TOKEN

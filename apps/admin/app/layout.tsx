@@ -4,7 +4,7 @@ import { AdminAuthProvider } from "../src/admin-auth";
 import { ToastProvider } from "../src/ui";
 
 export const metadata: Metadata = {
-  title: "Party Worker — HQ Admin",
+  title: "myTRS — HQ Admin",
   description: "Content studio, template designer, compliance gate.",
 };
 

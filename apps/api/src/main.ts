@@ -56,7 +56,7 @@ async function bootstrap() {
   });
 
   const swaggerConfig = new DocumentBuilder()
-    .setTitle("Party Worker API")
+    .setTitle("myTRS API")
     .setDescription("Creator-factory backend: auth, content, personalization, reach, scoring.")
     .setVersion("0.1.0")
     .addBearerAuth()

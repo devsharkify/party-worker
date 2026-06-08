@@ -1,6 +1,6 @@
 {
-  "name": "Party Worker",
-  "short_name": "PW",
+  "name": "myTRS",
+  "short_name": "myTRS",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0d0d0d",

@@ -68,7 +68,7 @@ export class RedirectController {
         .header("content-type", "text/html; charset=utf-8")
         .send(
           `<!doctype html><html><head><meta charset="utf-8">` +
-            `<meta property="og:title" content="Party Worker"/>` +
+            `<meta property="og:title" content="myTRS"/>` +
             `<meta property="og:image" content="${dest}"/>` +
             `<meta http-equiv="refresh" content="0; url=${dest}"/>` +
             `</head><body></body></html>`,

@@ -28,7 +28,7 @@ const EnvSchema = z.object({
   // Authkey.io SMS (https://authkey.io) — used when OTP_PROVIDER=authkey.
   AUTHKEY_API_KEY: z.string().default(""),
   AUTHKEY_SID: z.string().default("35306"),
-  AUTHKEY_COMPANY: z.string().default("Party Worker"),
+  AUTHKEY_COMPANY: z.string().default("myTRS"),
   AUTHKEY_COUNTRY_CODE: z.string().default("91"),
 
   // Meta WhatsApp Business Cloud API — used when OTP_PROVIDER=whatsapp.

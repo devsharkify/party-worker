@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Party Worker",
-    "slug": "party-worker",
-    "scheme": "partyworker",
+    "name": "myTRS",
+    "slug": "mytrs",
+    "scheme": "mytrs",
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
@@ -11,7 +11,7 @@
       "backgroundColor": "#0b1f3a"
     },
     "ios": {
-      "associatedDomains": ["applinks:partyworker.app"]
+      "associatedDomains": ["applinks:mytrs.app"]
     },
     "android": {
       "intentFilters": [
@@ -21,7 +21,7 @@
           "data": [
             {
               "scheme": "https",
-              "host": "partyworker.app",
+              "host": "mytrs.app",
               "pathPrefix": "/invite"
             }
           ],
