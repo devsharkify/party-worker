@@ -249,13 +249,15 @@ async function main() {
     },
   });
 
-  // Another published video creative
+  // Published video creative — real 15s sample mp4 for demo/testing
   await prisma.creative.create({
     data: {
       title: "CM Address — Welfare Schemes",
       type: "video",
-      sourceKey: "https://placehold.co/800x1200/138808/ffffff/png?text=CM+Welfare%0AAddress",
-      thumbnailKey: "https://placehold.co/800x1200/138808/ffffff/png?text=CM+Welfare%0AAddress",
+      // Publicly available 15s sample video (Big Buck Bunny excerpt, Google CDN).
+      // Replace with a real Party video URL in production.
+      sourceKey: "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+      thumbnailKey: "https://placehold.co/800x450/138808/ffffff/png?text=CM+Welfare%0AAddress",
       templateId: template.id,
       captionVariants: {
         te: "ముఖ్యమంత్రి సందేశం: సంక్షేమ పథకాలు అందరికీ చేరాలి.",
@@ -265,6 +267,7 @@ async function main() {
       mcmcCertified: true,
       mcmcCertId: "MCMC/TG/2026/00124",
       aiLabeled: true,
+      videoDurationSec: 15,
       createdById: hq.id,
       published: true,
       publishedAt: new Date(Date.now() - 3600_000),
@@ -328,6 +331,28 @@ async function main() {
       createdById: hq.id,
       published: true,
       publishedAt: new Date(Date.now() - 1800_000),
+    },
+  });
+
+  // Rally speech video (second video creative)
+  await prisma.creative.create({
+    data: {
+      title: "Grand Rally — Hyderabad",
+      type: "video",
+      sourceKey: "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+      thumbnailKey: "https://placehold.co/800x450/0b1f3a/ffd54a/png?text=Grand%0ARally",
+      captionVariants: {
+        te: "హైదరాబాద్ మహాసభ: ప్రజల హక్కుల కోసం పోరాటం. #జయహో",
+        en: "Grand rally, Hyderabad: fighting for people's rights. #JayaHo",
+      },
+      languages: ["te", "en"],
+      mcmcCertified: true,
+      mcmcCertId: "MCMC/TG/2026/00133",
+      aiLabeled: true,
+      videoDurationSec: 10,
+      createdById: hq.id,
+      published: true,
+      publishedAt: new Date(Date.now() - 900_000),
     },
   });
 

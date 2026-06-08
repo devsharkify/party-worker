@@ -11,6 +11,7 @@ import { FeedService } from "./feed.service";
 const reportRenderBody = z.object({
   deviceTier: DeviceTier,
   dataUrl: z.string().optional(),
+  videoDataUrl: z.string().optional(),
   usedServerFallback: z.boolean().default(false),
 });
 
@@ -38,7 +39,7 @@ export class FeedController {
     @CurrentUser() user: AuthUser,
     @Param("creativeId") creativeId: string,
     @Body(new ZodValidationPipe(reportRenderBody))
-    dto: { deviceTier: z.infer<typeof DeviceTier>; dataUrl?: string; usedServerFallback: boolean },
+    dto: { deviceTier: z.infer<typeof DeviceTier>; dataUrl?: string; videoDataUrl?: string; usedServerFallback: boolean },
   ) {
     return this.feed.reportRender(user.id, creativeId, dto);
   }

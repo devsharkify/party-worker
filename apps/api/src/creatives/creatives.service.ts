@@ -31,6 +31,7 @@ export class CreativesService {
         captionVariants: dto.captionVariants as unknown as object,
         languages: dto.languages,
         targetOrgUnitId: dto.targetOrgUnitId ?? null,
+        videoDurationSec: dto.videoDurationSec ?? null,
         createdById: userId,
         aiLabeled: true, // personalized renders are synthetic — labelled by default
       },

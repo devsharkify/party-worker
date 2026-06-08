@@ -270,6 +270,7 @@ model Creative {
   targetOrgUnit   OrgUnit?     @relation("CreativeTarget", fields: [targetOrgUnitId], references: [id])
   createdById     String
   createdBy       User         @relation("CreativeCreatedBy", fields: [createdById], references: [id])
+  videoDurationSec Int?         // seconds; only for type=video
   published       Boolean      @default(false)
   publishedAt     DateTime?
   scheduledAt     DateTime?
@@ -290,6 +291,7 @@ model PersonalizedRender {
   creative          Creative   @relation(fields: [creativeId], references: [id], onDelete: Cascade)
   deviceTier        DeviceTier @default(mid)
   cachedUrl         String?
+  cachedVideoUrl    String?    // webm/mp4 personalized video, if captured on web
   usedServerFallback Boolean   @default(false)
   createdAt         DateTime   @default(now())
 

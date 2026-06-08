@@ -98,6 +98,10 @@ export interface FeedItem {
   publishedAt: string;
   /** the viewer's cached personalized render, if already produced */
   personalizedUrl: string | null;
+  /** cached personalized video render (webm/mp4), if captured on web */
+  personalizedVideoUrl: string | null;
+  /** seconds; only for type=video */
+  videoDurationSec: number | null;
   isNew: boolean;
 }
 

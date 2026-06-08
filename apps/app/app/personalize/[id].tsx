@@ -1,5 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { Image } from "expo-image";
 import * as Clipboard from "expo-clipboard";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
@@ -12,9 +20,10 @@ import { SkeletonBlock } from "../../src/components/Skeleton";
 import { StateView } from "../../src/components/StateView";
 import { RemoteImage } from "../../src/components/RemoteImage";
 import { captureComposite } from "../../src/lib/composite";
+import VideoPlayer from "../../src/components/VideoPlayer";
 import { colors, radius } from "../../src/theme";
 
-/** Crude device-tier detection — native would use RAM/SoC; web is treated as high. */
+/** Crude device-tier detection — native uses mid; web treated as high. */
 function detectTier(): DeviceTier {
   return Platform.OS === "web" ? "high" : "mid";
 }
@@ -26,8 +35,13 @@ export default function Personalize() {
   const router = useRouter();
   const { data: item, loading, error, reload } = useApi<FeedItem>(`/feed/${id}`);
   const [reported, setReported] = useState(false);
-  // Captured on native (react-native-view-shot) from the rendered preview below.
   const canvasRef = useRef<View>(null);
+
+  // Video capture state
+  const [videoCapturing, setVideoCapturing] = useState(false);
+  const [videoProgress, setVideoProgress] = useState(0);
+  const [videoDone, setVideoDone] = useState(false);
+  const [videoError, setVideoError] = useState(false);
 
   // AI Caption state
   const [caption, setCaption] = useState<string | null>(null);
@@ -35,33 +49,85 @@ export default function Personalize() {
   const [captionError, setCaptionError] = useState(false);
   const [captionCopied, setCaptionCopied] = useState(false);
 
-  // On open: composite the personalized poster (web canvas) and upload it, so the
-  // shared image is real. If capture isn't possible (native, or CORS-tainted),
-  // fall back to reporting a preview-only render.
+  const isVideo = item?.type === "video";
+
+  // On open: composite personalized image (for images) or report preview (for video).
   useEffect(() => {
     if (!item || reported) return;
     setReported(true);
     void (async () => {
-      let dataUrl: string | undefined;
-      try {
-        const out = await captureComposite({
-          sourceUrl: item.sourceUrl,
-          photoUrl: user?.photoUrl,
-          name: user?.name ?? "",
-          designation: user?.designation,
-          booth: user?.boothName ?? user?.orgUnitName ?? "",
-          aiLabel: t("common.aiLabelText"),
-        }, canvasRef);
-        dataUrl = out ?? undefined;
-      } catch {
-        /* ignore capture failure */
+      if (item.type === "image") {
+        let dataUrl: string | undefined;
+        try {
+          const out = await captureComposite(
+            {
+              sourceUrl: item.sourceUrl,
+              photoUrl: user?.photoUrl,
+              name: user?.name ?? "",
+              designation: user?.designation,
+              booth: user?.boothName ?? user?.orgUnitName ?? "",
+              aiLabel: t("common.aiLabelText"),
+            },
+            canvasRef,
+          );
+          dataUrl = out ?? undefined;
+        } catch { /* ignore */ }
+        await api(`/feed/${id}/render`, {
+          method: "POST",
+          body: JSON.stringify({
+            deviceTier: detectTier(),
+            usedServerFallback: !dataUrl,
+            dataUrl,
+          }),
+        }).catch(() => undefined);
+      } else {
+        // For video: just report the preview, no capture yet.
+        await api(`/feed/${id}/render`, {
+          method: "POST",
+          body: JSON.stringify({ deviceTier: detectTier(), usedServerFallback: true }),
+        }).catch(() => undefined);
       }
-      await api(`/feed/${id}/render`, {
-        method: "POST",
-        body: JSON.stringify({ deviceTier: detectTier(), usedServerFallback: !dataUrl, dataUrl }),
-      }).catch(() => undefined);
     })();
   }, [item, reported, api, id, user, t]);
+
+  async function handleCaptureVideo() {
+    if (!item || videoCapturing) return;
+    // Dynamic import so the heavy canvas/MediaRecorder code only loads on web
+    const { captureVideoComposite } = await import("../../src/lib/composite.video.web");
+    setVideoCapturing(true);
+    setVideoProgress(0);
+    setVideoError(false);
+    setVideoDone(false);
+    try {
+      const videoDataUrl = await captureVideoComposite({
+        sourceUrl: item.sourceUrl,
+        photoUrl: user?.photoUrl,
+        name: user?.name ?? "",
+        designation: user?.designation,
+        booth: user?.boothName ?? user?.orgUnitName ?? "",
+        aiLabel: t("common.aiLabelText"),
+        maxDurationSec: item.videoDurationSec ?? 60,
+        onProgress: setVideoProgress,
+      });
+      if (videoDataUrl) {
+        await api(`/feed/${id}/render`, {
+          method: "POST",
+          body: JSON.stringify({
+            deviceTier: detectTier(),
+            usedServerFallback: false,
+            videoDataUrl,
+          }),
+        }).catch(() => undefined);
+        setVideoDone(true);
+      } else {
+        setVideoError(true);
+      }
+    } catch {
+      setVideoError(true);
+    } finally {
+      setVideoCapturing(false);
+    }
+  }
 
   const handleAiCaption = async () => {
     if (!item) return;
@@ -72,10 +138,7 @@ export default function Personalize() {
     try {
       const result = await api<{ caption: string }>("/ai/caption", {
         method: "POST",
-        body: JSON.stringify({
-          title: item.title,
-          lang: user?.preferredLanguage ?? "te",
-        }),
+        body: JSON.stringify({ title: item.title, lang: user?.preferredLanguage ?? "te" }),
       });
       setCaption(result.caption);
     } catch {
@@ -120,60 +183,107 @@ export default function Personalize() {
   }
 
   return (
-    <ScrollView
-      style={st.scroll}
-      contentContainerStyle={st.wrap}
-      keyboardShouldPersistTaps="handled"
-    >
-      <Stack.Screen options={{ title: t("personalize.title") }} />
+    <ScrollView style={st.scroll} contentContainerStyle={st.wrap} keyboardShouldPersistTaps="handled">
+      <Stack.Screen options={{ title: isVideo ? "Personalize Video" : t("personalize.title") }} />
+
       <View style={st.readyPill}>
-        <Text style={st.ready}>● {t("personalize.ready")}</Text>
+        <Text style={st.ready}>
+          {isVideo ? "🎬" : "●"} {isVideo ? "Video creative" : t("personalize.ready")}
+        </Text>
       </View>
 
-      {/* On-device composite preview: HQ asset + the worker's photo/name/booth + burned AI label */}
-      <View ref={canvasRef} collapsable={false} style={st.canvas}>
-        <Image
-          source={{ uri: item.sourceUrl }}
-          style={StyleSheet.absoluteFill}
-          contentFit="cover"
-          transition={220}
+      {/* ---- VIDEO branch ---- */}
+      {isVideo ? (
+        <VideoPlayer
+          sourceUrl={item.sourceUrl}
+          thumbnailUrl={item.thumbnailUrl}
+          photoUrl={user?.photoUrl}
+          name={user?.name ?? ""}
+          designation={user?.designation}
+          booth={user?.boothName ?? user?.orgUnitName ?? ""}
+          aiLabel={t("common.aiLabelText")}
+          showControls
         />
-        <View style={st.scrim} />
-        <View style={st.identity}>
-          <View style={st.photoWrap}>
-            <RemoteImage uri={user?.photoUrl} width={64} height={64} radius={32} placeholderColor="#cbd5e1" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={st.name} numberOfLines={1}>
-              {user?.name}
-            </Text>
-            {user?.designation ? (
-              <Text style={st.designation} numberOfLines={1}>
-                {user.designation}
+      ) : (
+        /* ---- IMAGE branch ---- */
+        <View ref={canvasRef} collapsable={false} style={st.canvas}>
+          <Image
+            source={{ uri: item.sourceUrl }}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            transition={220}
+          />
+          <View style={st.scrim} />
+          <View style={st.identity}>
+            <View style={st.photoWrap}>
+              <RemoteImage
+                uri={user?.photoUrl}
+                width={64}
+                height={64}
+                radius={32}
+                placeholderColor="#cbd5e1"
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={st.name} numberOfLines={1}>{user?.name}</Text>
+              {user?.designation ? (
+                <Text style={st.designation} numberOfLines={1}>{user.designation}</Text>
+              ) : null}
+              <Text style={st.booth} numberOfLines={1}>
+                {user?.boothName ?? user?.orgUnitName}
               </Text>
-            ) : null}
-            <Text style={st.booth} numberOfLines={1}>
-              {user?.boothName ?? user?.orgUnitName}
-            </Text>
+            </View>
+          </View>
+          <View style={st.aiBand}>
+            <Text style={st.aiText}>{t("common.aiLabelText")}</Text>
           </View>
         </View>
-        {/* Non-removable AI label band (>=10% area, per IT Rules) */}
-        <View style={st.aiBand}>
-          <Text style={st.aiText}>{t("common.aiLabelText")}</Text>
-        </View>
-      </View>
+      )}
 
-      <Text style={st.fallbackNote}>{t("personalize.fallbackNote")}</Text>
+      <Text style={st.fallbackNote}>
+        {isVideo
+          ? "Your name & photo will appear on the video when shared."
+          : t("personalize.fallbackNote")}
+      </Text>
+
+      {/* Video capture button (web only — MediaRecorder required) */}
+      {isVideo && Platform.OS === "web" && (
+        <View style={st.captureWrap}>
+          {videoCapturing ? (
+            <View style={st.progressWrap}>
+              <View style={[st.progressBar, { width: `${Math.round(videoProgress * 100)}%` as unknown as number }]} />
+              <Text style={st.progressText}>
+                Personalizing… {Math.round(videoProgress * 100)}%
+              </Text>
+            </View>
+          ) : videoDone ? (
+            <View style={st.donePill}>
+              <Text style={st.doneText}>✓ Video personalized and ready to share</Text>
+            </View>
+          ) : (
+            <Pressable
+              onPress={handleCaptureVideo}
+              style={({ pressed }) => [st.captureBtn, { opacity: pressed ? 0.75 : 1 }]}
+            >
+              <Text style={st.captureBtnText}>
+                {videoError ? "⚠ Retry personalize video" : "🎥 Personalize this video"}
+              </Text>
+            </Pressable>
+          )}
+          {videoError && !videoCapturing && (
+            <Text style={st.captionUnavailable}>
+              Could not record — video may be CORS-restricted. You can still share the original.
+            </Text>
+          )}
+        </View>
+      )}
 
       {/* AI Caption section */}
       <View style={st.captionWrap}>
         <Pressable
           onPress={handleAiCaption}
           disabled={captionLoading}
-          style={({ pressed }) => [
-            st.captionBtn,
-            { opacity: pressed || captionLoading ? 0.75 : 1 },
-          ]}
+          style={({ pressed }) => [st.captionBtn, { opacity: pressed || captionLoading ? 0.75 : 1 }]}
         >
           {captionLoading ? (
             <ActivityIndicator color={colors.gold} size="small" />
@@ -188,14 +298,8 @@ export default function Personalize() {
 
         {caption && !captionError && (
           <Pressable onPress={handleCopyCaption} style={st.captionTextWrap}>
-            <ScrollView
-              scrollEnabled
-              style={st.captionScroll}
-              nestedScrollEnabled
-            >
-              <Text style={st.captionText} selectable>
-                {caption}
-              </Text>
+            <ScrollView scrollEnabled style={st.captionScroll} nestedScrollEnabled>
+              <Text style={st.captionText} selectable>{caption}</Text>
             </ScrollView>
             <Text style={st.captionCopyHint}>
               {captionCopied ? t("personalize.captionCopied") : "Tap to copy"}
@@ -223,6 +327,7 @@ const st = StyleSheet.create({
     marginBottom: 14,
   },
   ready: { color: colors.gold, fontWeight: "800", fontSize: 13 },
+  // Image canvas
   canvas: {
     width: "100%",
     maxWidth: 340,
@@ -241,7 +346,7 @@ const st = StyleSheet.create({
     alignItems: "center",
     gap: 12,
   },
-  photoWrap: { borderRadius: 35, borderWidth: 3, borderColor: "#fff", padding: 0, overflow: "hidden" },
+  photoWrap: { borderRadius: 35, borderWidth: 3, borderColor: "#fff", overflow: "hidden" },
   name: { color: "#fff", fontSize: 22, fontWeight: "800", textShadowColor: "#000", textShadowRadius: 6 },
   designation: { color: colors.gold, fontSize: 14, fontWeight: "700" },
   booth: { color: "#fff", fontSize: 13 },
@@ -257,8 +362,46 @@ const st = StyleSheet.create({
   },
   aiText: { color: "#fff", fontSize: 11, fontWeight: "600" },
   fallbackNote: { color: colors.textMutedOnDark, fontSize: 12, marginVertical: 14 },
-
-  // AI Caption styles
+  // Video capture
+  captureWrap: { width: "100%", maxWidth: 340, marginBottom: 12 },
+  captureBtn: {
+    height: 46,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+  },
+  captureBtnText: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  progressWrap: {
+    height: 46,
+    borderRadius: radius.md,
+    backgroundColor: colors.bgElevated,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  progressBar: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: colors.primary,
+    opacity: 0.35,
+  },
+  progressText: { color: colors.textOnDark, fontSize: 14, fontWeight: "700" },
+  donePill: {
+    height: 46,
+    borderRadius: radius.md,
+    backgroundColor: "rgba(34,197,94,0.15)",
+    borderWidth: 1,
+    borderColor: colors.green,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+  },
+  doneText: { color: colors.green, fontSize: 14, fontWeight: "700" },
+  // AI Caption
   captionWrap: { width: "100%", maxWidth: 340, marginBottom: 16 },
   captionBtn: {
     height: 46,
@@ -283,6 +426,5 @@ const st = StyleSheet.create({
   captionScroll: { maxHeight: 120 },
   captionText: { color: colors.textOnDark, fontSize: 14, lineHeight: 22 },
   captionCopyHint: { color: colors.textMutedOnDark, fontSize: 11, marginTop: 8, textAlign: "right" },
-
   btnWrap: { width: "100%", maxWidth: 340 },
 });

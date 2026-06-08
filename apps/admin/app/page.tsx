@@ -442,6 +442,7 @@ interface CreativeRow {
   mcmcCertified: boolean;
   aiLabeled: boolean;
   mcmcCertId: string | null;
+  videoDurationSec: number | null;
   /** Org subtree this creative is published to; null = whole org (all workers). */
   targetOrgUnitId: string | null;
 }
@@ -595,6 +596,7 @@ function CreateCreative({
   const [te, setTe] = useState("");
   const [en, setEn] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [videoDurationSec, setVideoDurationSec] = useState<string>("");
   // "" = All workers (org-wide); otherwise an org unit id.
   const [targetOrgUnitId, setTargetOrgUnitId] = useState("");
   const [busy, setBusy] = useState(false);
@@ -612,13 +614,14 @@ function CreateCreative({
         sourceKey,
         captionVariants: { te, en },
         languages: ["te", "en"],
-        // Specific subtree → send the id; "All workers" → omit (whole org).
         ...(targetOrgUnitId ? { targetOrgUnitId } : {}),
+        ...(type === "video" && videoDurationSec ? { videoDurationSec: parseInt(videoDurationSec, 10) } : {}),
       });
       setTitle("");
       setTe("");
       setEn("");
       setFile(null);
+      setVideoDurationSec("");
       setTargetOrgUnitId("");
       await onCreated();
     } catch (e) {
@@ -686,11 +689,35 @@ function CreateCreative({
         </label>
       </div>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-        <input
-          type="file"
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          className="text-sm file:mr-3 file:rounded-md file:border-0 file:bg-slate-200 file:px-3 file:py-1.5 file:font-semibold file:text-slate-700"
-        />
+        <div className="flex flex-col gap-2 flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-3">
+            <input
+              type="file"
+              accept={type === "video" ? "video/*,image/*" : "image/*"}
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              className="text-sm file:mr-3 file:rounded-md file:border-0 file:bg-slate-200 file:px-3 file:py-1.5 file:font-semibold file:text-slate-700"
+            />
+            {type === "video" && (
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-semibold text-slate-500 whitespace-nowrap">Duration (sec)</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={3600}
+                  placeholder="e.g. 30"
+                  value={videoDurationSec}
+                  onChange={(e) => setVideoDurationSec(e.target.value)}
+                  className="w-24 rounded-lg border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/30"
+                />
+              </div>
+            )}
+          </div>
+          {file && (
+            <p className="text-xs text-slate-400 truncate">
+              {file.name} ({(file.size / 1024 / 1024).toFixed(1)} MB)
+            </p>
+          )}
+        </div>
         <button
           onClick={submit}
           disabled={busy || !title}
@@ -730,7 +757,15 @@ function CreativeCard({
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="font-bold text-slate-900">{c.title}</div>
-          <div className="text-sm capitalize text-slate-500">{c.type}</div>
+          <div className="flex items-center gap-2 text-sm capitalize text-slate-500">
+            {c.type === "video" ? <span>🎬</span> : c.type === "carousel" ? <span>🖼</span> : <span>📷</span>}
+            {c.type}
+            {c.videoDurationSec != null && (
+              <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold text-slate-600">
+                {Math.floor(c.videoDurationSec / 60)}:{String(c.videoDurationSec % 60).padStart(2, "0")}
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
           <Badge ok={c.published} okText="Published" noText="Draft" />

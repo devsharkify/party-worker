@@ -82,6 +82,8 @@ export const createCreativeSchema = z.object({
   languages: z.array(Language).min(1).default(["te"]),
   /** target org subtree this is published to (null = whole org) */
   targetOrgUnitId: z.string().optional(),
+  /** seconds; set for type=video */
+  videoDurationSec: z.number().int().positive().optional(),
 });
 export type CreateCreativeDto = z.infer<typeof createCreativeSchema>;
 

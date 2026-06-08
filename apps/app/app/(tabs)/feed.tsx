@@ -16,6 +16,12 @@ const L = {
   emptyTitle: { te: "ఇంకా కంటెంట్ లేదు", en: "Nothing here yet" },
 };
 
+function formatDuration(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
 export default function Feed() {
   const { t, i18n } = useTranslation();
   const lang = i18n.language as "te" | "en";
@@ -81,36 +87,45 @@ export default function Feed() {
           />
         }
         renderItem={({ item }) => {
-          const caption =
-            item.captionVariants[lang] ?? item.captionVariants.te ?? "";
+          const caption = item.captionVariants[lang] ?? item.captionVariants.te ?? "";
+          const isVideo = item.type === "video";
+          const previewUri = item.personalizedUrl ?? item.thumbnailUrl ?? item.sourceUrl;
           return (
             <Pressable
               style={({ pressed }) => [st.card, pressed && st.cardPressed]}
               onPress={() => router.push(`/personalize/${item.creativeId}`)}
             >
               <View style={st.imageWrap}>
-                <RemoteImage
-                  uri={item.personalizedUrl ?? item.thumbnailUrl ?? item.sourceUrl}
-                  width="100%"
-                  height={200}
-                />
+                <RemoteImage uri={previewUri} width="100%" height={200} />
+                {/* Video play icon overlay */}
+                {isVideo && (
+                  <View style={st.playOverlay} pointerEvents="none">
+                    <View style={st.playBtn}>
+                      <Text style={st.playIcon}>▶</Text>
+                    </View>
+                    {item.videoDurationSec != null && (
+                      <View style={st.durationBadge}>
+                        <Text style={st.durationText}>{formatDuration(item.videoDurationSec)}</Text>
+                      </View>
+                    )}
+                  </View>
+                )}
                 <View style={st.badges}>
                   {item.isNew ? <Pill label={t("feed.new")} color={colors.green} /> : null}
-                  {item.personalizedUrl ? (
+                  {isVideo ? <Pill label="VIDEO" color="#0f172a" /> : null}
+                  {item.personalizedUrl || item.personalizedVideoUrl ? (
                     <Pill label={t("feed.personalizedBadge")} color={colors.primary} />
                   ) : null}
                   {item.aiLabeled ? <Pill label="AI" color="#475569" /> : null}
                 </View>
               </View>
               <View style={st.body}>
-                <Text style={st.title} numberOfLines={2}>
-                  {item.title}
-                </Text>
-                <Text style={st.caption} numberOfLines={2}>
-                  {caption}
-                </Text>
+                <Text style={st.title} numberOfLines={2}>{item.title}</Text>
+                <Text style={st.caption} numberOfLines={2}>{caption}</Text>
                 <View style={st.cta}>
-                  <Text style={st.ctaText}>{t("feed.openToPersonalize")}</Text>
+                  <Text style={st.ctaText}>
+                    {isVideo ? "▶ Personalize & share video" : t("feed.openToPersonalize")}
+                  </Text>
                   <Text style={st.ctaArrow}>→</Text>
                 </View>
               </View>
@@ -156,4 +171,29 @@ const st = StyleSheet.create({
   cta: { marginTop: 12, flexDirection: "row", alignItems: "center", gap: 6 },
   ctaText: { color: colors.primaryDark, fontWeight: "800" },
   ctaArrow: { color: colors.primaryDark, fontWeight: "800", fontSize: 16 },
+  // Video overlay elements
+  playOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  playBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(255,255,255,0.88)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  playIcon: { fontSize: 20, color: "#0b1f3a", marginLeft: 3 },
+  durationBadge: {
+    position: "absolute",
+    bottom: 8,
+    right: 8,
+    backgroundColor: "rgba(0,0,0,0.72)",
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  durationText: { color: "#fff", fontSize: 12, fontWeight: "700" },
 });

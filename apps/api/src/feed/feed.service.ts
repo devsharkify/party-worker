@@ -52,6 +52,8 @@ export class FeedService {
         mcmcCertified: c.mcmcCertified,
         publishedAt,
         personalizedUrl: render?.cachedUrl ?? null,
+        personalizedVideoUrl: render?.cachedVideoUrl ?? null,
+        videoDurationSec: c.videoDurationSec ?? null,
         isNew: Date.now() - new Date(publishedAt).getTime() < NEW_WINDOW_MS,
       } satisfies FeedItem;
     });
@@ -62,13 +64,15 @@ export class FeedService {
     return items.find((i) => i.creativeId === creativeId) ?? null;
   }
 
-  /** On-device render reports its result here; an optional dataUrl is cached server-side. */
+  /** On-device render reports its result here; optional image/video dataUrls are cached. */
   async reportRender(
     userId: string,
     creativeId: string,
-    input: { deviceTier: DeviceTier; dataUrl?: string; usedServerFallback: boolean },
+    input: { deviceTier: DeviceTier; dataUrl?: string; videoDataUrl?: string; usedServerFallback: boolean },
   ): Promise<PersonalizedRenderInfo> {
     let cachedUrl: string | null = null;
+    let cachedVideoUrl: string | null = null;
+
     if (input.dataUrl) {
       const m = /^data:(image\/[a-z]+);base64,(.+)$/i.exec(input.dataUrl);
       if (m) {
@@ -78,6 +82,18 @@ export class FeedService {
         cachedUrl = url;
       }
     }
+
+    if (input.videoDataUrl) {
+      const m = /^data:(video\/[a-z0-9;=, -]+);base64,(.+)$/i.exec(input.videoDataUrl);
+      if (m) {
+        const buffer = Buffer.from(m[2]!, "base64");
+        // normalise mime to a safe file extension (webm or mp4)
+        const ext = m[1]!.includes("mp4") ? "mp4" : "webm";
+        const { url } = await this.storage.put(`renders/${userId}/${creativeId}_video.${ext}`, buffer, `video/${ext}`);
+        cachedVideoUrl = url;
+      }
+    }
+
     const render = await this.prisma.personalizedRender.upsert({
       where: { userId_creativeId: { userId, creativeId } },
       create: {
@@ -85,11 +101,13 @@ export class FeedService {
         creativeId,
         deviceTier: input.deviceTier,
         cachedUrl,
+        cachedVideoUrl,
         usedServerFallback: input.usedServerFallback,
       },
       update: {
         deviceTier: input.deviceTier,
         ...(cachedUrl ? { cachedUrl } : {}),
+        ...(cachedVideoUrl ? { cachedVideoUrl } : {}),
         usedServerFallback: input.usedServerFallback,
       },
     });
