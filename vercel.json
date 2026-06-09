@@ -1,6 +1,7 @@
 {
-  "buildCommand": "pnpm --filter @pw/shared build && pnpm --filter @pw/admin build",
-  "outputDirectory": "apps/admin/.next",
-  "framework": "nextjs",
-  "installCommand": "pnpm install"
+  "buildCommand": "pnpm --filter @pw/shared build && pnpm --filter @pw/app export:web",
+  "outputDirectory": "apps/app/dist",
+  "framework": null,
+  "installCommand": "pnpm install",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }
