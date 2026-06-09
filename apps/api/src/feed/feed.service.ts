@@ -30,6 +30,7 @@ export class FeedService {
       },
       orderBy: { publishedAt: "desc" },
       take: 30,
+      include: { targetOrgUnit: { select: { name: true } } },
     });
 
     const renders = await this.prisma.personalizedRender.findMany({
@@ -55,6 +56,8 @@ export class FeedService {
         personalizedVideoUrl: render?.cachedVideoUrl ?? null,
         videoDurationSec: c.videoDurationSec ?? null,
         isNew: Date.now() - new Date(publishedAt).getTime() < NEW_WINDOW_MS,
+        orgUnitName: c.targetOrgUnit?.name ?? null,
+        createdAt: c.createdAt.toISOString(),
       } satisfies FeedItem;
     });
   }
@@ -118,5 +121,37 @@ export class FeedService {
       cachedUrl: render.cachedUrl,
       usedServerFallback: render.usedServerFallback,
     };
+  }
+
+  async getMyRenders(userId: string) {
+    const renders = await this.prisma.personalizedRender.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+    });
+
+    // Fetch creative details separately
+    const creativeIds = [...new Set(renders.map((r) => r.creativeId))];
+    const creatives = await this.prisma.creative.findMany({
+      where: { id: { in: creativeIds } },
+      select: { id: true, title: true, type: true, sourceKey: true, thumbnailKey: true },
+    });
+    const creativeMap = new Map(creatives.map((c) => [c.id, c]));
+
+    return renders.map((r) => {
+      const c = creativeMap.get(r.creativeId);
+      const sourceUrl = c ? this.mediaUrl(c.sourceKey) : "";
+      const thumbnailUrl = c?.thumbnailKey ? this.mediaUrl(c.thumbnailKey) : sourceUrl;
+      return {
+        id: r.id,
+        creativeId: r.creativeId,
+        title: c?.title ?? "Creative",
+        type: c?.type ?? "image",
+        sourceUrl,
+        thumbnailUrl,
+        cachedUrl: r.cachedUrl,
+        cachedVideoUrl: r.cachedVideoUrl,
+        createdAt: r.createdAt,
+      };
+    });
   }
 }

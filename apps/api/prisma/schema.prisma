@@ -140,6 +140,7 @@ model OrgUnit {
   creatives Creative[]  @relation("CreativeTarget")
   events    Event[]
   pools     LeaderboardPool[]
+  newsItems NewsItem[]
   createdAt DateTime    @default(now())
 
   @@index([parentId])
@@ -544,4 +545,24 @@ model DeviceToken {
   updatedAt DateTime @updatedAt
 
   @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// News
+// ---------------------------------------------------------------------------
+
+model NewsItem {
+  id          String    @id @default(cuid())
+  handle      String    @default("admin") // source handle e.g. "@KCRofficial"
+  title       String
+  body        String
+  imageUrl    String?
+  sourceUrl   String?
+  publishedAt DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+  orgUnitId   String?
+  orgUnit     OrgUnit?  @relation(fields: [orgUnitId], references: [id])
+
+  @@index([publishedAt])
+  @@index([handle])
 }

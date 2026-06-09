@@ -225,6 +225,88 @@ function TopCreativesList({
   );
 }
 
+// ---- Scoring Maintenance ---------------------------------------------------
+
+interface MaintenanceResult {
+  affected: number;
+}
+
+function ScoringMaintenanceButtons({ api }: { api: <T>(path: string, opts?: RequestInit) => Promise<T> }) {
+  const [weeklyBusy, setWeeklyBusy] = useState(false);
+  const [decayBusy, setDecayBusy] = useState(false);
+  const [weeklyResult, setWeeklyResult] = useState<number | null>(null);
+  const [decayResult, setDecayResult] = useState<number | null>(null);
+
+  async function handleWeeklyReset() {
+    if (!confirm("Reset weekly scores for ALL users? This cannot be undone.")) return;
+    setWeeklyBusy(true);
+    setWeeklyResult(null);
+    try {
+      const res = await api<MaintenanceResult>("/admin/scoring/weekly-reset", { method: "POST" });
+      setWeeklyResult(res.affected);
+    } catch (e) {
+      alert(`Weekly reset failed: ${(e as Error).message}`);
+    } finally {
+      setWeeklyBusy(false);
+    }
+  }
+
+  async function handleDecay() {
+    if (!confirm("Apply inactivity score decay to all inactive users? This cannot be undone.")) return;
+    setDecayBusy(true);
+    setDecayResult(null);
+    try {
+      const res = await api<MaintenanceResult>("/admin/scoring/decay", { method: "POST" });
+      setDecayResult(res.affected);
+    } catch (e) {
+      alert(`Decay failed: ${(e as Error).message}`);
+    } finally {
+      setDecayBusy(false);
+    }
+  }
+
+  return (
+    <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+      <h3 className="mb-1 text-sm font-bold uppercase tracking-wide text-amber-700">
+        Scoring Maintenance
+      </h3>
+      <p className="mb-4 text-xs text-amber-600">
+        These operations modify user scores. Use with caution.
+      </p>
+      <div className="flex flex-wrap gap-3">
+        <div className="flex flex-col gap-1">
+          <button
+            onClick={handleWeeklyReset}
+            disabled={weeklyBusy}
+            className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-amber-600 disabled:opacity-50"
+          >
+            {weeklyBusy ? "Resetting…" : "🔄 Reset Weekly Scores"}
+          </button>
+          {weeklyResult !== null && (
+            <span className="text-xs font-semibold text-amber-700">
+              Affected: {weeklyResult} users
+            </span>
+          )}
+        </div>
+        <div className="flex flex-col gap-1">
+          <button
+            onClick={handleDecay}
+            disabled={decayBusy}
+            className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-orange-600 disabled:opacity-50"
+          >
+            {decayBusy ? "Applying…" : "📉 Apply Score Decay"}
+          </button>
+          {decayResult !== null && (
+            <span className="text-xs font-semibold text-orange-700">
+              Affected: {decayResult} users
+            </span>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ---- Main Analytics Section ------------------------------------------------
 
 export function AnalyticsSection() {
@@ -302,6 +384,9 @@ export function AnalyticsSection() {
         />
         <TopCreativesList rows={topCreatives} loading={topCreatives === null} />
       </section>
+
+      {/* ===== Scoring Maintenance ===== */}
+      <ScoringMaintenanceButtons api={api} />
     </div>
   );
 }

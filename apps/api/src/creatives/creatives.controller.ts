@@ -2,8 +2,10 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -67,5 +69,20 @@ export class CreativesController {
   @Post(":id/publish")
   publish(@Param("id") id: string) {
     return this.creatives.publish(id);
+  }
+
+  @Patch(":id/publish")
+  publishPatch(@Param("id") id: string) {
+    return this.creatives.publish(id);
+  }
+
+  @Patch(":id/unpublish")
+  unpublish(@Param("id") id: string) {
+    return this.creatives.unpublish(id);
+  }
+
+  @Delete(":id")
+  remove(@Param("id") id: string) {
+    return this.creatives.remove(id);
   }
 }

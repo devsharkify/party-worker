@@ -3,7 +3,7 @@ import type { Catalog } from "./en";
 /** Telugu catalog (default language). Mirrors en.ts shape. */
 export const te: Catalog = {
   common: {
-    appName: "పార్టీ కార్యకర్త",
+    appName: "myTRS సభ్యుడు",
     loading: "లోడ్ అవుతోంది...",
     retry: "మళ్లీ ప్రయత్నించండి",
     cancel: "రద్దు చేయి",
@@ -62,7 +62,7 @@ export const te: Catalog = {
     title: "ప్రొఫైల్",
     membershipCard: "సభ్యత్వ కార్డు",
     designation: "హోదా",
-    booth: "బూత్",
+    area: "ఏరియా",
     tier: "శ్రేణి",
     lifetimePoints: "జీవితకాల ప్రతిష్ట",
     weeklyPoints: "ఈ వారం",
@@ -74,7 +74,7 @@ export const te: Catalog = {
   },
   leaderboard: {
     title: "లీడర్‌బోర్డ్",
-    booth: "బూత్",
+    area: "ఏరియా",
     mandal: "మండలం",
     constituency: "నియోజకవర్గం",
     district: "జిల్లా",
@@ -88,9 +88,9 @@ export const te: Catalog = {
   consent: {
     title: "మీ సమ్మతి",
     intro: "మాకు అవసరమైనది మాత్రమే అడుగుతాము. వీటిని ఎప్పుడైనా ఉపసంహరించుకోవచ్చు.",
-    dataProcessing: "కంటెంట్ వ్యక్తిగతీకరించడానికి నా పేరు, ఫోటో, బూత్‌ను ఉపయోగించండి",
+    dataProcessing: "కంటెంట్ వ్యక్తిగతీకరించడానికి నా పేరు, ఫోటో, ఏరియాను ఉపయోగించండి",
     socialLinking: "రీచ్ కొలవడానికి నా సోషల్ ఖాతాను లింక్ చేయండి",
-    contentResharing: "నా ఖాతా నుండి పార్టీ కంటెంట్‌ను తిరిగి షేర్ చేయనివ్వండి",
+    contentResharing: "నా ఖాతా నుండి myTRS కంటెంట్‌ను తిరిగి షేర్ చేయనివ్వండి",
     location: "ఈవెంట్ చెక్-ఇన్‌ల కోసం నా లొకేషన్‌ను ఉపయోగించండి",
     ageGate: "నాకు 18 సంవత్సరాలు లేదా అంతకంటే ఎక్కువ అని ధృవీకరిస్తున్నాను",
     agree: "అంగీకరించి కొనసాగండి",
@@ -122,13 +122,13 @@ export const te: Catalog = {
     namePlaceholder: "మీ పూర్తి పేరు",
     nameLabel: "పూర్తి పేరు",
     designationLabel: "హోదా",
-    designationPlaceholder: "ఉదా. బూత్ కార్యకర్త, మండల నాయకుడు",
+    designationPlaceholder: "ఉదా. ఏరియా సభ్యుడు, మండల నాయకుడు",
     languageLabel: "ప్రాధాన్య భాష",
     continueBtn: "కొనసాగించు",
     enableNotifTitle: "Enable Notifications",
     enableNotifTitleTe: "నోటిఫికేషన్లు ప్రారంభించండి",
     enableNotifBody:
-      "రాబోయే ఈవెంట్లు, పార్టీ ప్రకటనలు మరియు రీచ్ మైలురాళ్ల గురించి తక్షణ హెచ్చరికలు పొందండి.",
+      "రాబోయే ఈవెంట్లు, myTRS ప్రకటనలు మరియు రీచ్ మైలురాళ్ల గురించి తక్షణ హెచ్చరికలు పొందండి.",
     enableBtn: "నోటిఫికేషన్లు ప్రారంభించండి",
     skipForNow: "ఇప్పటికి వదిలిపెట్టండి",
     notifGranted: "నోటిఫికేషన్లు ఎనేబుల్ చేయబడ్డాయి!",

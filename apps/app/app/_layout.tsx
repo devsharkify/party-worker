@@ -4,6 +4,7 @@ import { Platform } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { Toaster } from "sonner-native";
 import { AuthProvider, useAuth } from "../src/auth/auth-context";
 import { checkOnboarded } from "../src/lib/onboarding";
 import { colors } from "../src/theme";
@@ -66,6 +67,7 @@ export default function RootLayout() {
       <AuthProvider>
         <StatusBar style="light" />
         <AppNavigator />
+        <Toaster />
       </AuthProvider>
     </SafeAreaProvider>
   );

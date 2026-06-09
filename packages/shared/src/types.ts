@@ -103,6 +103,8 @@ export interface FeedItem {
   /** seconds; only for type=video */
   videoDurationSec: number | null;
   isNew: boolean;
+  orgUnitName: string | null;
+  createdAt: string;
 }
 
 export interface RenderTemplate {
@@ -306,4 +308,63 @@ export interface AdminGrievanceRow {
 /** Result of admin scoring-maintenance endpoints. */
 export interface MaintenanceResult {
   affected: number;
+}
+
+// ---------------------------------------------------------------------------
+// Admin people management
+// ---------------------------------------------------------------------------
+
+/** Full user row for the admin People tab. */
+export interface AdminUserRow {
+  id: string;
+  name: string;
+  phone: string;
+  photoUrl: string | null;
+  role: Role;
+  tier: Tier;
+  designation: string | null;
+  orgUnitId: string;
+  orgUnitName: string;
+  orgUnitType: OrgUnitType;
+  isLeader: boolean;
+  lifetimeReputation: number;
+  weeklyLeaguePoints: number;
+  membershipActive: boolean;
+  createdAt: string;
+}
+
+
+/**
+ * Creative row shown in the admin Studio section.
+ * Includes draft + published creatives with all management fields.
+ */
+export interface AdminCreativeRow {
+  id: string;
+  title: string;
+  type: CreativeType;
+  published: boolean;
+  publishedAt: string | null;
+  mcmcCertified: boolean;
+  mcmcCertId: string | null;
+  aiLabeled: boolean;
+  sourceKey: string;
+  /** Resolved public URL of the source file (served by storage provider). */
+  sourceUrl?: string;
+  captionVariants: CaptionVariants;
+  languages: string[];
+  targetOrgUnitId: string | null;
+  videoDurationSec: number | null;
+  createdAt: string;
+}
+
+/** A news item shown in the worker app */
+export interface NewsItem {
+  id: string;
+  title: string;
+  body: string;
+  imageUrl: string | null;
+  sourceUrl: string | null;
+  publishedAt: string;
+  orgUnitId: string | null;
+  orgUnitName: string | null;
 }

@@ -1,24 +1,27 @@
 export const colors = {
-  bg: "#0b1f3a",
-  bgElevated: "#13294d",
-  bgDeep: "#081628",
-  card: "#ffffff",
-  cardMuted: "#f1f5f9",
-  primary: "#ff9933", // saffron
-  primaryDark: "#e07a1f",
-  primarySoft: "#fff4e6",
-  green: "#138808",
-  text: "#0f172a",
-  textOnDark: "#ffffff",
+  bg: "#FFFFFF",
+  bgElevated: "#FFF0F8",
+  bgDeep: "#FCE4F2",
+  card: "#FFFFFF",
+  cardMuted: "#FFF5FB",
+  // TRS/BRS brand: magenta-pink primary
+  primary: "#E91E8C",
+  primaryDark: "#AD1066",
+  primarySoft: "#FCE4F2",
+  navy: "#1a1a2e",
+  navyDark: "#0f0f1a",
+  green: "#16a34a",
+  gold: "#FFB300",
+  text: "#1a1a2e",
+  textOnDark: "#FFFFFF",
   textMuted: "#64748b",
-  textMutedOnDark: "#9fb3d1",
-  border: "#e2e8f0",
-  borderOnDark: "#22406b",
-  gold: "#ffd54a",
-  danger: "#dc2626",
+  textMutedOnDark: "#f0b8d9",
+  border: "#F0D4E8",
+  borderOnDark: "#3a2040",
+  danger: "#EF4444",
   success: "#16a34a",
-  skeleton: "#e2e8f0",
-  skeletonOnDark: "#1c365e",
+  skeleton: "#F5E0EE",
+  skeletonOnDark: "#3a2040",
 };
 
 export const tierColor: Record<string, string> = {
@@ -26,7 +29,7 @@ export const tierColor: Record<string, string> = {
   sevak: "#38bdf8",
   pramukh: "#a78bfa",
   nayak: "#fb923c",
-  ratna: "#ffd54a",
+  ratna: "#FFB300",
 };
 
 /** Subtle tint of a tier color for backgrounds. */
@@ -37,8 +40,8 @@ export const space = (n: number) => n * 4;
 
 /** Soft, brand-consistent shadow that degrades gracefully on web + native. */
 export const shadow = {
-  shadowColor: "#0b1f3a",
-  shadowOpacity: 0.12,
+  shadowColor: "#E91E8C",
+  shadowOpacity: 0.10,
   shadowRadius: 16,
   shadowOffset: { width: 0, height: 6 },
   elevation: 4,

@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { CheckInResult, EventItem, RsvpResult, RsvpStatus } from "@pw/shared";
 import { useAuth } from "../auth/auth-context";
+import { Feather } from "@expo/vector-icons";
 import { Card, Pill, PrimaryButton } from "./ui";
 import { colors, radius } from "../theme";
 
@@ -90,7 +91,7 @@ export function EventCard({ event, onChanged }: { event: EventItem; onChanged: (
 
       <View style={st.footer}>
         {checkedIn ? (
-          <Pill label={"✓ " + t("events.checkedIn")} color={colors.success} />
+          <Pill label={t("events.checkedIn")} color={colors.success} />
         ) : (
           <PrimaryButton title={t("events.checkIn")} onPress={checkIn} loading={busy} />
         )}

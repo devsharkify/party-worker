@@ -46,7 +46,7 @@ export default function SetupProfile() {
       if (user) {
         setUser({ ...user, ...updated } as typeof user);
       }
-      router.push("./enable-push");
+      router.push("./consent");
     } catch (e) {
       setError((e as Error).message);
     } finally {

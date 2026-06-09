@@ -3,9 +3,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   AdminGrievanceRow,
   AdminStats,
+  AdminUserRow,
   CreativeType,
   EventItem,
   GrievanceStatus,
+  NewsItem,
   OrgMemberRow,
   OrgUnitNode,
   OrgUnitType,
@@ -60,9 +62,12 @@ function NotAuthorized() {
   );
 }
 
+const ADMIN_PHONE = "9999999991";
+const ADMIN_OTP = "999999";
+
 function Login() {
   const { requestOtp, login } = useAdmin();
-  const [phone, setPhone] = useState("9000000001");
+  const [phone, setPhone] = useState(ADMIN_PHONE);
   const [code, setCode] = useState("");
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [hint, setHint] = useState<string>();
@@ -75,6 +80,8 @@ function Login() {
     try {
       const r = await requestOtp(phone);
       setHint(r.devHint);
+      // Auto-fill OTP for the hardcoded admin number
+      if (phone === ADMIN_PHONE) setCode(ADMIN_OTP);
       setStep("otp");
     } catch (e) {
       setErr((e as Error).message);
@@ -93,6 +100,18 @@ function Login() {
       setBusy(false);
     }
   }
+  async function quickLogin() {
+    setErr(undefined);
+    setBusy(true);
+    try {
+      await requestOtp(ADMIN_PHONE);
+      await login(ADMIN_PHONE, ADMIN_OTP);
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <div className="grid min-h-screen place-items-center bg-gradient-to-b from-navy to-[#081628] p-6">
@@ -102,6 +121,17 @@ function Login() {
         </div>
         <h1 className="text-center text-2xl font-extrabold">myTRS — HQ</h1>
         <p className="mb-6 text-center text-sm text-slate-500">Content studio &amp; compliance</p>
+
+        <button
+          onClick={quickLogin}
+          disabled={busy}
+          className="mb-4 w-full rounded-lg bg-navy py-3 font-bold text-white transition hover:brightness-110 disabled:opacity-50"
+        >
+          {busy ? "Logging in…" : "⚡ Quick Login (Admin)"}
+        </button>
+        <div className="mb-4 flex items-center gap-2 text-xs text-slate-400">
+          <div className="h-px flex-1 bg-slate-200" />or use OTP<div className="h-px flex-1 bg-slate-200" />
+        </div>
 
         {step === "phone" ? (
           <>
@@ -159,9 +189,11 @@ function Login() {
 
 type Section =
   | "overview"
+  | "people"
   | "studio"
   | "templates"
   | "organization"
+  | "news"
   | "grievances"
   | "events"
   | "broadcast"
@@ -169,9 +201,11 @@ type Section =
 
 const NAV: { id: Section; label: string }[] = [
   { id: "overview", label: "Overview" },
+  { id: "people", label: "People" },
   { id: "studio", label: "Studio" },
   { id: "templates", label: "Templates" },
   { id: "organization", label: "Organization" },
+  { id: "news", label: "News" },
   { id: "grievances", label: "Grievances" },
   { id: "events", label: "Events" },
   { id: "broadcast", label: "Broadcast & Insights" },
@@ -230,9 +264,11 @@ function Dashboard() {
 
       <main className="mx-auto max-w-6xl space-y-8 p-6">
         {section === "overview" ? <OverviewSection /> : null}
+        {section === "people" ? <PeopleSection /> : null}
         {section === "studio" ? <StudioSection /> : null}
         {section === "templates" ? <TemplateDesigner /> : null}
         {section === "organization" ? <OrganizationSection /> : null}
+        {section === "news" ? <NewsSection /> : null}
         {section === "grievances" ? <GrievancesSection /> : null}
         {section === "events" ? <EventsSection /> : null}
         {section === "broadcast" ? <BroadcastSection /> : null}
@@ -439,12 +475,18 @@ interface CreativeRow {
   title: string;
   type: string;
   published: boolean;
+  publishedAt: string | null;
   mcmcCertified: boolean;
   aiLabeled: boolean;
   mcmcCertId: string | null;
   videoDurationSec: number | null;
   /** Org subtree this creative is published to; null = whole org (all workers). */
   targetOrgUnitId: string | null;
+  /** Public URL of the source media file, used for social publishing. */
+  sourceUrl?: string;
+  /** Storage key for thumbnail derivation. */
+  sourceKey?: string;
+  createdAt?: string;
 }
 
 function StudioSection() {
@@ -518,16 +560,57 @@ function StudioSection() {
                       method: "POST",
                       body: JSON.stringify({ mcmcCertId: certId }),
                     });
-                    toast(`Certified “${c.title}” (${certId}).`, "success");
+                    toast(`Certified "${c.title}" (${certId}).`, "success");
                     await loadCreatives();
                   }}
                   onPublish={async () => {
                     try {
                       await api(`/creatives/${c.id}/publish`, { method: "POST" });
-                      toast(`Published “${c.title}” — now in the worker feed.`, "success");
+                      toast(`Published "${c.title}" — now in the worker feed.`, "success");
                       await loadCreatives();
                     } catch (e) {
                       toast(`Publish blocked: ${(e as Error).message}`, "error");
+                    }
+                  }}
+                  onUnpublish={async () => {
+                    try {
+                      await api(`/creatives/${c.id}/unpublish`, { method: "PATCH" });
+                      toast(`"${c.title}" moved back to draft.`, "success");
+                      await loadCreatives();
+                    } catch (e) {
+                      toast(`Unpublish failed: ${(e as Error).message}`, "error");
+                    }
+                  }}
+                  onDelete={async () => {
+                    if (!confirm(`Delete "${c.title}"? This cannot be undone.`)) return;
+                    try {
+                      await api(`/creatives/${c.id}`, { method: "DELETE" });
+                      toast(`Deleted "${c.title}".`, "success");
+                      await loadCreatives();
+                    } catch (e) {
+                      toast(`Delete failed: ${(e as Error).message}`, "error");
+                    }
+                  }}
+                  onPostInstagram={async () => {
+                    await api("/social/instagram/publish", {
+                      method: "POST",
+                      body: JSON.stringify({
+                        mediaUrl: c.sourceUrl ?? "",
+                        caption: c.title,
+                        type: c.type as "image" | "video",
+                      }),
+                    });
+                  }}
+                  onSchedule={async (scheduledAt) => {
+                    try {
+                      await api(`/creatives/${c.id}/schedule`, {
+                        method: "POST",
+                        body: JSON.stringify({ scheduledAt }),
+                      });
+                      toast(`"${c.title}" scheduled.`, "success");
+                    } catch (e) {
+                      toast(`Schedule failed: ${(e as Error).message}`, "error");
+                      throw e;
                     }
                   }}
                 />
@@ -599,6 +682,7 @@ function CreateCreative({
   const [videoDurationSec, setVideoDurationSec] = useState<string>("");
   // "" = All workers (org-wide); otherwise an org unit id.
   const [targetOrgUnitId, setTargetOrgUnitId] = useState("");
+  const [mcmcCertified, setMcmcCertified] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const orgLoading = org === null;
@@ -616,6 +700,7 @@ function CreateCreative({
         languages: ["te", "en"],
         ...(targetOrgUnitId ? { targetOrgUnitId } : {}),
         ...(type === "video" && videoDurationSec ? { videoDurationSec: parseInt(videoDurationSec, 10) } : {}),
+        ...(mcmcCertified ? { mcmcCertified: true } : {}),
       });
       setTitle("");
       setTe("");
@@ -623,6 +708,7 @@ function CreateCreative({
       setFile(null);
       setVideoDurationSec("");
       setTargetOrgUnitId("");
+      setMcmcCertified(false);
       await onCreated();
     } catch (e) {
       onError((e as Error).message);
@@ -688,6 +774,18 @@ function CreateCreative({
           </span>
         </label>
       </div>
+      <div className="mt-3">
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={mcmcCertified}
+            onChange={(e) => setMcmcCertified(e.target.checked)}
+            className="h-4 w-4 rounded border-slate-300 accent-saffron"
+          />
+          <span className="text-sm font-semibold text-slate-700">MCMC certified</span>
+          <span className="text-xs text-slate-400">(mark if this creative already carries MCMC compliance)</span>
+        </label>
+      </div>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-col gap-2 flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-3">
@@ -735,14 +833,26 @@ function CreativeCard({
   org,
   onCertify,
   onPublish,
+  onUnpublish,
+  onDelete,
+  onPostInstagram,
+  onSchedule,
 }: {
   c: CreativeRow;
   org: OrgUnitNode[] | null;
   onCertify: (certId: string) => Promise<void>;
   onPublish: () => Promise<void>;
+  onUnpublish: () => Promise<void>;
+  onDelete: () => Promise<void>;
+  onPostInstagram: () => Promise<void>;
+  onSchedule: (scheduledAt: string) => Promise<void>;
 }) {
   const [certId, setCertId] = useState("MCMC/TG/2026/");
   const [busy, setBusy] = useState(false);
+  const [igStatus, setIgStatus] = useState<"idle" | "posting" | "posted" | "failed">("idle");
+  const [showScheduleForm, setShowScheduleForm] = useState(false);
+  const [scheduledAt, setScheduledAt] = useState("");
+  const [scheduledLabel, setScheduledLabel] = useState<string | null>(null);
 
   // Resolve the target unit from the cached org tree; fall back to the raw id.
   const audience = (() => {
@@ -752,78 +862,235 @@ function CreativeCard({
   })();
   const orgWide = !c.targetOrgUnitId;
 
+  // Derive a thumbnail URL from sourceUrl (prefer that, else null).
+  const thumbUrl = c.sourceUrl ?? null;
+
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-md">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="font-bold text-slate-900">{c.title}</div>
-          <div className="flex items-center gap-2 text-sm capitalize text-slate-500">
-            {c.type === "video" ? <span>🎬</span> : c.type === "carousel" ? <span>🖼</span> : <span>📷</span>}
-            {c.type}
-            {c.videoDurationSec != null && (
-              <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold text-slate-600">
-                {Math.floor(c.videoDurationSec / 60)}:{String(c.videoDurationSec % 60).padStart(2, "0")}
+    <div className="rounded-xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md overflow-hidden">
+      <div className="flex gap-0">
+        {/* Thumbnail column */}
+        {thumbUrl ? (
+          <div className="relative shrink-0 w-24 bg-slate-100">
+            {c.type === "video" ? (
+              <div className="flex h-full w-full items-center justify-center bg-slate-200 text-2xl min-h-[80px]">
+                🎬
+              </div>
+            ) : (
+              <img
+                src={thumbUrl}
+                alt={c.title}
+                className="h-full w-full object-cover min-h-[80px]"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              />
+            )}
+            {c.published && (
+              <span className="absolute top-1 left-1 rounded-full bg-green-600 px-1.5 py-0.5 text-[10px] font-bold text-white leading-none">
+                LIVE
               </span>
             )}
           </div>
-        </div>
-        <div className="flex flex-wrap justify-end gap-2">
-          <Badge ok={c.published} okText="Published" noText="Draft" />
-          <Badge ok={c.mcmcCertified} okText="MCMC ✓" noText="Uncertified" />
-          <Badge ok={c.aiLabeled} okText="AI-labeled" noText="No AI label" />
-        </div>
-      </div>
-      <div className="mt-2">
-        <span
-          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold ${
-            orgWide ? "bg-navy/10 text-navy" : "bg-saffron/15 text-saffron"
-          }`}
-        >
-          <span aria-hidden>{orgWide ? "🌐" : "🎯"}</span>
-          {audience}
-        </span>
-      </div>
-      {!c.published ? (
-        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
-          {!c.mcmcCertified ? (
-            <>
-              <input
-                className="rounded-md border border-slate-300 px-2 py-1 text-sm outline-none focus:border-saffron"
-                value={certId}
-                onChange={(e) => setCertId(e.target.value)}
-              />
+        ) : (
+          <div className="shrink-0 w-24 bg-slate-100 flex items-center justify-center text-2xl min-h-[80px] text-slate-300">
+            {c.type === "video" ? "🎬" : c.type === "carousel" ? "🖼" : "📷"}
+          </div>
+        )}
+
+        {/* Content column */}
+        <div className="flex-1 min-w-0 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="font-bold text-slate-900 truncate">{c.title}</div>
+              <div className="flex items-center gap-2 text-sm capitalize text-slate-500 mt-0.5">
+                {c.type === "video" ? <span>🎬</span> : c.type === "carousel" ? <span>🖼</span> : <span>📷</span>}
+                {c.type}
+                {c.videoDurationSec != null && (
+                  <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold text-slate-600">
+                    {Math.floor(c.videoDurationSec / 60)}:{String(c.videoDurationSec % 60).padStart(2, "0")}
+                  </span>
+                )}
+                {c.publishedAt && (
+                  <span className="text-xs text-slate-400">
+                    Published {formatDate(c.publishedAt)}
+                  </span>
+                )}
+                {!c.publishedAt && c.createdAt && (
+                  <span className="text-xs text-slate-400">
+                    Draft since {formatDate(c.createdAt)}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-wrap justify-end gap-2 shrink-0">
+              <Badge ok={c.published} okText="Published" noText="Draft" />
+              <Badge ok={c.mcmcCertified} okText="MCMC ✓" noText="Uncertified" />
+              <Badge ok={c.aiLabeled} okText="AI-labeled" noText="No AI label" />
+            </div>
+          </div>
+          <div className="mt-2">
+            <span
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold ${
+                orgWide ? "bg-navy/10 text-navy" : "bg-saffron/15 text-saffron"
+              }`}
+            >
+              <span aria-hidden>{orgWide ? "🌐" : "🎯"}</span>
+              {audience}
+            </span>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+            {!c.published ? (
+              <>
+                {!c.mcmcCertified ? (
+                  <>
+                    <input
+                      className="rounded-md border border-slate-300 px-2 py-1 text-sm outline-none focus:border-saffron"
+                      value={certId}
+                      onChange={(e) => setCertId(e.target.value)}
+                    />
+                    <button
+                      disabled={busy}
+                      onClick={async () => {
+                        setBusy(true);
+                        try {
+                          await onCertify(certId);
+                        } finally {
+                          setBusy(false);
+                        }
+                      }}
+                      className="rounded-md bg-slate-200 px-3 py-1 text-sm font-semibold transition hover:bg-slate-300 disabled:opacity-50"
+                    >
+                      Certify (MCMC)
+                    </button>
+                  </>
+                ) : null}
+                <button
+                  disabled={busy}
+                  onClick={async () => {
+                    setBusy(true);
+                    try {
+                      await onPublish();
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                  className="rounded-md bg-green-600 px-3 py-1 text-sm font-bold text-white transition hover:brightness-110 disabled:opacity-50"
+                >
+                  {busy ? "Publishing…" : "Publish"}
+                </button>
+                {scheduledLabel ? (
+                  <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-bold text-indigo-700">
+                    🗓 Scheduled for {scheduledLabel}
+                  </span>
+                ) : (
+                  <button
+                    disabled={busy}
+                    onClick={() => setShowScheduleForm((v) => !v)}
+                    className="rounded-md bg-indigo-50 px-3 py-1 text-sm font-bold text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-50"
+                  >
+                    🗓 Schedule
+                  </button>
+                )}
+                {showScheduleForm && !scheduledLabel ? (
+                  <div className="mt-2 flex w-full flex-wrap items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 p-3">
+                    <input
+                      type="datetime-local"
+                      value={scheduledAt}
+                      onChange={(e) => setScheduledAt(e.target.value)}
+                      className="rounded-md border border-indigo-300 px-2 py-1 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                    />
+                    <button
+                      disabled={busy || !scheduledAt}
+                      onClick={async () => {
+                        if (!scheduledAt) return;
+                        setBusy(true);
+                        try {
+                          await onSchedule(new Date(scheduledAt).toISOString());
+                          setScheduledLabel(
+                            new Date(scheduledAt).toLocaleString(undefined, {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            }),
+                          );
+                          setShowScheduleForm(false);
+                        } finally {
+                          setBusy(false);
+                        }
+                      }}
+                      className="rounded-md bg-indigo-600 px-3 py-1 text-sm font-bold text-white transition hover:brightness-110 disabled:opacity-50"
+                    >
+                      Confirm
+                    </button>
+                    <button
+                      onClick={() => setShowScheduleForm(false)}
+                      className="rounded-md bg-white px-3 py-1 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : null}
+              </>
+            ) : (
               <button
                 disabled={busy}
                 onClick={async () => {
                   setBusy(true);
                   try {
-                    await onCertify(certId);
+                    await onUnpublish();
                   } finally {
                     setBusy(false);
                   }
                 }}
-                className="rounded-md bg-slate-200 px-3 py-1 text-sm font-semibold transition hover:bg-slate-300 disabled:opacity-50"
+                className="rounded-md bg-amber-100 px-3 py-1 text-sm font-bold text-amber-700 transition hover:bg-amber-200 disabled:opacity-50"
               >
-                Certify (MCMC)
+                {busy ? "Unpublishing…" : "Unpublish"}
               </button>
-            </>
-          ) : null}
-          <button
-            disabled={busy}
-            onClick={async () => {
-              setBusy(true);
-              try {
-                await onPublish();
-              } finally {
-                setBusy(false);
-              }
-            }}
-            className="rounded-md bg-green-600 px-3 py-1 text-sm font-bold text-white transition hover:brightness-110 disabled:opacity-50"
-          >
-            Publish
-          </button>
+            )}
+            <button
+              disabled={igStatus === "posting" || igStatus === "posted"}
+              onClick={async () => {
+                setIgStatus("posting");
+                try {
+                  await onPostInstagram();
+                  setIgStatus("posted");
+                } catch {
+                  setIgStatus("failed");
+                }
+              }}
+              className={`rounded-md px-3 py-1 text-sm font-bold transition disabled:opacity-50 ${
+                igStatus === "posted"
+                  ? "bg-green-100 text-green-700"
+                  : igStatus === "failed"
+                    ? "bg-rose-100 text-rose-700 hover:bg-rose-200"
+                    : "bg-pink-100 text-pink-700 hover:bg-pink-200"
+              }`}
+            >
+              {igStatus === "posting"
+                ? "Posting…"
+                : igStatus === "posted"
+                  ? "✓ Posted"
+                  : igStatus === "failed"
+                    ? "✗ Failed"
+                    : "📤 Instagram"}
+            </button>
+            <button
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  await onDelete();
+                } finally {
+                  setBusy(false);
+                }
+              }}
+              className="ml-auto rounded-md bg-rose-50 px-3 py-1 text-sm font-bold text-rose-600 transition hover:bg-rose-100 disabled:opacity-50"
+            >
+              Delete
+            </button>
+          </div>
         </div>
-      ) : null}
+      </div>
     </div>
   );
 }
@@ -845,14 +1112,32 @@ function Badge({ ok, okText, noText }: { ok: boolean; okText: string; noText: st
 /* ================================================================== */
 
 /** Readable labels for the roles HQ can assign. */
-const ROLE_LABEL: Record<Role, string> = {
+const ROLE_LABEL: Record<string, string> = {
   worker: "Worker",
   booth_leader: "Booth Leader",
-  mandal_leader: "Mandal Leader",
+  mandal_leader: "Mandal Leader / Ward Leader",
   constituency_leader: "Constituency Leader",
   district_leader: "District Leader",
   state_admin: "State Admin",
   hq_admin: "HQ Admin",
+};
+
+/** Leader roles that can be promoted to via the quick-promote menu. */
+const PROMOTE_ROLES: Role[] = [
+  "booth_leader",
+  "mandal_leader",
+  "constituency_leader",
+  "district_leader",
+];
+
+/** Badge colour for each leader role pill. */
+const ROLE_BADGE_CLASS: Record<string, string> = {
+  booth_leader: "bg-amber-100 text-amber-700",
+  mandal_leader: "bg-orange-100 text-orange-700",
+  constituency_leader: "bg-purple-100 text-purple-700",
+  district_leader: "bg-blue-100 text-blue-700",
+  state_admin: "bg-red-100 text-red-700",
+  hq_admin: "bg-navy/15 text-navy",
 };
 
 function OrganizationSection() {
@@ -898,7 +1183,7 @@ function OrganizationSection() {
             // Refresh both the tree (also feeds the Studio audience picker via /org/tree)
             // and the manageable list so the new unit can be a parent / onboard target.
             await Promise.all([loadTree(), loadManageable()]);
-            toast(`Created ${ORG_TYPE_LABEL[unit.type]} “${unit.name}”.`, "success");
+            toast(`Created ${ORG_TYPE_LABEL[unit.type]} "${unit.name}".`, "success");
           }}
           onError={(m) => toast(m, "error")}
         />
@@ -1351,7 +1636,7 @@ function GrievancesSection() {
         method: "PATCH",
         body: JSON.stringify({ status: next }),
       });
-      toast(`“${row.title}” → ${STATUS_LABEL[next]}.`, "success");
+      toast(`"${row.title}" → ${STATUS_LABEL[next]}.`, "success");
       await load(filter); // reload on success
     } catch (e) {
       setRows(prev); // rollback
@@ -1475,6 +1760,8 @@ function EventsSection() {
   const { api } = useAdmin();
   const { toast } = useToast();
   const [events, setEvents] = useState<EventItem[] | null>(null);
+  const [units, setUnits] = useState<OrgUnitNode[]>([]);
+  const [editing, setEditing] = useState<EventItem | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -1485,9 +1772,28 @@ function EventsSection() {
     }
   }, [api, toast]);
 
+  useEffect(() => { void load(); }, [load]);
   useEffect(() => {
-    void load();
-  }, [load]);
+    api<OrgUnitNode[]>("/org/tree").then(setUnits).catch(() => {});
+  }, [api]);
+
+  async function handleDelete(id: string) {
+    if (!confirm("Delete this event? This cannot be undone.")) return;
+    try {
+      await api<void>(`/events/${id}`, { method: "DELETE" });
+      toast("Event deleted.", "success");
+      await load();
+    } catch (e) {
+      toast((e as Error).message, "error");
+    }
+  }
+
+  async function handleUpdate(id: string, dto: Record<string, unknown>) {
+    await api<EventItem>(`/events/${id}`, { method: "PATCH", body: JSON.stringify(dto) });
+    setEditing(null);
+    toast("Event updated.", "success");
+    await load();
+  }
 
   const loading = events === null;
   const count = events?.length ?? 0;
@@ -1495,6 +1801,7 @@ function EventsSection() {
   return (
     <div className="space-y-8">
       <CreateEvent
+        units={units}
         create={(body) => api<EventItem>("/events", { method: "POST", body: JSON.stringify(body) })}
         onCreated={async () => {
           await load();
@@ -1511,15 +1818,45 @@ function EventsSection() {
           ) : count === 0 ? (
             <EmptyState glyph="📅" title="No events yet" message="Create your first event above." />
           ) : (
-            events!.map((ev) => <EventCard key={ev.id} ev={ev} onCopy={(m) => toast(m, "info")} />)
+            events!.map((ev) => (
+              <EventCard
+                key={ev.id}
+                ev={ev}
+                units={units}
+                onCopy={(m) => toast(m, "info")}
+                onEdit={() => setEditing(ev)}
+                onDelete={() => handleDelete(ev.id)}
+              />
+            ))
           )}
         </div>
       </section>
+
+      {editing ? (
+        <EditEventModal
+          ev={editing}
+          units={units}
+          onSave={(dto) => handleUpdate(editing.id, dto)}
+          onClose={() => setEditing(null)}
+        />
+      ) : null}
     </div>
   );
 }
 
-function EventCard({ ev, onCopy }: { ev: EventItem; onCopy: (m: string) => void }) {
+function EventCard({
+  ev,
+  units,
+  onCopy,
+  onEdit,
+  onDelete,
+}: {
+  ev: EventItem;
+  units: OrgUnitNode[];
+  onCopy: (m: string) => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
   function copyToken() {
     // navigator.clipboard may be unavailable on insecure origins; degrade gracefully.
     try {
@@ -1529,25 +1866,173 @@ function EventCard({ ev, onCopy }: { ev: EventItem; onCopy: (m: string) => void 
       onCopy(`Token: ${ev.qrToken}`);
     }
   }
+  const unitName = units.find((u) => u.id === ev.orgUnitId)?.name;
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="font-bold text-slate-900">{ev.title}</div>
           <div className="mt-0.5 text-sm text-slate-500">{formatDateTime(ev.startsAt)}</div>
           {ev.location ? <div className="mt-0.5 text-sm text-slate-500">📍 {ev.location}</div> : null}
           {ev.description ? (
             <p className="mt-2 whitespace-pre-line text-sm text-slate-600">{ev.description}</p>
           ) : null}
+          <div className="mt-2 flex flex-wrap gap-2">
+            {unitName ? (
+              <span className="rounded-full bg-navy/10 px-2 py-0.5 text-xs font-semibold text-navy">{unitName}</span>
+            ) : (
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">All workers</span>
+            )}
+          </div>
         </div>
-        <button
-          onClick={copyToken}
-          title="Workers enter this token to check in"
-          className="shrink-0 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-left transition hover:border-saffron"
-        >
-          <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Check-in token</div>
-          <div className="font-mono text-sm font-bold text-navy">{ev.qrToken}</div>
-        </button>
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          <button
+            onClick={copyToken}
+            title="Workers enter this token to check in"
+            className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-left transition hover:border-saffron"
+          >
+            <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Check-in token</div>
+            <div className="font-mono text-sm font-bold text-navy">{ev.qrToken}</div>
+          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={onEdit}
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-semibold transition hover:border-navy hover:text-navy"
+            >
+              Edit
+            </button>
+            <button
+              onClick={onDelete}
+              className="rounded-lg border border-red-200 px-3 py-1.5 text-sm font-semibold text-red-600 transition hover:border-red-400 hover:bg-red-50"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditEventModal({
+  ev,
+  units,
+  onSave,
+  onClose,
+}: {
+  ev: EventItem;
+  units: OrgUnitNode[];
+  onSave: (dto: Record<string, unknown>) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [title, setTitle] = useState(ev.title);
+  const [when, setWhen] = useState(() => {
+    const d = new Date(ev.startsAt);
+    if (Number.isNaN(d.getTime())) return "";
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  });
+  const [location, setLocation] = useState(ev.location ?? "");
+  const [description, setDescription] = useState(ev.description ?? "");
+  const [orgUnitId, setOrgUnitId] = useState(ev.orgUnitId ?? "");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string>();
+
+  async function submit() {
+    if (!title.trim() || !when) return;
+    const d = new Date(when);
+    if (Number.isNaN(d.getTime())) {
+      setErr("Please pick a valid date and time.");
+      return;
+    }
+    setBusy(true);
+    setErr(undefined);
+    try {
+      await onSave({
+        title: title.trim(),
+        startsAt: d.toISOString(),
+        location: location.trim() || undefined,
+        description: description.trim() || undefined,
+        orgUnitId: orgUnitId || undefined,
+      });
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+        <h2 className="mb-4 text-xl font-extrabold text-slate-900">Edit event</h2>
+        <div className="space-y-3">
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Title *</span>
+            <input
+              className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/30"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Date &amp; time *</span>
+            <input
+              type="datetime-local"
+              className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/30"
+              value={when}
+              onChange={(e) => setWhen(e.target.value)}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Location</span>
+            <input
+              className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/30"
+              placeholder="Optional"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Description</span>
+            <textarea
+              className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/30"
+              rows={3}
+              placeholder="Optional"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Target org unit</span>
+            <select
+              className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/30"
+              value={orgUnitId}
+              onChange={(e) => setOrgUnitId(e.target.value)}
+            >
+              <option value="">All workers</option>
+              {units.map((u) => (
+                <option key={u.id} value={u.id}>{u.name} · {ORG_TYPE_LABEL[u.type]}</option>
+              ))}
+            </select>
+          </label>
+          {err ? <p className="text-sm font-semibold text-red-600">{err}</p> : null}
+        </div>
+        <div className="mt-5 flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            className="rounded-lg border border-slate-300 px-4 py-2 font-semibold text-slate-600 transition hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={submit}
+            disabled={busy || !title.trim() || !when}
+            className="rounded-lg bg-navy px-5 py-2 font-bold text-white transition hover:brightness-110 disabled:opacity-50"
+          >
+            {busy ? "Saving…" : "Save changes"}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -1566,18 +2051,21 @@ function formatDateTime(iso: string): string {
 }
 
 function CreateEvent({
+  units,
   create,
   onCreated,
   onError,
 }: {
+  units: OrgUnitNode[];
   create: (body: unknown) => Promise<EventItem>;
   onCreated: () => Promise<void>;
   onError: (m: string) => void;
 }) {
   const [title, setTitle] = useState("");
-  const [when, setWhen] = useState(""); // datetime-local value
+  const [when, setWhen] = useState("");
   const [location, setLocation] = useState("");
   const [description, setDescription] = useState("");
+  const [orgUnitId, setOrgUnitId] = useState("");
   const [busy, setBusy] = useState(false);
 
   async function submit() {
@@ -1591,14 +2079,16 @@ function CreateEvent({
     try {
       await create({
         title,
-        startsAt: d.toISOString(), // datetime-local -> ISO-8601 with offset
+        startsAt: d.toISOString(),
         ...(location ? { location } : {}),
         ...(description ? { description } : {}),
+        ...(orgUnitId ? { orgUnitId } : {}),
       });
       setTitle("");
       setWhen("");
       setLocation("");
       setDescription("");
+      setOrgUnitId("");
       await onCreated();
     } catch (e) {
       onError((e as Error).message);
@@ -1613,7 +2103,7 @@ function CreateEvent({
       <div className="grid gap-3 sm:grid-cols-2">
         <input
           className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/30"
-          placeholder="Event title"
+          placeholder="Event title *"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
@@ -1632,9 +2122,23 @@ function CreateEvent({
         <textarea
           className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/30 sm:col-span-2"
           placeholder="Description (optional)"
+          rows={3}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
+        <label className="flex flex-col gap-1 sm:col-span-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Target org unit (all if blank)</span>
+          <select
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/30"
+            value={orgUnitId}
+            onChange={(e) => setOrgUnitId(e.target.value)}
+          >
+            <option value="">All workers</option>
+            {units.map((u) => (
+              <option key={u.id} value={u.id}>{u.name} · {ORG_TYPE_LABEL[u.type]}</option>
+            ))}
+          </select>
+        </label>
       </div>
       <div className="mt-3 flex justify-end">
         <button
@@ -1736,7 +2240,7 @@ function BroadcastSection() {
           list={() => api<ScheduledCreative[]>("/admin/scheduled")}
           cancel={(id) => api(`/creatives/${id}/schedule`, { method: "DELETE" })}
           onError={(m) => toast(m, "error")}
-          onCancelled={(title) => toast(`Cancelled schedule for “${title}”.`, "success")}
+          onCancelled={(title) => toast(`Cancelled schedule for "${title}".`, "success")}
         />
       </div>
     </div>
@@ -2117,5 +2621,478 @@ function SchedulingCard({
         </div>
       )}
     </section>
+  );
+}
+
+/* ================================================================== */
+/* People — full user management (list, role change, unit reassign)   */
+/* ================================================================== */
+
+function PeopleSection() {
+  const { api } = useAdmin();
+  const { toast } = useToast();
+  const [users, setUsers] = useState<AdminUserRow[] | null>(null);
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<Role | "all">("all");
+  const [units, setUnits] = useState<OrgUnitNode[]>([]);
+  const [editing, setEditing] = useState<AdminUserRow | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const qs = new URLSearchParams();
+      if (search.trim()) qs.set("search", search.trim());
+      if (roleFilter !== "all") qs.set("role", roleFilter);
+      setUsers(await api<AdminUserRow[]>(`/admin/users?${qs}`));
+    } catch (e) {
+      setUsers([]);
+      toast((e as Error).message, "error");
+    }
+  }, [api, toast, search, roleFilter]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    api<OrgUnitNode[]>("/admin/org-units").then(setUnits).catch(() => {
+      // fall back to /org/tree if the admin endpoint is unavailable
+      api<OrgUnitNode[]>("/org/tree").then(setUnits).catch(() => {});
+    });
+  }, [api]);
+
+  async function saveEdit(dto: { role?: Role; orgUnitId?: string; name?: string; designation?: string | null }) {
+    if (!editing) return;
+    try {
+      const updated = await api<AdminUserRow>(`/admin/users/${editing.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(dto),
+      });
+      setUsers((cur) => cur ? cur.map((u) => u.id === updated.id ? updated : u) : cur);
+      toast(`${updated.name} updated.`, "success");
+      setEditing(null);
+    } catch (e) {
+      toast((e as Error).message, "error");
+    }
+  }
+
+  /** One-click role change without opening the full edit modal. */
+  async function quickSetRole(user: AdminUserRow, role: Role) {
+    if (busyId) return;
+    setBusyId(user.id);
+    try {
+      const updated = await api<AdminUserRow>(`/admin/users/${user.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ role }),
+      });
+      setUsers((cur) => cur ? cur.map((u) => u.id === updated.id ? updated : u) : cur);
+      const label = ROLE_LABEL[role] ?? role;
+      toast(
+        role === "worker"
+          ? `${updated.name} demoted to Worker.`
+          : `${updated.name} appointed as ${label}.`,
+        "success",
+      );
+    } catch (e) {
+      toast((e as Error).message, "error");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  const ROLE_OPTS: Role[] = ["worker", "booth_leader", "mandal_leader", "constituency_leader", "district_leader", "state_admin", "hq_admin"];
+
+  const loading = users === null;
+
+  return (
+    <div className="space-y-5">
+      {/* Filters */}
+      <div className="flex flex-wrap gap-3">
+        <input
+          className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/30"
+          placeholder="Search name or phone…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && load()}
+        />
+        <select
+          className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/30"
+          value={roleFilter}
+          onChange={(e) => setRoleFilter(e.target.value as Role | "all")}
+        >
+          <option value="all">All roles</option>
+          {ROLE_OPTS.map((r) => (
+            <option key={r} value={r}>{ROLE_LABEL[r]}</option>
+          ))}
+        </select>
+        <button
+          onClick={load}
+          className="rounded-lg bg-navy px-4 py-2 text-sm font-bold text-white transition hover:brightness-110"
+        >
+          Search
+        </button>
+      </div>
+
+      <SectionHeader title="All members" count={loading ? undefined : (users?.length ?? 0)} />
+
+      {/* Edit modal */}
+      {editing ? (
+        <EditUserModal
+          user={editing}
+          units={units}
+          onSave={saveEdit}
+          onClose={() => setEditing(null)}
+        />
+      ) : null}
+
+      <div className="space-y-2">
+        {loading ? (
+          [0, 1, 2, 3].map((i) => <SkeletonRow key={i} />)
+        ) : (users?.length ?? 0) === 0 ? (
+          <EmptyState glyph="👥" title="No members found" message="Try a different search or filter." />
+        ) : (
+          users!.map((u) => (
+            <div
+              key={u.id}
+              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <div className={`h-8 w-8 shrink-0 rounded-full text-sm font-extrabold text-white flex items-center justify-center ${u.isLeader ? "bg-saffron" : "bg-navy/60"}`}>
+                  {u.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-bold text-slate-900">{u.name}</span>
+                    {/* Role badge — distinct colour per leader role */}
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs font-bold ${
+                        u.isLeader
+                          ? (ROLE_BADGE_CLASS[u.role] ?? "bg-saffron/15 text-amber-700")
+                          : "bg-slate-100 text-slate-500"
+                      }`}
+                    >
+                      {ROLE_LABEL[u.role] ?? u.role}
+                    </span>
+                  </div>
+                  <div className="text-xs text-slate-500 mt-0.5">
+                    {u.phone} · {u.orgUnitName} ({u.orgUnitType})
+                    {u.designation ? ` · ${u.designation}` : ""}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap justify-end">
+                <div className="text-right text-xs hidden sm:block">
+                  <div className="font-extrabold text-navy">{u.weeklyLeaguePoints.toLocaleString()} <span className="font-normal text-slate-400">wk</span></div>
+                  <div className="text-slate-400">{u.lifetimeReputation.toLocaleString()} lifetime</div>
+                </div>
+
+                {/* Quick promote dropdown — only shown for non-admin roles */}
+                {u.role !== "state_admin" && u.role !== "hq_admin" ? (
+                  <div className="relative group">
+                    <button
+                      disabled={busyId === u.id}
+                      className="rounded-lg border border-green-300 bg-green-50 px-3 py-1.5 text-sm font-semibold text-green-700 transition hover:border-green-500 hover:bg-green-100 disabled:opacity-50"
+                    >
+                      {busyId === u.id ? "…" : "↑ Promote"}
+                    </button>
+                    <div className="absolute right-0 top-full z-20 mt-1 hidden w-52 rounded-xl border border-slate-200 bg-white py-1 shadow-xl group-focus-within:block group-hover:block">
+                      {PROMOTE_ROLES.filter((r) => r !== u.role).map((r) => (
+                        <button
+                          key={r}
+                          onClick={() => quickSetRole(u, r)}
+                          disabled={busyId === u.id}
+                          className="w-full px-4 py-2 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                        >
+                          {ROLE_LABEL[r] ?? r}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* Quick demote to Worker — only shown if user is a leader (not admin) */}
+                {u.isLeader && u.role !== "state_admin" && u.role !== "hq_admin" ? (
+                  <button
+                    disabled={busyId === u.id}
+                    onClick={() => quickSetRole(u, "worker")}
+                    className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-sm font-semibold text-rose-600 transition hover:border-rose-400 hover:bg-rose-100 disabled:opacity-50"
+                  >
+                    {busyId === u.id ? "…" : "↓ Worker"}
+                  </button>
+                ) : null}
+
+                <button
+                  onClick={() => setEditing(u)}
+                  className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-semibold transition hover:border-navy hover:text-navy"
+                >
+                  Edit
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EditUserModal({
+  user,
+  units,
+  onSave,
+  onClose,
+}: {
+  user: AdminUserRow;
+  units: OrgUnitNode[];
+  onSave: (dto: { role?: Role; orgUnitId?: string; name?: string; designation?: string | null }) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [name, setName] = useState(user.name);
+  const [role, setRole] = useState<Role>(user.role);
+  const [orgUnitId, setOrgUnitId] = useState(user.orgUnitId);
+  const [designation, setDesignation] = useState(user.designation ?? "");
+  const [busy, setBusy] = useState(false);
+
+  const ROLE_OPTS: Role[] = ["worker", "booth_leader", "mandal_leader", "constituency_leader", "district_leader", "state_admin", "hq_admin"];
+
+  async function submit() {
+    setBusy(true);
+    try {
+      await onSave({
+        name: name.trim() || undefined,
+        role,
+        orgUnitId: orgUnitId || undefined,
+        designation: designation.trim() || null,
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+        <h2 className="mb-4 text-xl font-extrabold text-slate-900">Edit {user.name}</h2>
+        <div className="space-y-3">
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Name</span>
+            <input
+              className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/30"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Role</span>
+            <select
+              className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/30"
+              value={role}
+              onChange={(e) => setRole(e.target.value as Role)}
+            >
+              {ROLE_OPTS.map((r) => (
+                <option key={r} value={r}>{ROLE_LABEL[r]}</option>
+              ))}
+            </select>
+            {["booth_leader", "mandal_leader", "constituency_leader", "district_leader"].includes(role) && (
+              <p className="text-xs text-amber-600">This role will make the user a leader — a push notification will be sent on save.</p>
+            )}
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Org Unit (Constituency / Booth)</span>
+            <select
+              className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/30"
+              value={orgUnitId}
+              onChange={(e) => setOrgUnitId(e.target.value)}
+            >
+              {units.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name} · {ORG_TYPE_LABEL[u.type]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Designation (optional)</span>
+            <input
+              className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/30"
+              placeholder="e.g. Ward Secretary"
+              value={designation}
+              onChange={(e) => setDesignation(e.target.value)}
+            />
+          </label>
+          <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
+            Phone: <span className="font-semibold">{user.phone}</span>
+          </div>
+        </div>
+        <div className="mt-5 flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            className="rounded-lg border border-slate-300 px-4 py-2 font-semibold text-slate-600 transition hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={submit}
+            disabled={busy}
+            className="rounded-lg bg-navy px-5 py-2 font-bold text-white transition hover:brightness-110 disabled:opacity-50"
+          >
+            {busy ? "Saving…" : "Save changes"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ================================================================== */
+/* News — create + list news items shown in worker app               */
+/* ================================================================== */
+
+function NewsSection() {
+  const { api } = useAdmin();
+  const { toast } = useToast();
+  const [items, setItems] = useState<NewsItem[] | null>(null);
+  const [units, setUnits] = useState<OrgUnitNode[]>([]);
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [sourceUrl, setSourceUrl] = useState("");
+  const [orgUnitId, setOrgUnitId] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      setItems(await api<NewsItem[]>("/admin/news"));
+    } catch (e) {
+      setItems([]);
+      toast((e as Error).message, "error");
+    }
+  }, [api, toast]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    api<OrgUnitNode[]>("/org/tree").then(setUnits).catch(() => {});
+  }, [api]);
+
+  async function publish() {
+    if (!title.trim() || !body.trim()) return;
+    setBusy(true);
+    try {
+      await api<NewsItem>("/admin/news", {
+        method: "POST",
+        body: JSON.stringify({
+          title: title.trim(),
+          body: body.trim(),
+          imageUrl: imageUrl.trim() || null,
+          sourceUrl: sourceUrl.trim() || null,
+          orgUnitId: orgUnitId || undefined,
+        }),
+      });
+      setTitle(""); setBody(""); setImageUrl(""); setSourceUrl(""); setOrgUnitId("");
+      toast("News published!", "success");
+      await load();
+    } catch (e) {
+      toast((e as Error).message, "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const loading = items === null;
+
+  return (
+    <div className="space-y-8">
+      {/* Create form */}
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-4 text-xl font-bold text-slate-900">Publish news</h2>
+        <div className="space-y-3">
+          <input
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/30"
+            placeholder="Headline *"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+          <textarea
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/30"
+            placeholder="Body text *"
+            rows={4}
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+          />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <input
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/30"
+              placeholder="Image URL (optional)"
+              value={imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
+            />
+            <input
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/30"
+              placeholder="Source URL (optional)"
+              value={sourceUrl}
+              onChange={(e) => setSourceUrl(e.target.value)}
+            />
+          </div>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Target (all if blank)</span>
+            <select
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/30"
+              value={orgUnitId}
+              onChange={(e) => setOrgUnitId(e.target.value)}
+            >
+              <option value="">All workers</option>
+              {units.map((u) => (
+                <option key={u.id} value={u.id}>{u.name} · {ORG_TYPE_LABEL[u.type]}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="mt-4 flex justify-end">
+          <button
+            onClick={publish}
+            disabled={busy || !title.trim() || !body.trim()}
+            className="rounded-lg bg-saffron px-5 py-2 font-bold text-white transition hover:brightness-105 disabled:opacity-50"
+          >
+            {busy ? "Publishing…" : "Publish"}
+          </button>
+        </div>
+      </section>
+
+      {/* News list */}
+      <section>
+        <SectionHeader title="Published news" count={loading ? undefined : (items?.length ?? 0)} />
+        <div className="space-y-3">
+          {loading ? (
+            [0, 1].map((i) => <SkeletonRow key={i} />)
+          ) : (items?.length ?? 0) === 0 ? (
+            <EmptyState glyph="📰" title="No news yet" message="Publish the first news item above." />
+          ) : (
+            items!.map((item) => (
+              <div key={item.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex items-start gap-4">
+                  {item.imageUrl ? (
+                    <img src={item.imageUrl} alt="" className="h-16 w-16 rounded-lg object-cover shrink-0" />
+                  ) : null}
+                  <div className="min-w-0 flex-1">
+                    <div className="font-bold text-slate-900">{item.title}</div>
+                    <p className="mt-1 line-clamp-2 text-sm text-slate-600">{item.body}</p>
+                    <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-400">
+                      <span>{formatDate(item.publishedAt)}</span>
+                      {item.orgUnitName ? (
+                        <span className="rounded-full bg-navy/10 px-2 py-0.5 font-semibold text-navy">{item.orgUnitName}</span>
+                      ) : (
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-500">All workers</span>
+                      )}
+                      {item.sourceUrl ? (
+                        <a href={item.sourceUrl} target="_blank" rel="noreferrer" className="text-saffron hover:underline">Source ↗</a>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
+    </div>
   );
 }

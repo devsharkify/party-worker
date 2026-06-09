@@ -3,6 +3,7 @@
 // A "play" tap opens the source URL in the system browser/player.
 import { forwardRef, useImperativeHandle } from "react";
 import { Linking, StyleSheet, Text, View } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { RemoteImage } from "./RemoteImage";
 import { colors } from "../theme";
@@ -44,7 +45,7 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, Props>(function VideoPlayer(
         onClick={() => Linking.openURL(sourceUrl)}
       >
         <View style={st.playBtn}>
-          <Text style={st.playIcon}>▶</Text>
+          <Feather name="play" size={22} color="#fff" />
         </View>
       </View>
 
@@ -95,7 +96,6 @@ const st = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  playIcon: { fontSize: 26, color: "#0b1f3a", marginLeft: 4 },
   scrim: {
     position: "absolute",
     left: 0,

@@ -1,0 +1,7 @@
+{
+  "buildCommand": "pnpm --filter @pw/app export:web",
+  "outputDirectory": "apps/app/dist",
+  "framework": null,
+  "installCommand": "pnpm install",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}

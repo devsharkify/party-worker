@@ -75,4 +75,27 @@ export class PushService {
       await this.push.sendToTopic(orgUnitId, { title, body });
     }
   }
+
+  /** Push a notification to every registered device (broadcast). */
+  async pushToAllUsers(title: string, body: string, data?: Record<string, string>): Promise<void> {
+    if (this.push instanceof FirebasePushProvider) {
+      const CHUNK = 500;
+      let cursor: string | undefined;
+      while (true) {
+        const records = await this.prisma.deviceToken.findMany({
+          take: CHUNK,
+          ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+          select: { id: true, token: true },
+          orderBy: { id: "asc" },
+        });
+        if (records.length === 0) break;
+        await this.push.sendMulticast(records.map((r) => r.token), title, body, data);
+        cursor = records[records.length - 1].id;
+        if (records.length < CHUNK) break;
+      }
+    } else {
+      // Mock / non-FCM provider: use the "org_all" topic convention
+      await this.push.sendToTopic("org_all", { title, body, data });
+    }
+  }
 }

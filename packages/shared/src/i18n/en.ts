@@ -1,7 +1,7 @@
 /** Canonical English catalog. te.ts mirrors this shape exactly. */
 export const en = {
   common: {
-    appName: "Party Worker",
+    appName: "myTRS",
     loading: "Loading...",
     retry: "Retry",
     cancel: "Cancel",
@@ -61,7 +61,7 @@ export const en = {
     title: "Profile",
     membershipCard: "Membership card",
     designation: "Designation",
-    booth: "Booth",
+    area: "Area",
     tier: "Tier",
     lifetimePoints: "Lifetime reputation",
     weeklyPoints: "This week",
@@ -72,7 +72,7 @@ export const en = {
   },
   leaderboard: {
     title: "Leaderboard",
-    booth: "Booth",
+    area: "Area",
     mandal: "Mandal",
     constituency: "Constituency",
     district: "District",
@@ -86,9 +86,9 @@ export const en = {
   consent: {
     title: "Your consent",
     intro: "We ask only for what we need. You can withdraw any of these later.",
-    dataProcessing: "Process my name, photo and booth to personalize content",
+    dataProcessing: "Process my name, photo and area to personalize content",
     socialLinking: "Link my social account to measure reach",
-    contentResharing: "Let me re-share party content from my account",
+    contentResharing: "Let me re-share myTRS content from my account",
     location: "Use my location for event check-ins",
     ageGate: "I confirm I am 18 years or older",
     agree: "Agree & continue",
@@ -120,13 +120,13 @@ export const en = {
     namePlaceholder: "Your full name",
     nameLabel: "Full name",
     designationLabel: "Designation",
-    designationPlaceholder: "e.g. Booth Worker, Mandal Leader",
+    designationPlaceholder: "e.g. Area Member, Mandal Leader",
     languageLabel: "Preferred language",
     continueBtn: "Continue",
     enableNotifTitle: "Enable Notifications",
     enableNotifTitleTe: "నోటిఫికేషన్లు ప్రారంభించండి",
     enableNotifBody:
-      "Get instant alerts for upcoming events, party announcements, and reach milestones.",
+      "Get instant alerts for upcoming events, myTRS announcements, and reach milestones.",
     enableBtn: "Enable Notifications",
     skipForNow: "Skip for now",
     notifGranted: "Notifications enabled!",

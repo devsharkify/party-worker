@@ -1,8 +1,9 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { randomBytes } from "node:crypto";
 import type {
   CheckInResult,
   CreateEventDto,
+  UpdateEventDto,
   EventItem,
   RsvpResult,
   RsvpStatus,
@@ -10,6 +11,7 @@ import type {
 import { SCORING } from "@pw/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { ScoringService } from "../scoring/scoring.service";
+import { PushService } from "../push/push.service";
 
 /** Points credited for a QR-verified event check-in (single source of truth in @pw/shared). */
 const CHECKIN_POINTS = SCORING.EVENT_CHECKIN;
@@ -19,6 +21,7 @@ export class EventsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly scoring: ScoringService,
+    private readonly push: PushService,
   ) {}
 
   /** Upcoming events (from yesterday onwards) with the viewer's RSVP + check-in state. */
@@ -64,6 +67,46 @@ export class EventsService {
         orgUnitId: dto.orgUnitId ?? null,
       },
     });
+    const item: EventItem = {
+      id: event.id,
+      title: event.title,
+      description: event.description,
+      startsAt: event.startsAt.toISOString(),
+      location: event.location,
+      lat: event.lat,
+      lng: event.lng,
+      qrToken: event.qrToken,
+      orgUnitId: event.orgUnitId,
+      rsvpStatus: null,
+      checkedIn: false,
+    };
+
+    // Notify workers about the new event (fire-and-forget)
+    if (event.orgUnitId) {
+      void this.push.pushToOrgUnit(event.orgUnitId, "New event", event.title).catch(() => undefined);
+    } else {
+      void this.push.pushToAllUsers("New event", event.title).catch(() => undefined);
+    }
+
+    return item;
+  }
+
+  /** Admin: update an event. */
+  async update(id: string, dto: UpdateEventDto): Promise<EventItem> {
+    const existing = await this.prisma.event.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException(`Event ${id} not found`);
+    const event = await this.prisma.event.update({
+      where: { id },
+      data: {
+        ...(dto.title !== undefined && { title: dto.title }),
+        ...(dto.description !== undefined && { description: dto.description }),
+        ...(dto.startsAt !== undefined && { startsAt: new Date(dto.startsAt) }),
+        ...(dto.location !== undefined && { location: dto.location }),
+        ...(dto.lat !== undefined && { lat: dto.lat }),
+        ...(dto.lng !== undefined && { lng: dto.lng }),
+        ...(dto.orgUnitId !== undefined && { orgUnitId: dto.orgUnitId }),
+      },
+    });
     return {
       id: event.id,
       title: event.title,
@@ -77,6 +120,17 @@ export class EventsService {
       rsvpStatus: null,
       checkedIn: false,
     };
+  }
+
+  /** Admin: delete an event and its associated RSVPs and check-ins. */
+  async delete(id: string): Promise<void> {
+    const existing = await this.prisma.event.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException(`Event ${id} not found`);
+    await this.prisma.$transaction([
+      this.prisma.rsvp.deleteMany({ where: { eventId: id } }),
+      this.prisma.checkIn.deleteMany({ where: { eventId: id } }),
+      this.prisma.event.delete({ where: { id } }),
+    ]);
   }
 
   /** Upsert the viewer's RSVP for an event. */

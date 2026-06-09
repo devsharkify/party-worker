@@ -1,14 +1,29 @@
 import React from "react";
-import { Text } from "react-native";
+import { View } from "react-native";
 import { Redirect, Tabs } from "expo-router";
 import { useTranslation } from "react-i18next";
+import {
+  HouseLine,
+  ShareNetwork,
+  Trophy,
+  Users,
+  UserCircle,
+  Calendar,
+  Newspaper,
+  Bell,
+  Megaphone,
+} from "phosphor-react-native";
 import { useAuth } from "../../src/auth/auth-context";
+import { DrawerProvider } from "../../src/context/drawer-context";
+import { AppHeader } from "../../src/components/AppHeader";
+import { AppDrawer } from "../../src/components/AppDrawer";
 import { colors } from "../../src/theme";
 
-const icon = (ch: string) =>
-  function TabIcon({ color }: { color: string }) {
-    return <Text style={{ fontSize: 20, color }}>{ch}</Text>;
+function makeHeader(title: string) {
+  return function Header() {
+    return <AppHeader title={title} />;
   };
+}
 
 export default function TabsLayout() {
   const { t, i18n } = useTranslation();
@@ -16,40 +31,109 @@ export default function TabsLayout() {
 
   if (!loading && !user) return <Redirect href="/login" />;
 
+  const lang = i18n.language as "te" | "en";
+
   return (
-    <Tabs
-      screenOptions={{
-        headerStyle: { backgroundColor: colors.bg },
-        headerTintColor: "#fff",
-        headerTitleStyle: { fontWeight: "800" },
-        tabBarActiveTintColor: colors.primaryDark,
-        tabBarInactiveTintColor: colors.textMuted,
-      }}
-    >
-      <Tabs.Screen name="feed" options={{ title: t("feed.title"), tabBarIcon: icon("🏠") }} />
-      <Tabs.Screen name="events" options={{ title: t("events.title"), tabBarIcon: icon("📅") }} />
-      <Tabs.Screen
-        name="grievances"
-        options={{ title: t("grievances.title"), tabBarIcon: icon("📣") }}
-      />
-      <Tabs.Screen
-        name="leaderboard"
-        options={{ title: t("leaderboard.title"), tabBarIcon: icon("🏆") }}
-      />
-      <Tabs.Screen
-        name="updates"
-        options={{ title: i18n.language === "te" ? "అప్‌డేట్లు" : "Updates", tabBarIcon: icon("🔔") }}
-      />
-      <Tabs.Screen
-        name="team"
-        options={{
-          title: "నా బృందం",
-          tabBarIcon: icon("👥"),
-          // Only leaders may see / reach the My Team tab.
-          href: user?.isLeader ? undefined : null,
-        }}
-      />
-      <Tabs.Screen name="profile" options={{ title: t("profile.title"), tabBarIcon: icon("👤") }} />
-    </Tabs>
+    <DrawerProvider>
+      <View style={{ flex: 1 }}>
+        <Tabs
+          screenOptions={{
+            headerShown: true,
+            tabBarActiveTintColor: "#E91E8C",
+            tabBarInactiveTintColor: "#94a3b8",
+            tabBarStyle: {
+              backgroundColor: "#FFFFFF",
+              borderTopColor: "#E91E8C",
+              borderTopWidth: 2,
+              shadowColor: "#E91E8C",
+              shadowOpacity: 0.12,
+              shadowRadius: 8,
+              shadowOffset: { width: 0, height: -2 },
+              elevation: 8,
+            },
+            tabBarLabelStyle: { fontSize: 11, fontWeight: "700" },
+          }}
+        >
+          {/* ── 5 visible tabs ── */}
+          <Tabs.Screen
+            name="feed"
+            options={{
+              title: t("feed.title"),
+              tabBarIcon: ({ focused, color }) => (
+                <ShareNetwork weight={focused ? "duotone" : "regular"} size={24} color={color} />
+              ),
+              header: makeHeader(t("feed.title")),
+            }}
+          />
+          <Tabs.Screen
+            name="news"
+            options={{
+              title: lang === "te" ? "వార్తలు" : "News",
+              tabBarIcon: ({ focused, color }) => (
+                <Newspaper weight={focused ? "duotone" : "regular"} size={24} color={color} />
+              ),
+              header: makeHeader(lang === "te" ? "వార్తలు" : "News"),
+            }}
+          />
+          <Tabs.Screen
+            name="events"
+            options={{
+              title: t("events.title"),
+              tabBarIcon: ({ focused, color }) => (
+                <Calendar weight={focused ? "duotone" : "regular"} size={24} color={color} />
+              ),
+              header: makeHeader(t("events.title")),
+            }}
+          />
+          <Tabs.Screen
+            name="leaderboard"
+            options={{
+              title: t("leaderboard.title"),
+              tabBarIcon: ({ focused, color }) => (
+                <Trophy weight={focused ? "duotone" : "regular"} size={24} color={color} />
+              ),
+              header: makeHeader(t("leaderboard.title")),
+            }}
+          />
+          <Tabs.Screen
+            name="team"
+            options={{
+              title: lang === "te" ? "నా బృందం" : "My Team",
+              tabBarIcon: ({ focused, color }) => (
+                <Users weight={focused ? "duotone" : "regular"} size={24} color={color} />
+              ),
+              header: makeHeader(lang === "te" ? "నా బృందం" : "My Team"),
+              href: user?.isLeader ? undefined : null,
+            }}
+          />
+
+          {/* ── Hidden from tab bar — accessible via drawer ── */}
+          <Tabs.Screen
+            name="updates"
+            options={{
+              href: null,
+              header: makeHeader(lang === "te" ? "అప్‌డేట్లు" : "Updates"),
+            }}
+          />
+          <Tabs.Screen
+            name="grievances"
+            options={{
+              href: null,
+              header: makeHeader(t("grievances.title")),
+            }}
+          />
+          <Tabs.Screen
+            name="profile"
+            options={{
+              href: null,
+              header: makeHeader(t("profile.title")),
+            }}
+          />
+        </Tabs>
+
+        {/* Drawer overlay — sits above tabs + tab bar */}
+        <AppDrawer />
+      </View>
+    </DrawerProvider>
   );
 }

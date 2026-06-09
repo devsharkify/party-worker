@@ -19,6 +19,7 @@ import { Card, PrimaryButton } from "../../src/components/ui";
 import { RemoteImage } from "../../src/components/RemoteImage";
 import { RowSkeleton } from "../../src/components/Skeleton";
 import { StateView } from "../../src/components/StateView";
+import { Feather } from "@expo/vector-icons";
 import { colors, radius, shadow, tierColor } from "../../src/theme";
 
 type Lang = "te" | "en";
@@ -32,9 +33,9 @@ const L: Loc = {
   emptyTitle: { te: "ఇంకా సభ్యులు లేరు", en: "No members yet" },
   emptyMsg: {
     te: "కింద ఫారమ్‌తో మీ మొదటి కార్యకర్తను చేర్చండి.",
-    en: "Onboard your first worker with the form below.",
+    en: "Onboard your first member with the form below.",
   },
-  onboardTitle: { te: "కార్యకర్తను చేర్చండి", en: "Onboard a worker" },
+  onboardTitle: { te: "కార్యకర్తను చేర్చండి", en: "Onboard a member" },
   name: { te: "పేరు", en: "Name" },
   phone: { te: "ఫోన్ నంబర్", en: "Phone number" },
   role: { te: "పాత్ర", en: "Role" },
@@ -49,8 +50,8 @@ const L: Loc = {
 
 // Telugu-first role labels (no shared i18n keys exist for roles).
 const ROLE_LABEL: Record<Role, { te: string; en: string }> = {
-  worker: { te: "కార్యకర్త", en: "Worker" },
-  booth_leader: { te: "బూత్ లీడర్", en: "Booth leader" },
+  worker: { te: "కార్యకర్త", en: "Member" },
+  booth_leader: { te: "ఏరియా లీడర్", en: "Area leader" },
   mandal_leader: { te: "మండల్ లీడర్", en: "Mandal leader" },
   constituency_leader: { te: "నియోజకవర్గ లీడర్", en: "Constituency leader" },
   district_leader: { te: "జిల్లా లీడర్", en: "District leader" },
@@ -84,6 +85,20 @@ export default function Team() {
   const { t, i18n } = useTranslation();
   const lang = i18n.language as Lang;
   const { user, api } = useAuth();
+
+  // Non-leaders cannot access this screen
+  if (user && !user.isLeader) {
+    return (
+      <StateView
+        title={lang === "te" ? "ప్రాప్తి నిరాకరించబడింది" : "Access Restricted"}
+        message={
+          lang === "te"
+            ? "ఈ స్క్రీన్ నాయకులకు మాత్రమే అందుబాటులో ఉంటుంది."
+            : "This screen is only available to leaders."
+        }
+      />
+    );
+  }
 
   const units = useApi<OrgUnitNode[]>("/org/manageable");
 
@@ -209,7 +224,7 @@ export default function Team() {
         </View>
       ) : units.error && !units.data ? (
         <StateView
-          glyph="⚠️"
+          
           tone="error"
           title={tx(L.errorTitle, lang)}
           message={units.error}
@@ -217,7 +232,7 @@ export default function Team() {
           onRetry={units.reload}
         />
       ) : (units.data ?? []).length === 0 ? (
-        <StateView glyph="👥" title={tx(L.noUnits, lang)} message={tx(L.emptyMsg, lang)} />
+        <StateView  title={tx(L.noUnits, lang)} message={tx(L.emptyMsg, lang)} />
       ) : (
         <FlatList
           data={roster.data ?? []}
@@ -242,7 +257,7 @@ export default function Team() {
               </View>
             ) : roster.error ? (
               <StateView
-                glyph="⚠️"
+                
                 tone="error"
                 title={tx(L.errorTitle, lang)}
                 message={roster.error}
@@ -250,7 +265,7 @@ export default function Team() {
                 onRetry={roster.reload}
               />
             ) : (
-              <StateView glyph="👥" title={tx(L.emptyTitle, lang)} message={tx(L.emptyMsg, lang)} />
+              <StateView  title={tx(L.emptyTitle, lang)} message={tx(L.emptyMsg, lang)} />
             )
           }
           renderItem={({ item }) => <MemberCard member={item} lang={lang} />}
@@ -445,13 +460,21 @@ function OnboardForm(props: {
 
       {props.awarded !== null ? (
         <View style={st.celebrate}>
-          <Text style={st.celebrateText}>🎉 {tx(L.added, lang)}</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Feather name="check-circle" size={18} color={colors.success} />
+            <Text style={st.celebrateText}>{tx(L.added, lang)}</Text>
+          </View>
           <Text style={st.celebratePoints}>
             +{props.awarded} {tx(L.pointsAwarded, lang)}
           </Text>
         </View>
       ) : null}
-      {props.error ? <Text style={st.formError}>⚠️ {props.error}</Text> : null}
+      {props.error ? (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <Feather name="alert-triangle" size={14} color={colors.danger} />
+          <Text style={st.formError}>{props.error}</Text>
+        </View>
+      ) : null}
     </Card>
   );
 }

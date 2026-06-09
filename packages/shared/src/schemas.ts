@@ -193,6 +193,10 @@ export const createEventSchema = z.object({
 });
 export type CreateEventDto = z.infer<typeof createEventSchema>;
 
+/** Partial update for an event (all fields optional). */
+export const updateEventSchema = createEventSchema.partial();
+export type UpdateEventDto = z.infer<typeof updateEventSchema>;
+
 // --- Org hierarchy management (leaders build their own subtree) ---
 /** Create a child org unit (a new "audience" / team) under a parent. */
 export const createOrgUnitSchema = z.object({
@@ -218,3 +222,22 @@ export const paginationSchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(20),
 });
 export type PaginationDto = z.infer<typeof paginationSchema>;
+
+// --- Admin user management ---
+export const adminUpdateUserSchema = z.object({
+  name: z.string().min(1).max(120).optional(),
+  role: Role.optional(),
+  orgUnitId: z.string().min(1).optional(),
+  designation: z.string().max(120).nullable().optional(),
+});
+export type AdminUpdateUserDto = z.infer<typeof adminUpdateUserSchema>;
+
+// --- Admin news management ---
+export const adminCreateNewsSchema = z.object({
+  title: z.string().min(1).max(200),
+  body: z.string().min(1),
+  imageUrl: z.string().url().nullable().optional(),
+  sourceUrl: z.string().url().nullable().optional(),
+  orgUnitId: z.string().min(1).optional(),
+});
+export type AdminCreateNewsDto = z.infer<typeof adminCreateNewsSchema>;

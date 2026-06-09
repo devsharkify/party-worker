@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, Req, Res, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Post, Query, Req, Res, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { SocialAccountType } from "@pw/shared";
@@ -31,6 +31,12 @@ export class SocialController {
     return this.social.list(user.id);
   }
 
+  /** Alias: GET /social/accounts */
+  @Get("accounts")
+  listAccounts(@CurrentUser() user: AuthUser) {
+    return this.social.list(user.id);
+  }
+
   @Post("instagram/connect")
   connect(
     @CurrentUser() user: AuthUser,
@@ -40,8 +46,24 @@ export class SocialController {
     return this.social.connectInstagram(user.id, dto.type, dto.handle);
   }
 
+  /** Alias: POST /social/ig/connect */
+  @Post("ig/connect")
+  connectIg(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(connectSchema))
+    dto: { type: z.infer<typeof SocialAccountType>; handle?: string },
+  ) {
+    return this.social.connectInstagram(user.id, dto.type, dto.handle);
+  }
+
   @Post("instagram/disconnect")
   disconnect(@CurrentUser() user: AuthUser) {
+    return this.social.disconnectInstagram(user.id);
+  }
+
+  /** Alias: DELETE /social/ig/disconnect */
+  @Delete("ig/disconnect")
+  disconnectIg(@CurrentUser() user: AuthUser) {
     return this.social.disconnectInstagram(user.id);
   }
 

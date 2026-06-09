@@ -1,11 +1,13 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import {
   checkInEventSchema,
   createEventSchema,
+  updateEventSchema,
   rsvpEventSchema,
   type CheckInEventDto,
   type CreateEventDto,
+  type UpdateEventDto,
   type RsvpEventDto,
 } from "@pw/shared";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
@@ -34,6 +36,26 @@ export class EventsController {
   @Roles("hq_admin", "state_admin")
   create(@Body(new ZodValidationPipe(createEventSchema)) dto: CreateEventDto) {
     return this.events.create(dto);
+  }
+
+  /** Admin: update an event. */
+  @Patch(":id")
+  @UseGuards(RolesGuard)
+  @Roles("hq_admin", "state_admin")
+  updateEvent(
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(updateEventSchema)) dto: UpdateEventDto,
+  ) {
+    return this.events.update(id, dto);
+  }
+
+  /** Admin: delete an event. */
+  @Delete(":id")
+  @HttpCode(204)
+  @UseGuards(RolesGuard)
+  @Roles("hq_admin", "state_admin")
+  deleteEvent(@Param("id") id: string) {
+    return this.events.delete(id);
   }
 
   @Post(":id/rsvp")

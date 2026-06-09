@@ -16,7 +16,7 @@ export default function Welcome() {
           <View style={st.logoRing}>
             <Text style={st.logoEmoji}>🙏</Text>
           </View>
-          <Text style={st.appName}>PARTY WORKER</Text>
+          <Text style={st.appName}>myTRS</Text>
           <View style={st.taglineCard}>
             <Text style={st.taglineTe}>{t("onboarding.welcomeTaglineTe")}</Text>
             <Text style={st.taglineEn}>{t("onboarding.welcomeTaglineEn")}</Text>
@@ -54,9 +54,9 @@ const st = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: "rgba(255,153,51,0.14)",
+    backgroundColor: colors.primary,
     borderWidth: 3,
-    borderColor: colors.primary,
+    borderColor: colors.gold,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 8,
@@ -76,13 +76,13 @@ const st = StyleSheet.create({
   },
   taglineCard: {
     marginTop: 8,
-    backgroundColor: colors.bgElevated,
+    backgroundColor: colors.navy,
     borderRadius: radius.lg,
     paddingVertical: 18,
     paddingHorizontal: 28,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: colors.borderOnDark,
+    borderWidth: 2,
+    borderColor: colors.primary,
     ...shadow,
   },
   taglineTe: {

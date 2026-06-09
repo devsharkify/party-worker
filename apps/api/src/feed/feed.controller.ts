@@ -34,6 +34,11 @@ export class FeedController {
     return item;
   }
 
+  @Get("renders/mine")
+  myRenders(@CurrentUser() user: AuthUser) {
+    return this.feed.getMyRenders(user.id);
+  }
+
   @Post(":creativeId/render")
   report(
     @CurrentUser() user: AuthUser,

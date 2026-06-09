@@ -127,7 +127,7 @@ function AnnouncementsList({
   if (state.error && !state.data) {
     return (
       <StateView
-        glyph="⚠️"
+        
         tone="error"
         title={tx(L.annError, lang)}
         message={state.error}
@@ -137,7 +137,7 @@ function AnnouncementsList({
     );
   }
   if ((state.data ?? []).length === 0) {
-    return <StateView glyph="📣" title={tx(L.annEmpty, lang)} />;
+    return <StateView  title={tx(L.annEmpty, lang)} />;
   }
   return (
     <View>
@@ -165,7 +165,7 @@ function ActivityList({
   if (state.error && !state.data) {
     return (
       <StateView
-        glyph="⚠️"
+        
         tone="error"
         title={tx(L.actError, lang)}
         message={state.error}
@@ -175,7 +175,7 @@ function ActivityList({
     );
   }
   if ((state.data ?? []).length === 0) {
-    return <StateView glyph="✨" title={tx(L.actEmpty, lang)} />;
+    return <StateView  title={tx(L.actEmpty, lang)} />;
   }
   return (
     <View>

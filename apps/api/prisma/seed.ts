@@ -372,6 +372,57 @@ async function main() {
 
   console.log("\nDemo logins (OTP = 000000 in dev):");
   for (const l of demoLogins) console.log("  " + l);
+  // Seed news items
+  await prisma.newsItem.deleteMany();
+  const newsItems = [
+    {
+      handle: "@KCRofficial",
+      title: "KCR addresses farmers on crop support scheme expansion",
+      body: "Chief Minister K. Chandrashekar Rao announced a significant expansion of the Rythu Bandhu scheme, increasing per-acre support by 15% for the upcoming Kharif season. The announcement was made at a farmers' meet in Warangal attended by over 10,000 farmers from across Telangana.",
+      imageUrl: "https://placehold.co/800x450/0b1f3a/ff9933?text=KCR+Rythu+Bandhu",
+      publishedAt: new Date(Date.now() - 1 * 60 * 60 * 1000),
+    },
+    {
+      handle: "@TRS_Party",
+      title: "TRS wins by-elections in 4 constituencies with strong mandate",
+      body: "Telangana Rashtra Samithi secured decisive victories in four assembly by-elections held across the state. Party president KCR credited the win to the public's trust in welfare governance and the landmark schemes delivered over the past decade.",
+      imageUrl: "https://placehold.co/800x450/0b1f3a/ff9933?text=TRS+Victory",
+      publishedAt: new Date(Date.now() - 3 * 60 * 60 * 1000),
+    },
+    {
+      handle: "@MinistryOfIT_TS",
+      title: "Hyderabad ranked No. 1 tech hub for second consecutive year",
+      body: "The IT corridor in HITEC City recorded record investments of ₹18,500 crore in Q1 2026, placing Hyderabad ahead of Bengaluru in new tech park absorption. The Telangana IT minister credited state policy continuity and the T-Hub ecosystem for the achievement.",
+      imageUrl: "https://placehold.co/800x450/0b1f3a/ff9933?text=Hyderabad+IT+Hub",
+      publishedAt: new Date(Date.now() - 5 * 60 * 60 * 1000),
+    },
+    {
+      handle: "@KCRofficial",
+      title: "Mission Bhagiratha reaches 100% household coverage in Telangana",
+      body: "Mission Bhagiratha, the flagship safe drinking water project, has achieved complete household coverage across all 33 districts of Telangana. The project, which began in 2016, has transformed water access for over 2.8 crore households in rural and semi-urban areas.",
+      imageUrl: "https://placehold.co/800x450/0b1f3a/ff9933?text=Mission+Bhagiratha",
+      publishedAt: new Date(Date.now() - 8 * 60 * 60 * 1000),
+    },
+    {
+      handle: "@TRS_Party",
+      title: "Party workers felicitated at State Conference in Hyderabad",
+      body: "Over 50,000 party workers gathered at the HICC Novotel grounds for the annual State Party Conference. Top performers from each constituency were awarded the 'Karyakarta Ratna' honour. KCR urged workers to strengthen grassroots connect ahead of the local body polls.",
+      imageUrl: "https://placehold.co/800x450/0b1f3a/ff9933?text=State+Conference",
+      publishedAt: new Date(Date.now() - 14 * 60 * 60 * 1000),
+    },
+    {
+      handle: "@TelanganaCMO",
+      title: "State cabinet clears ₹2,400 crore package for urban infrastructure",
+      body: "The Telangana cabinet approved a comprehensive urban infrastructure package focusing on roads, stormwater drains, and parks across 10 major municipal corporations. The works are to be completed before the monsoon season, with zonal committees overseeing execution.",
+      imageUrl: "https://placehold.co/800x450/0b1f3a/ff9933?text=Urban+Infra+Package",
+      publishedAt: new Date(Date.now() - 20 * 60 * 60 * 1000),
+    },
+  ];
+  for (const item of newsItems) {
+    await prisma.newsItem.create({ data: item });
+  }
+  console.log(`Seeded ${newsItems.length} news items`);
+
   console.log(`\nTotal users: ${await prisma.user.count()}  | creatives: ${await prisma.creative.count()} (4 published, 1 draft)`);
   console.log("Seed complete.");
 }

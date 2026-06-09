@@ -1,44 +1,47 @@
 import { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Feather } from "@expo/vector-icons";
+import * as Notifications from "expo-notifications";
+import Constants from "expo-constants";
 import { PrimaryButton } from "../../src/components/ui";
 import { markOnboarded } from "../../src/lib/onboarding";
 import { colors, fontWeight, radius, shadow } from "../../src/theme";
+import { useAuth } from "../../src/auth/auth-context";
 
 type PermState = "idle" | "granted" | "denied";
-
-/**
- * Request notification permissions using expo-notifications.
- * The dynamic require avoids a hard compile-time dependency — the package
- * ships with the Expo managed workflow but may not be listed in package.json
- * during early development.
- */
-async function requestNotifPermissions(): Promise<"granted" | "denied"> {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const Notifications = require("expo-notifications") as {
-      requestPermissionsAsync: () => Promise<{ status: string }>;
-    };
-    const { status } = await Notifications.requestPermissionsAsync();
-    return status === "granted" ? "granted" : "denied";
-  } catch {
-    return "denied";
-  }
-}
 
 export default function EnablePush() {
   const { t } = useTranslation();
   const router = useRouter();
+  const { api } = useAuth();
   const [permState, setPermState] = useState<PermState>("idle");
   const [busy, setBusy] = useState(false);
 
   async function onEnable() {
     setBusy(true);
     try {
-      const result = await requestNotifPermissions();
+      const { status } = await Notifications.requestPermissionsAsync();
+      const result: PermState = status === "granted" ? "granted" : "denied";
       setPermState(result);
+
+      // Register the Expo push token with the API — native only
+      if (result === "granted" && Platform.OS !== "web") {
+        try {
+          const tokenData = await Notifications.getExpoPushTokenAsync({
+            projectId:
+              Constants.expoConfig?.extra?.eas?.projectId ?? "party-worker",
+          });
+          await api("/push/token", {
+            method: "POST",
+            body: JSON.stringify({ token: tokenData.data, platform: Platform.OS }),
+          });
+        } catch {
+          // Non-critical — token registration failure should not block onboarding
+        }
+      }
     } finally {
       setBusy(false);
     }
@@ -54,7 +57,7 @@ export default function EnablePush() {
       <View style={st.wrap}>
         <View style={st.topSection}>
           <View style={st.iconRing}>
-            <Text style={st.bell}>🔔</Text>
+            <Feather name="bell" size={48} color={colors.primary} />
           </View>
           <Text style={st.titleTe}>{t("onboarding.enableNotifTitleTe")}</Text>
           <Text style={st.titleEn}>{t("onboarding.enableNotifTitle")}</Text>
@@ -64,7 +67,7 @@ export default function EnablePush() {
         <View style={st.statusArea}>
           {permState === "granted" && (
             <View style={st.statusRow}>
-              <Text style={st.successIcon}>✓</Text>
+              <Feather name="check" size={20} color={colors.success} />
               <Text style={st.statusTextGranted}>{t("onboarding.notifGranted")}</Text>
             </View>
           )}
@@ -134,7 +137,7 @@ const st = StyleSheet.create({
     marginBottom: 8,
     ...shadow,
   },
-  bell: { fontSize: 48, textAlign: "center", lineHeight: 58 },
+  bell: {},
   titleTe: {
     fontSize: 26,
     fontWeight: fontWeight.heavy,
@@ -180,11 +183,7 @@ const st = StyleSheet.create({
   statusRowDenied: {
     borderColor: colors.borderOnDark,
   },
-  successIcon: {
-    fontSize: 20,
-    color: colors.success,
-    fontWeight: fontWeight.heavy,
-  },
+  successIcon: {},
   statusTextGranted: {
     color: colors.success,
     fontWeight: fontWeight.bold,

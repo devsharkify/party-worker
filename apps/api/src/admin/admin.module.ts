@@ -1,6 +1,8 @@
 import { Module } from "@nestjs/common";
 import { SecurityModule } from "../auth/security.module";
 import { ScoringModule } from "../scoring/scoring.module";
+import { PushModule } from "../push/push.module";
+import { OrgModule } from "../org/org.module";
 import { AdminService } from "./admin.service";
 import { AdminController } from "./admin.controller";
 
@@ -10,7 +12,7 @@ import { AdminController } from "./admin.controller";
  * JwtAuthGuard + RolesGuard('hq_admin','state_admin') at the controller level.
  */
 @Module({
-  imports: [SecurityModule, ScoringModule],
+  imports: [SecurityModule, ScoringModule, PushModule, OrgModule],
   providers: [AdminService],
   controllers: [AdminController],
   exports: [AdminService],

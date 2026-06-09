@@ -12,6 +12,7 @@ import {
 import { Stack, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
 import * as Clipboard from "expo-clipboard";
+import { Feather } from "@expo/vector-icons";
 import { useAuth } from "../../src/auth/auth-context";
 import { SkeletonBlock } from "../../src/components/Skeleton";
 import { StateView } from "../../src/components/StateView";
@@ -116,7 +117,7 @@ export default function ShareScreen() {
       <View style={st.center}>
         <Stack.Screen options={{ title: t("share.title") }} />
         <StateView
-          glyph="⚠️"
+          
           tone="error"
           title={L.errorTitle[lang] ?? L.errorTitle.en}
           message={error}
@@ -146,7 +147,7 @@ export default function ShareScreen() {
 
       {/* Celebratory points banner */}
       <Animated.View style={[st.pointsBanner, shadow, { transform: [{ scale: pop }] }]}>
-        <Text style={st.confetti}>🎉</Text>
+        <Feather name="star" size={28} color={colors.gold} style={{ marginBottom: 4 }} />
         <Text style={st.pointsText}>{t("share.pointsEarned", { points: data.basePointsAwarded })}</Text>
         <Text style={st.trackedNote}>{t("share.trackedNote")}</Text>
       </Animated.View>
@@ -163,19 +164,19 @@ export default function ShareScreen() {
       <View style={st.channels}>
         <Channel
           label={t("share.whatsapp")}
-          glyph="🟢"
+          icon="message-circle"
           color="#25D366"
           onPress={() => openLink(data.deepLinks.whatsapp_web ?? data.deepLinks.whatsapp)}
         />
         <Channel
           label={t("share.instagram")}
-          glyph="📸"
+          icon="instagram"
           color="#E1306C"
           onPress={() => openLink(data.deepLinks.instagram)}
         />
         <Channel
           label={copied ? (L.copied[lang] ?? L.copied.en) : t("share.copyLink")}
-          glyph={copied ? "✓" : "🔗"}
+          icon={copied ? "check" : "link"}
           color={copied ? colors.success : "#475569"}
           onPress={copyLink}
         />
@@ -191,15 +192,17 @@ export default function ShareScreen() {
   );
 }
 
+type FeatherName = React.ComponentProps<typeof Feather>["name"];
+
 function Channel({
   label,
   color,
-  glyph,
+  icon,
   onPress,
 }: {
   label: string;
   color: string;
-  glyph: string;
+  icon: FeatherName;
   onPress: () => void;
 }) {
   return (
@@ -207,7 +210,7 @@ function Channel({
       onPress={onPress}
       style={({ pressed }) => [st.channel, { borderColor: color }, pressed && { opacity: 0.85 }]}
     >
-      <Text style={st.channelGlyph}>{glyph}</Text>
+      <Feather name={icon} size={20} color={color} />
       <Text style={[st.channelText, { color }]}>{label}</Text>
     </Pressable>
   );
@@ -225,7 +228,6 @@ const st = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderOnDark,
   },
-  confetti: { fontSize: 30, marginBottom: 4 },
   pointsText: { color: colors.gold, fontSize: 30, fontWeight: "800" },
   trackedNote: { color: colors.textMutedOnDark, fontSize: 13, marginTop: 6, textAlign: "center", lineHeight: 18 },
   primary: {
@@ -249,7 +251,6 @@ const st = StyleSheet.create({
     paddingHorizontal: 16,
     backgroundColor: "#fff",
   },
-  channelGlyph: { fontSize: 18 },
   channelText: { fontWeight: "800", fontSize: 16 },
   capLabel: { fontWeight: "700", color: colors.textMuted, marginBottom: 6 },
   captionBox: { backgroundColor: "#fff", borderRadius: radius.md, padding: 14, borderWidth: 1, borderColor: colors.border },

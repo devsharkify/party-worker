@@ -8,6 +8,7 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
+import * as Haptics from "expo-haptics";
 import { colors, radius } from "../theme";
 
 export function Screen({
@@ -45,13 +46,18 @@ export function PrimaryButton({
   loading?: boolean;
   disabled?: boolean;
 }) {
+  function handlePress() {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onPress();
+  }
+
   return (
     <Pressable
-      onPress={onPress}
+      onPress={handlePress}
       disabled={disabled || loading}
       style={({ pressed }) => [
         s.btn,
-        { backgroundColor: disabled ? "#cbd5e1" : colors.primary, opacity: pressed ? 0.85 : 1 },
+        { backgroundColor: disabled ? "#c8b0c4" : colors.primary, opacity: pressed ? 0.82 : 1 },
       ]}
     >
       {loading ? (

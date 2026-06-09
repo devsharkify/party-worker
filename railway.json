@@ -1,0 +1,12 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "NIXPACKS",
+    "buildCommand": "pnpm --filter @pw/shared build && pnpm --filter @pw/api exec prisma generate && pnpm --filter @pw/api build"
+  },
+  "deploy": {
+    "startCommand": "node apps/api/dist/src/main.js",
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 3
+  }
+}

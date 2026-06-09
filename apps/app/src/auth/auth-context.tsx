@@ -6,6 +6,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { Platform } from "react-native";
 import type { AuthResult, UserPublic } from "@pw/shared";
 import { API_URL, isWeb } from "../config";
 import { tokenStore } from "./token-store";
@@ -13,19 +14,19 @@ import { tokenStore } from "./token-store";
 // ---------------------------------------------------------------------------
 // Demo mode — any phone + OTP 123456 works; all API calls return mock data
 // ---------------------------------------------------------------------------
-const DEMO_MODE = true;
+const DEMO_MODE = false;
 
 const DEMO_USER: UserPublic = {
   id: "demo-user-1",
   name: "Ravi Kumar",
   phone: "+919876543210",
   photoUrl: null,
-  designation: "Booth Secretary",
+  designation: "Area Secretary",
   role: "worker",
   tier: "karyakarta",
   orgUnitId: "booth-1",
-  orgUnitName: "Booth 42 – Kukatpally",
-  boothName: "Booth 42",
+  orgUnitName: "Area 42 – Kukatpally",
+  boothName: "Area 42",
   preferredLanguage: "te",
   lifetimeReputation: 1240,
   weeklyLeaguePoints: 380,
@@ -56,13 +57,13 @@ function demoApi(path: string, opts: RequestInit = {}): unknown {
   ];
 
   if (path === "/announcements") return [
-    { id: "a1", title: "Booth Meeting – Saturday 6 PM", body: "All booth workers must attend the weekly coordination meeting at the community hall.", createdAt: new Date().toISOString(), priority: "high" },
+    { id: "a1", title: "Area Meeting – Saturday 6 PM", body: "All members must attend the weekly coordination meeting at the community hall.", createdAt: new Date().toISOString(), priority: "high" },
     { id: "a2", title: "Door-to-door Campaign", body: "Campaign drive starts Monday. Collect the ward list from your booth leader.", createdAt: new Date(Date.now() - 86400000).toISOString(), priority: "normal" },
   ];
 
   if (path === "/events") return [
     { id: "e1", title: "Constituency Rally", description: "Grand public meeting with senior leaders", startsAt: new Date(Date.now() + 86400000 * 2).toISOString(), location: "LB Stadium, Hyderabad", lat: 17.3961, lng: 78.4682, qrToken: "demo-qr-token", orgUnitId: "booth-1", rsvpStatus: null, checkedIn: false },
-    { id: "e2", title: "Booth Volunteer Training", description: "Mandatory training session for all booth workers", startsAt: new Date(Date.now() + 86400000 * 5).toISOString(), location: "Kukatpally Community Hall", lat: 17.4947, lng: 78.3996, qrToken: "demo-qr-token-2", orgUnitId: "booth-1", rsvpStatus: "going", checkedIn: false },
+    { id: "e2", title: "Member Volunteer Training", description: "Mandatory training session for all members", startsAt: new Date(Date.now() + 86400000 * 5).toISOString(), location: "Kukatpally Community Hall", lat: 17.4947, lng: 78.3996, qrToken: "demo-qr-token-2", orgUnitId: "booth-1", rsvpStatus: "going", checkedIn: false },
   ];
 
   if (path === "/grievances/mine" || path === "/grievances") return [
@@ -84,8 +85,8 @@ function demoApi(path: string, opts: RequestInit = {}): unknown {
     userId: "demo-user-1",
     name: "Ravi Kumar",
     photoUrl: null,
-    designation: "Booth Secretary",
-    boothName: "Booth 42",
+    designation: "Area Secretary",
+    boothName: "Area 42",
     tier: "karyakarta",
     tierLabel: { te: "సిల్వర్", en: "Silver" },
     qrPayload: "demo-qr",
@@ -108,7 +109,7 @@ function demoApi(path: string, opts: RequestInit = {}): unknown {
   };
 
   if (path === "/org/manageable") return [
-    { id: "booth-1", name: "Booth 42 – Kukatpally", type: "booth", parentId: "mandal-1", childrenCount: 0, memberCount: 18 },
+    { id: "booth-1", name: "Area 42 – Kukatpally", type: "booth", parentId: "mandal-1", childrenCount: 0, memberCount: 18 },
   ];
 
   if (path === "/payments/membership/verify") return { verified: true };
@@ -122,21 +123,21 @@ function demoApi(path: string, opts: RequestInit = {}): unknown {
   };
 
   if (path.startsWith("/org/units/") && path.includes("/members")) return [
-    { id: "m1", name: "Suresh Reddy", phone: "+919111111111", photoUrl: null, role: "worker", tier: "bronze", designation: null, orgUnitId: "booth-1", orgUnitName: "Booth 42", lifetimeReputation: 340, weeklyLeaguePoints: 90, membershipActive: true, isLeader: false },
-    { id: "m2", name: "Anitha Rao", phone: "+919222222222", photoUrl: null, role: "worker", tier: "karyakarta", designation: "Secretary", orgUnitId: "booth-1", orgUnitName: "Booth 42", lifetimeReputation: 820, weeklyLeaguePoints: 210, membershipActive: true, isLeader: false },
-    { id: "m3", name: "Mohan Rao", phone: "+919333333333", photoUrl: null, role: "worker", tier: "bronze", designation: null, orgUnitId: "booth-1", orgUnitName: "Booth 42", lifetimeReputation: 120, weeklyLeaguePoints: 45, membershipActive: true, isLeader: false },
+    { id: "m1", name: "Suresh Reddy", phone: "+919111111111", photoUrl: null, role: "worker", tier: "bronze", designation: null, orgUnitId: "booth-1", orgUnitName: "Area 42", lifetimeReputation: 340, weeklyLeaguePoints: 90, membershipActive: true, isLeader: false },
+    { id: "m2", name: "Anitha Rao", phone: "+919222222222", photoUrl: null, role: "worker", tier: "karyakarta", designation: "Secretary", orgUnitId: "booth-1", orgUnitName: "Area 42", lifetimeReputation: 820, weeklyLeaguePoints: 210, membershipActive: true, isLeader: false },
+    { id: "m3", name: "Mohan Rao", phone: "+919333333333", photoUrl: null, role: "worker", tier: "bronze", designation: null, orgUnitId: "booth-1", orgUnitName: "Area 42", lifetimeReputation: 120, weeklyLeaguePoints: 45, membershipActive: true, isLeader: false },
   ];
 
   if (path === "/org/members") return [
-    { id: "m1", name: "Suresh Reddy", phone: "+919111111111", photoUrl: null, role: "worker", tier: "bronze", designation: null, orgUnitId: "booth-1", orgUnitName: "Booth 42", lifetimeReputation: 340, weeklyLeaguePoints: 90, membershipActive: true, isLeader: false },
-    { id: "m2", name: "Anitha Rao", phone: "+919222222222", photoUrl: null, role: "worker", tier: "karyakarta", designation: "Secretary", orgUnitId: "booth-1", orgUnitName: "Booth 42", lifetimeReputation: 820, weeklyLeaguePoints: 210, membershipActive: true, isLeader: false },
+    { id: "m1", name: "Suresh Reddy", phone: "+919111111111", photoUrl: null, role: "worker", tier: "bronze", designation: null, orgUnitId: "booth-1", orgUnitName: "Area 42", lifetimeReputation: 340, weeklyLeaguePoints: 90, membershipActive: true, isLeader: false },
+    { id: "m2", name: "Anitha Rao", phone: "+919222222222", photoUrl: null, role: "worker", tier: "karyakarta", designation: "Secretary", orgUnitId: "booth-1", orgUnitName: "Area 42", lifetimeReputation: 820, weeklyLeaguePoints: 210, membershipActive: true, isLeader: false },
   ];
 
   // leaderboard
   if (path.includes("leaderboard") || path === "/scoring/leaderboard") return {
     level: "booth",
     orgUnitId: "booth-1",
-    orgUnitName: "Booth 42",
+    orgUnitName: "Area 42",
     viewerRank: 3,
     entries: [
       { rank: 1, userId: "m2", name: "Anitha Rao", photoUrl: null, tier: "karyakarta", points: 550, isViewer: false },
@@ -186,6 +187,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
+          "bypass-tunnel-reminder": "true",
           ...(opts.headers ?? {}),
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
@@ -287,6 +289,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     void doRefresh().finally(() => setLoading(false));
   }, [doRefresh]);
+
+  // Register Expo push token whenever the user logs in (native only)
+  useEffect(() => {
+    if (!user || isWeb) return;
+
+    void (async () => {
+      try {
+        // Dynamically import to avoid breaking the web bundle
+        const Notifications = await import("expo-notifications");
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
+        if (existingStatus !== "granted") {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        }
+        if (finalStatus !== "granted") return;
+
+        const tokenData = await Notifications.getExpoPushTokenAsync();
+        const platform = Platform.OS === "ios" ? "ios" : "android";
+
+        await api("/push/token", {
+          method: "POST",
+          body: JSON.stringify({ token: tokenData.data, platform }),
+        });
+      } catch {
+        // Non-critical — silently ignore errors (simulator / web)
+      }
+    })();
+  }, [user, api]);
 
   return (
     <AuthContext.Provider

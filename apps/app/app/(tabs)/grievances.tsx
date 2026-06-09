@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import type {
   AreaGrievanceSummary,
@@ -45,12 +46,13 @@ const STATUS_COLOR: Record<GrievanceStatus, string> = {
   rejected: colors.danger,
 };
 
-const STATUS_ICON: Record<GrievanceStatus, string> = {
-  open: "📋",
-  routed: "📤",
-  in_progress: "🔧",
-  resolved: "✅",
-  rejected: "❌",
+type FeatherName = React.ComponentProps<typeof Feather>["name"];
+const STATUS_ICON: Record<GrievanceStatus, FeatherName> = {
+  open: "file-text",
+  routed: "send",
+  in_progress: "tool",
+  resolved: "check-circle",
+  rejected: "x-circle",
 };
 
 function stepIndex(status: GrievanceStatus): number {
@@ -79,7 +81,13 @@ function StatusStepper({ status }: { status: GrievanceStatus }) {
                 active && ss.stepDotActive,
               ]}
             >
-              <Text style={ss.stepDotText}>{done ? (active ? STATUS_ICON[s] : "✓") : String(i + 1)}</Text>
+              {done && active ? (
+                <Feather name={STATUS_ICON[s]} size={10} color="#fff" />
+              ) : done ? (
+                <Feather name="check" size={10} color="#fff" />
+              ) : (
+                <Text style={ss.stepDotText}>{i + 1}</Text>
+              )}
             </View>
             {i < STATUS_STEPS.length - 1 && (
               <View style={[ss.stepLine, i < current && !isRejected && { backgroundColor: colors.primary }]} />
@@ -89,7 +97,8 @@ function StatusStepper({ status }: { status: GrievanceStatus }) {
       })}
       {isRejected && (
         <View style={ss.rejectedBadge}>
-          <Text style={ss.rejectedText}>❌ Rejected</Text>
+          <Feather name="x-circle" size={13} color={colors.danger} />
+          <Text style={ss.rejectedText}>Rejected</Text>
         </View>
       )}
     </View>
@@ -196,7 +205,8 @@ function PhotoPicker({
   if (Platform.OS !== "web") {
     return (
       <View style={st.photoPH}>
-        <Text style={st.photoPHText}>📷 Photo upload available on web</Text>
+        <Feather name="camera" size={14} color={colors.textMuted} />
+        <Text style={st.photoPHText}>Photo upload available on web</Text>
       </View>
     );
   }
@@ -232,7 +242,7 @@ function PhotoPicker({
           style={st.photoAddBtn}
           onPress={() => (fileRef.current as unknown as HTMLInputElement | null)?.click()}
         >
-          <Text style={st.photoAddIcon}>📷</Text>
+          <Feather name="camera" size={22} color={colors.primary} />
           <Text style={st.photoAddText}>Add photo</Text>
         </Pressable>
       )}
@@ -429,7 +439,10 @@ export default function Grievances() {
         <Text style={st.label}>Location (optional)</Text>
         <LocationPicker location={location} lat={lat} lng={lng} onLocation={handleLocation} />
         {lat != null && lng != null && (
-          <Text style={st.gpsConfirm}>✓ GPS captured: {lat.toFixed(4)}, {lng.toFixed(4)}</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <Feather name="map-pin" size={13} color={colors.success} />
+            <Text style={st.gpsConfirm}>GPS captured: {lat.toFixed(4)}, {lng.toFixed(4)}</Text>
+          </View>
         )}
 
         <Text style={st.label}>{t("grievances.citizenName")}</Text>
@@ -454,7 +467,12 @@ export default function Grievances() {
         <View style={{ marginTop: 16 }}>
           <PrimaryButton title={t("grievances.submit")} onPress={submit} loading={busy} />
         </View>
-        {done ? <Text style={st.done}>✓ {t("grievances.submitted")} (+{15} pts)</Text> : null}
+        {done ? (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8 }}>
+            <Feather name="check-circle" size={14} color={colors.success} />
+            <Text style={st.done}>{t("grievances.submitted")} (+{15} pts)</Text>
+          </View>
+        ) : null}
       </Card>
 
       {/* ---- Tabs: Mine / Area ---- */}
@@ -552,7 +570,6 @@ const st = StyleSheet.create({
     gap: 8,
     backgroundColor: colors.cardMuted,
   } as object,
-  photoAddIcon: { fontSize: 22 },
   photoAddText: { fontSize: 14, fontWeight: "700", color: colors.textMuted },
   photoPreviewWrap: {
     borderRadius: radius.md,
@@ -580,6 +597,8 @@ const st = StyleSheet.create({
   },
   photoClearText: { color: "#fff", fontSize: 14, fontWeight: "800" },
   photoPH: {
+    flexDirection: "row",
+    gap: 8,
     height: 64,
     borderWidth: 1,
     borderColor: colors.border,

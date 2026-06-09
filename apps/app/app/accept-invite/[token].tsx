@@ -10,10 +10,24 @@ import {
   View,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { Feather } from "@expo/vector-icons";
 import { useAuth } from "../../src/auth/auth-context";
 import { PrimaryButton } from "../../src/components/ui";
 import { API_URL } from "../../src/config";
 import { colors, radius, shadow } from "../../src/theme";
+
+/** Fetch wrapper for public (unauthenticated) invite endpoints. */
+function publicFetch(path: string, opts: RequestInit = {}) {
+  return fetch(`${API_URL}${path}`, {
+    ...opts,
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      "bypass-tunnel-reminder": "true",
+      ...(opts.headers ?? {}),
+    },
+  });
+}
 
 interface InviteStatus {
   orgUnitName: string;
@@ -43,7 +57,7 @@ export default function AcceptInvite() {
       setState("error");
       return;
     }
-    fetch(`${API_URL}/invites/${token}`)
+    publicFetch(`/invites/${token}`)
       .then(async (res) => {
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
@@ -78,9 +92,8 @@ export default function AcceptInvite() {
     }
     setState("submitting");
     try {
-      const res = await fetch(`${API_URL}/invites/${token}/accept`, {
+      const res = await publicFetch(`/invites/${token}/accept`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: name.trim(), phone: phone.trim() }),
       });
       if (!res.ok) {
@@ -118,7 +131,7 @@ export default function AcceptInvite() {
 
         {state === "error" && (
           <View style={st.card}>
-            <Text style={st.errorIcon}>⚠️</Text>
+            <Feather name="alert-triangle" size={40} color={colors.danger} />
             <Text style={st.errorHeading}>Invite Unavailable</Text>
             <Text style={st.errorBody}>
               {errorMsg ?? "This invite link is invalid or has expired."}
@@ -185,7 +198,7 @@ export default function AcceptInvite() {
 
         {state === "done" && (
           <View style={st.card}>
-            <Text style={st.successIcon}>✅</Text>
+            <Feather name="check-circle" size={40} color={colors.success} />
             <Text style={st.successHeading}>Welcome aboard!</Text>
             <Text style={st.successBody}>
               Your account has been created. Check your phone for an OTP to complete login.

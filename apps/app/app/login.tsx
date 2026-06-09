@@ -20,7 +20,9 @@ export default function Login() {
   const { requestOtp, login } = useAuth();
   const router = useRouter();
 
-  const [phone, setPhone] = useState("");
+  const COUNTRY_CODE = "+91";
+  const [digits, setDigits] = useState("");
+  const phone = `${COUNTRY_CODE}${digits}`;
   const [code, setCode] = useState("");
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [devHint, setDevHint] = useState<string | undefined>();
@@ -75,7 +77,7 @@ export default function Login() {
         </View>
 
         <View style={st.logoRing}>
-          <Text style={st.logo}>★</Text>
+          <Text style={st.logo}>TRS</Text>
         </View>
         <Text style={st.title}>{t("common.appName")}</Text>
         <Text style={st.subtitle}>{t("auth.loginSubtitle")}</Text>
@@ -84,21 +86,26 @@ export default function Login() {
           {step === "phone" ? (
             <>
               <Text style={st.label}>{t("auth.phoneLabel")}</Text>
-              <TextInput
-                value={phone}
-                onChangeText={setPhone}
-                keyboardType="phone-pad"
-                placeholder={t("auth.phonePlaceholder")}
-                placeholderTextColor="#94a3b8"
-                style={st.input}
-                maxLength={13}
-                autoFocus
-              />
+              <View style={st.phoneRow}>
+                <View style={st.countryCode}>
+                  <Text style={st.countryCodeText}>+91</Text>
+                </View>
+                <TextInput
+                  value={digits}
+                  onChangeText={(v) => setDigits(v.replace(/\D/g, "").slice(0, 10))}
+                  keyboardType="number-pad"
+                  placeholder="10-digit number"
+                  placeholderTextColor="#94a3b8"
+                  style={[st.input, st.phoneInput]}
+                  maxLength={10}
+                  autoFocus
+                />
+              </View>
               <PrimaryButton
                 title={t("auth.sendOtp")}
                 onPress={onSend}
                 loading={busy}
-                disabled={phone.replace(/\D/g, "").length < 10}
+                disabled={digits.length < 10}
               />
             </>
           ) : (
@@ -137,33 +144,56 @@ export default function Login() {
 const st = StyleSheet.create({
   wrap: { flex: 1, padding: 24, justifyContent: "center", maxWidth: 460, width: "100%", alignSelf: "center" },
   langRow: { flexDirection: "row", gap: 8, justifyContent: "flex-end", marginBottom: 24 },
-  lang: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: colors.textMutedOnDark },
+  lang: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 999, borderWidth: 1.5, borderColor: colors.border },
   langActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  langText: { color: colors.textMutedOnDark, fontWeight: "600" },
+  langText: { color: colors.textMuted, fontWeight: "600" },
   langTextActive: { color: "#fff" },
   logoRing: {
     alignSelf: "center",
     width: 84,
     height: 84,
     borderRadius: 42,
-    backgroundColor: "rgba(255,153,51,0.14)",
-    borderWidth: 2,
-    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+    borderWidth: 3,
+    borderColor: colors.gold,
     alignItems: "center",
     justifyContent: "center",
   },
-  logo: { fontSize: 44, textAlign: "center", color: colors.primary, lineHeight: 52 },
-  title: { fontSize: 30, fontWeight: "800", color: "#fff", textAlign: "center", marginTop: 14 },
-  subtitle: { fontSize: 15, color: colors.textMutedOnDark, textAlign: "center", marginTop: 6, marginBottom: 28 },
+  logo: { fontSize: 22, textAlign: "center", color: "#FFFFFF", fontWeight: "800", letterSpacing: 1 },
+  title: { fontSize: 30, fontWeight: "800", color: colors.navy, textAlign: "center", marginTop: 14 },
+  subtitle: { fontSize: 15, color: colors.textMuted, textAlign: "center", marginTop: 6, marginBottom: 28 },
   card: {
     backgroundColor: "#fff",
     borderRadius: radius.xl,
     padding: 22,
+    borderWidth: 1.5,
+    borderColor: colors.primary + "44",
     ...shadow,
-    shadowColor: "#000",
-    shadowOpacity: 0.25,
   },
   label: { fontSize: 14, fontWeight: "700", color: colors.text, marginBottom: 8 },
+  phoneRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 16,
+  },
+  countryCode: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: 14,
+    height: 52,
+    justifyContent: "center",
+    backgroundColor: colors.cardMuted,
+  },
+  countryCodeText: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  phoneInput: {
+    flex: 1,
+    marginBottom: 0,
+  },
   input: {
     borderWidth: 1,
     borderColor: colors.border,

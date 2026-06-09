@@ -51,8 +51,17 @@ async function bootstrap() {
   });
 
   app.enableCors({
-    origin: [env.WEB_APP_URL, env.ADMIN_URL, /localhost:\d+$/],
+    origin: [
+      env.WEB_APP_URL,
+      env.ADMIN_URL,
+      /localhost:\d+$/,
+      // Allow any Vercel preview deployment for both apps
+      /https:\/\/.*-devsharkifys-projects\.vercel\.app$/,
+      /https:\/\/admin.*\.vercel\.app$/,
+      /https:\/\/mytrs.*\.vercel\.app$/,
+    ],
     credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization", "bypass-tunnel-reminder"],
   });
 
   const swaggerConfig = new DocumentBuilder()
@@ -64,7 +73,8 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup("docs", app, document);
 
-  await app.listen({ port: env.API_PORT, host: "0.0.0.0" });
+  const port = env.PORT ?? env.API_PORT;
+  await app.listen({ port, host: "0.0.0.0" });
   // eslint-disable-next-line no-console
   console.log(`[api] ready on ${env.API_BASE_URL} — OpenAPI at ${env.API_BASE_URL}/docs`);
 }
