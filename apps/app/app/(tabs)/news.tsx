@@ -336,7 +336,7 @@ export default function News() {
 }
 
 const st = StyleSheet.create({
-  fill: { flex: 1, backgroundColor: "#000" },
+  fill: { flex: 1, backgroundColor: "#0d0d1a" },
 
   header: {
     flexDirection: "row",
@@ -345,7 +345,7 @@ const st = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 12,
-    backgroundColor: "#000",
+    backgroundColor: "#0d0d1a",
   },
   headerTitle: { fontSize: 24, fontWeight: "800", color: "#fff" },
   headerRight: { flexDirection: "row", alignItems: "center", gap: 6 },
@@ -440,9 +440,9 @@ const st = StyleSheet.create({
   // Skeleton
   skeletonWrap: { flex: 1, alignItems: "center", paddingTop: 8 },
   skeletonCard: { marginBottom: 0 },
-  skeletonImg: { width: CARD_W, height: 220, backgroundColor: "#1a1a1a" },
+  skeletonImg: { width: CARD_W, height: 220, backgroundColor: "#1e1e2e" },
   skeletonBody: { padding: 16 },
-  skeletonLine: { backgroundColor: "#1e1e1e", borderRadius: 4 },
+  skeletonLine: { backgroundColor: "#252540", borderRadius: 4 },
 
   // Error
   errorWrap: {

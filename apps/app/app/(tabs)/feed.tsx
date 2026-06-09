@@ -529,6 +529,7 @@ export default function Feed() {
       )}
       <FlatList
         style={st.list}
+        contentContainerStyle={{ flexGrow: 1 }}
         data={rows}
         keyExtractor={(_, i) => String(i)}
         showsVerticalScrollIndicator={false}
@@ -585,8 +586,8 @@ export default function Feed() {
 }
 
 const st = StyleSheet.create({
-  fill: { flex: 1, backgroundColor: "#0d0d0d" },
-  list: { flex: 1, backgroundColor: "#0d0d0d" },
+  fill: { flex: 1, backgroundColor: colors.navy },
+  list: { flex: 1, backgroundColor: colors.navy },
   leaderToggleBar: {
     backgroundColor: colors.navy,
     paddingTop: 10,
