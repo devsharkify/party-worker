@@ -12,7 +12,7 @@ import { Feather } from "@expo/vector-icons";
 import { useAuth } from "../auth/auth-context";
 import { useDrawer } from "../context/drawer-context";
 import { RemoteImage } from "./RemoteImage";
-import { colors, fontWeight, radius, shadow } from "../theme";
+import { colors, fontFamily, fontWeight, lh, radius, shadow } from "../theme";
 
 const SCREEN_W = Dimensions.get("window").width;
 const DRAWER_W = Math.min(300, SCREEN_W * 0.8);
@@ -153,9 +153,9 @@ const st = StyleSheet.create({
     borderWidth: 2.5,
     borderColor: colors.gold,
   },
-  avatarInitial: { color: "#fff", fontSize: 20, fontWeight: fontWeight.bold },
-  userName: { color: "#fff", fontSize: 16, fontWeight: fontWeight.bold },
-  userRole: { color: colors.textMutedOnDark, fontSize: 12, marginTop: 2 },
+  avatarInitial: { color: "#fff", fontSize: 20, fontWeight: fontWeight.bold, fontFamily: fontFamily, lineHeight: lh(20) },
+  userName: { color: "#fff", fontSize: 16, fontWeight: fontWeight.bold, fontFamily: fontFamily, lineHeight: lh(16) },
+  userRole: { color: colors.textMutedOnDark, fontSize: 12, marginTop: 2, fontFamily: fontFamily, lineHeight: lh(12) },
   divider: { height: 1, backgroundColor: colors.borderOnDark, marginVertical: 8 },
   item: {
     flexDirection: "row",
@@ -173,8 +173,8 @@ const st = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  itemLabel: { color: "#fff", fontSize: 15, fontWeight: fontWeight.semibold },
-  itemLabelTe: { color: colors.textMutedOnDark, fontSize: 11, marginTop: 1 },
+  itemLabel: { color: "#fff", fontSize: 15, fontWeight: fontWeight.semibold, fontFamily: fontFamily, lineHeight: lh(15) },
+  itemLabelTe: { color: colors.textMutedOnDark, fontSize: 11, marginTop: 1, fontFamily: fontFamily, lineHeight: lh(11) },
   appBrand: {
     flexDirection: "row",
     alignItems: "center",
@@ -182,5 +182,5 @@ const st = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
   },
-  appName: { color: colors.gold, fontSize: 14, fontWeight: fontWeight.bold },
+  appName: { color: colors.gold, fontSize: 14, fontWeight: fontWeight.bold, fontFamily: fontFamily, lineHeight: lh(14) },
 });

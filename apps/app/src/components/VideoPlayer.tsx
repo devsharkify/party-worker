@@ -6,7 +6,7 @@ import { Linking, StyleSheet, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { RemoteImage } from "./RemoteImage";
-import { colors } from "../theme";
+import { colors, fontFamily, lh } from "../theme";
 
 export interface VideoPlayerHandle {
   getVideoElement(): null;
@@ -119,9 +119,9 @@ const st = StyleSheet.create({
     borderColor: "#fff",
     overflow: "hidden",
   },
-  name: { color: "#fff", fontSize: 16, fontWeight: "800", textShadowColor: "#000", textShadowRadius: 6 },
-  designation: { color: colors.gold, fontSize: 12, fontWeight: "700" },
-  booth: { color: "#fff", fontSize: 11 },
+  name: { color: "#fff", fontSize: 16, fontWeight: "800", textShadowColor: "#000", textShadowRadius: 6, fontFamily: fontFamily, lineHeight: lh(16) },
+  designation: { color: colors.gold, fontSize: 12, fontWeight: "700", fontFamily: fontFamily, lineHeight: lh(12) },
+  booth: { color: "#fff", fontSize: 11, fontFamily: fontFamily, lineHeight: lh(11) },
   aiBand: {
     position: "absolute",
     left: 0,
@@ -132,5 +132,5 @@ const st = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  aiText: { color: "#fff", fontSize: 10, fontWeight: "600" },
+  aiText: { color: "#fff", fontSize: 10, fontWeight: "600", fontFamily: fontFamily, lineHeight: lh(10) },
 });

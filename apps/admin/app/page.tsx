@@ -26,6 +26,7 @@ import { useAdmin } from "../src/admin-auth";
 import { EmptyState, SectionHeader, SkeletonRow, StatCard, useToast } from "../src/ui";
 import { TemplateDesigner } from "../src/template-designer";
 import { AnalyticsSection } from "../src/analytics-section";
+import { TRSLogo } from "../src/TRSLogo";
 
 export default function Page() {
   const { user, loading } = useAdmin();
@@ -116,8 +117,8 @@ function Login() {
   return (
     <div className="grid min-h-screen place-items-center bg-gradient-to-b from-navy to-[#081628] p-6">
       <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl">
-        <div className="mx-auto mb-3 grid h-16 w-16 place-items-center rounded-full border-2 border-saffron bg-saffron/10 text-3xl text-saffron">
-          ★
+        <div className="mx-auto mb-3 flex items-center justify-center" style={{filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.22))"}}>
+          <TRSLogo size={72} showBanner borderRadius={8} />
         </div>
         <h1 className="text-center text-2xl font-extrabold">myTRS — HQ</h1>
         <p className="mb-6 text-center text-sm text-slate-500">Content studio &amp; compliance</p>
@@ -221,7 +222,10 @@ function Dashboard() {
       <header className="sticky top-0 z-40 border-b border-white/10 bg-navy text-white shadow-sm">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 pt-4">
           <div className="flex items-baseline gap-3">
-            <span className="text-lg font-extrabold">★ myTRS HQ</span>
+            <div className="flex items-center gap-2.5">
+              <TRSLogo size={32} showBanner={false} borderRadius={4} />
+              <span className="text-lg font-extrabold">myTRS HQ</span>
+            </div>
             <span className="hidden text-sm text-slate-300 sm:inline">Content Studio &amp; Compliance</span>
           </div>
           <div className="flex items-center gap-3 text-sm">

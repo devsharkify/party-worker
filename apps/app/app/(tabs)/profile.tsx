@@ -25,7 +25,8 @@ import { SkeletonBlock } from "../../src/components/Skeleton";
 import { QrPayload } from "../../src/components/QrPayload";
 import { Feather } from "@expo/vector-icons";
 import { RemoteImage } from "../../src/components/RemoteImage";
-import { colors, radius, shadow, tierColor } from "../../src/theme";
+import { WorkerBanner } from "../../src/components/WorkerBanner";
+import { colors, fontFamily, lh, radius, shadow, tierColor } from "../../src/theme";
 
 type FeatherName = React.ComponentProps<typeof Feather>["name"];
 const PLATFORM_ICON: Record<string, FeatherName> = {
@@ -89,7 +90,7 @@ const CONSENT_META: Record<
 export default function Profile() {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
-  const { logout, api, refreshUser } = useAuth();
+  const { logout, api, refreshUser, user } = useAuth();
   const card = useApi<MembershipCard>("/users/me/card");
   const summary = useApi<ScoreSummary>("/scoring/summary");
   const social = useApi<SocialAccountInfo[]>("/social");
@@ -321,7 +322,7 @@ export default function Profile() {
       ) : card.error ? (
         <View style={[st.memCard, shadow, { alignItems: "center", paddingVertical: 28 }]}>
           <Text style={st.cardErr}>{card.error}</Text>
-          <Pressable onPress={card.reload} style={st.smallRetry}>
+          <Pressable onPress={card.reload} style={({ pressed }) => [st.smallRetry, pressed && { opacity: 0.75 }]}>
             <Text style={st.smallRetryText}>↻ {t("common.retry")}</Text>
           </Pressable>
         </View>
@@ -340,10 +341,55 @@ export default function Profile() {
       )}
 
       {/* ===== Edit profile button ===== */}
-      <Pressable onPress={openEditModal} style={st.editProfileBtn}>
+      <Pressable onPress={openEditModal} style={({ pressed }) => [st.editProfileBtn, pressed && { opacity: 0.75 }]}>
         <Feather name="edit-2" size={14} color={colors.primary} />
         <Text style={st.editProfileBtnText}>Edit Profile</Text>
       </Pressable>
+
+      {/* ===== My Campaign Banner ===== */}
+      {c && user && (
+        <View style={st.bannerSection}>
+          <View style={st.bannerSectionHeader}>
+            <Feather name="instagram" size={15} color={colors.primary} />
+            <Text style={st.bannerSectionTitle}>My Campaign Banner</Text>
+            <Text style={st.bannerSectionSub}>Shown when you share</Text>
+          </View>
+          <View style={st.bannerPreviewRow}>
+            {/* Scaled-down banner preview: renders at width=110, aspect 350:1080 */}
+            <View style={st.bannerPreviewWrap}>
+              <WorkerBanner
+                user={{
+                  id: c.userId,
+                  name: c.name,
+                  designation: c.designation,
+                  photoUrl: c.photoUrl,
+                  tier: c.tier,
+                  boothName: c.boothName,
+                  orgUnitName: user.orgUnitName,
+                  weeklyLeaguePoints: sum?.weeklyLeaguePoints,
+                  lifetimeReputation: sum?.lifetimeReputation,
+                }}
+                width={110}
+                prefs={{ showStats: true }}
+              />
+            </View>
+            <View style={st.bannerInfoCol}>
+              <Text style={st.bannerInfoTitle}>350 × 1080 px</Text>
+              <Text style={st.bannerInfoDesc}>Your personalized banner is automatically composited with creatives when you share to Instagram.</Text>
+              <View style={st.bannerTagRow}>
+                <View style={st.bannerTag}>
+                  <Text style={st.bannerTagText}>{c.tier.toUpperCase()}</Text>
+                </View>
+                {c.boothName ? (
+                  <View style={st.bannerTag}>
+                    <Text style={st.bannerTagText} numberOfLines={1}>{c.boothName}</Text>
+                  </View>
+                ) : null}
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
 
       {/* ===== Edit profile modal ===== */}
       <Modal
@@ -359,7 +405,7 @@ export default function Profile() {
           <View style={st.modalSheet}>
             <View style={st.modalHeader}>
               <Text style={st.modalTitle}>Edit Profile</Text>
-              <Pressable onPress={() => setEditOpen(false)} hitSlop={8}>
+              <Pressable onPress={() => setEditOpen(false)} hitSlop={8} style={({ pressed }) => pressed && { opacity: 0.75 }}>
                 <Feather name="x" size={22} color={colors.textMuted} />
               </Pressable>
             </View>
@@ -453,7 +499,7 @@ export default function Profile() {
             </View>
             <Pressable
               onPress={disconnectIg}
-              style={[st.disconnectBtn, busy === "ig-disconnect" && { opacity: 0.5 }]}
+              style={({ pressed }) => [st.disconnectBtn, busy === "ig-disconnect" && { opacity: 0.5 }, pressed && { opacity: 0.75 }]}
               disabled={busy === "ig-disconnect"}
             >
               <Feather name="x" size={13} color={colors.danger} />
@@ -530,7 +576,7 @@ export default function Profile() {
         onToggle={toggleConsent}
       />
 
-      <Pressable onPress={logout} style={st.logout}>
+      <Pressable onPress={logout} style={({ pressed }) => [st.logout, pressed && { opacity: 0.75 }]}>
         <Feather name="log-out" size={16} color={colors.danger} />
         <Text style={st.logoutText}>{t("common.logout")}</Text>
       </Pressable>
@@ -746,14 +792,14 @@ const st = StyleSheet.create({
     paddingVertical: 14,
   },
   cardTopLeft: { flex: 1 },
-  cardBrand: { color: "#fff", fontWeight: "900", fontSize: 16, letterSpacing: 0.5 },
-  cardBrandSub: { color: "rgba(255,255,255,0.75)", fontSize: 11, marginTop: 1 },
+  cardBrand: { color: "#fff", fontWeight: "900", fontSize: 16, letterSpacing: 0.5, fontFamily: fontFamily, lineHeight: lh(16) },
+  cardBrandSub: { color: "rgba(255,255,255,0.75)", fontSize: 11, marginTop: 1, fontFamily: fontFamily, lineHeight: lh(11) },
   tierBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: radius.pill,
   },
-  tierBadgeText: { color: "#1a1a2e", fontWeight: "900", fontSize: 12 },
+  tierBadgeText: { color: "#1a1a2e", fontWeight: "900", fontSize: 12, fontFamily: fontFamily, lineHeight: lh(12) },
   memTop: {
     flexDirection: "row",
     gap: 14,
@@ -763,8 +809,8 @@ const st = StyleSheet.create({
     paddingBottom: 14,
   },
   photoRing: { borderRadius: 38, borderWidth: 2.5, padding: 2 },
-  memName: { color: "#fff", fontSize: 20, fontWeight: "800" },
-  memSub: { color: colors.textMutedOnDark, fontSize: 13, marginTop: 1 },
+  memName: { color: "#fff", fontSize: 20, fontWeight: "800", fontFamily: fontFamily, lineHeight: lh(20) },
+  memSub: { color: colors.textMutedOnDark, fontSize: 13, marginTop: 1, fontFamily: fontFamily, lineHeight: lh(13) },
   boothRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 1 },
   qrSection: {
     flexDirection: "row",
@@ -781,23 +827,23 @@ const st = StyleSheet.create({
     borderColor: colors.primary,
   },
   qrMeta: { flex: 1, gap: 10 },
-  scanHint: { color: colors.textMutedOnDark, fontSize: 12, lineHeight: 18 },
+  scanHint: { color: colors.textMutedOnDark, fontSize: 12, lineHeight: 18, fontFamily: fontFamily },
   statusChip: {
     alignSelf: "flex-start",
     borderRadius: radius.pill,
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
-  statusText: { fontWeight: "800", fontSize: 13 },
-  memberId: { color: colors.borderOnDark, fontSize: 11, fontWeight: "600", letterSpacing: 0.3 },
-  cardErr: { color: colors.textMutedOnDark, textAlign: "center", marginBottom: 12 },
+  statusText: { fontWeight: "800", fontSize: 13, fontFamily: fontFamily, lineHeight: lh(13) },
+  memberId: { color: colors.borderOnDark, fontSize: 11, fontWeight: "600", letterSpacing: 0.3, fontFamily: fontFamily, lineHeight: lh(11) },
+  cardErr: { color: colors.textMutedOnDark, textAlign: "center", marginBottom: 12, fontFamily: fontFamily },
   smallRetry: {
     backgroundColor: colors.primary,
     borderRadius: radius.md,
     paddingHorizontal: 18,
     paddingVertical: 9,
   },
-  smallRetryText: { color: "#fff", fontWeight: "800" },
+  smallRetryText: { color: "#fff", fontWeight: "800", fontFamily: fontFamily },
 
   // Tier progress bar
   progressWrap: {
@@ -810,9 +856,9 @@ const st = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 8,
   },
-  progressLabel: { color: colors.textMutedOnDark, fontSize: 12, fontWeight: "600" },
-  progressTierName: { fontWeight: "800", textTransform: "capitalize" },
-  progressNext: { color: colors.textMutedOnDark, fontSize: 12, fontWeight: "600" },
+  progressLabel: { color: colors.textMutedOnDark, fontSize: 12, fontWeight: "600", fontFamily: fontFamily, lineHeight: lh(12) },
+  progressTierName: { fontWeight: "800", textTransform: "capitalize", fontFamily: fontFamily },
+  progressNext: { color: colors.textMutedOnDark, fontSize: 12, fontWeight: "600", fontFamily: fontFamily, lineHeight: lh(12) },
   progressTrack: {
     height: 6,
     backgroundColor: colors.borderOnDark,
@@ -833,7 +879,7 @@ const st = StyleSheet.create({
     borderColor: colors.border,
     ...shadow,
   },
-  sectionTitle: { fontWeight: "800", color: colors.text, marginBottom: 12, fontSize: 16 },
+  sectionTitle: { fontWeight: "800", color: colors.text, marginBottom: 12, fontSize: 16, fontFamily: fontFamily, lineHeight: lh(16) },
   scoreRow: { flexDirection: "row", gap: 12 },
   stat: {
     flex: 1,
@@ -844,8 +890,8 @@ const st = StyleSheet.create({
     borderWidth: 1,
     borderColor: "transparent",
   },
-  statValue: { fontSize: 26, fontWeight: "800", color: colors.text },
-  statLabel: { fontSize: 12, color: colors.textMuted, marginTop: 2, textAlign: "center" },
+  statValue: { fontSize: 26, fontWeight: "800", color: colors.text, fontFamily: fontFamily, lineHeight: lh(26) },
+  statLabel: { fontSize: 12, color: colors.textMuted, marginTop: 2, textAlign: "center", fontFamily: fontFamily, lineHeight: lh(12) },
   ranks: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 14 },
   rankChip: {
     backgroundColor: colors.cardMuted,
@@ -856,12 +902,12 @@ const st = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  rankChipLabel: { fontSize: 11, color: colors.textMuted },
-  rankChipVal: { fontSize: 15, fontWeight: "800", color: colors.navy },
+  rankChipLabel: { fontSize: 11, color: colors.textMuted, fontFamily: fontFamily, lineHeight: lh(11) },
+  rankChipVal: { fontSize: 15, fontWeight: "800", color: colors.navy, fontFamily: fontFamily, lineHeight: lh(15) },
   connectedRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  connected: { color: colors.success, fontWeight: "800" },
-  handle: { color: colors.textMuted, fontWeight: "600" },
-  note: { color: colors.textMuted, marginBottom: 12, lineHeight: 20 },
+  connected: { color: colors.success, fontWeight: "800", fontFamily: fontFamily },
+  handle: { color: colors.textMuted, fontWeight: "600", fontFamily: fontFamily },
+  note: { color: colors.textMuted, marginBottom: 12, lineHeight: 20, fontFamily: fontFamily },
   lang: {
     flex: 1,
     alignItems: "center",
@@ -871,7 +917,7 @@ const st = StyleSheet.create({
     borderColor: colors.border,
   },
   langActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  langText: { fontWeight: "700", color: colors.text },
+  langText: { fontWeight: "700", color: colors.text, fontFamily: fontFamily },
   memCtaHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -887,14 +933,14 @@ const st = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 4,
   },
-  activeBadgeText: { color: "#16a34a", fontWeight: "800", fontSize: 12 },
+  activeBadgeText: { color: "#16a34a", fontWeight: "800", fontSize: 12, fontFamily: fontFamily, lineHeight: lh(12) },
   inactiveBadge: {
     backgroundColor: "rgba(156,163,175,0.16)",
     borderRadius: 99,
     paddingHorizontal: 12,
     paddingVertical: 4,
   },
-  inactiveBadgeText: { color: colors.textMuted, fontWeight: "700", fontSize: 12 },
+  inactiveBadgeText: { color: colors.textMuted, fontWeight: "700", fontSize: 12, fontFamily: fontFamily, lineHeight: lh(12) },
   logout: {
     marginTop: 20,
     marginBottom: 20,
@@ -904,7 +950,7 @@ const st = StyleSheet.create({
     gap: 8,
     padding: 14,
   },
-  logoutText: { color: colors.danger, fontWeight: "700", fontSize: 16 },
+  logoutText: { color: colors.danger, fontWeight: "700", fontSize: 16, fontFamily: fontFamily, lineHeight: lh(16) },
   reachBestCard: {
     marginTop: 12,
     backgroundColor: colors.cardMuted,
@@ -920,9 +966,11 @@ const st = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.4,
     marginBottom: 2,
+    fontFamily: fontFamily,
+    lineHeight: lh(11),
   },
-  reachBestTitle: { fontSize: 15, fontWeight: "800", color: colors.text },
-  reachBestReach: { fontSize: 13, fontWeight: "600", color: colors.primaryDark, marginTop: 3 },
+  reachBestTitle: { fontSize: 15, fontWeight: "800", color: colors.text, fontFamily: fontFamily, lineHeight: lh(15) },
+  reachBestReach: { fontSize: 13, fontWeight: "600", color: colors.primaryDark, marginTop: 3, fontFamily: fontFamily, lineHeight: lh(13) },
   platformRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 },
   platformChip: {
     backgroundColor: colors.primarySoft,
@@ -932,7 +980,7 @@ const st = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.primary + "33",
   },
-  platformChipText: { fontSize: 13, fontWeight: "700", color: colors.primaryDark },
+  platformChipText: { fontSize: 13, fontWeight: "700", color: colors.primaryDark, fontFamily: fontFamily, lineHeight: lh(13) },
 
   // Recruit count row
   recruitRow: {
@@ -946,7 +994,7 @@ const st = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  recruitText: { fontSize: 14, fontWeight: "700", color: colors.text },
+  recruitText: { fontSize: 14, fontWeight: "700", color: colors.text, fontFamily: fontFamily, lineHeight: lh(14) },
 
   // Instagram disconnect
   igConnectedBlock: { gap: 10 },
@@ -962,7 +1010,7 @@ const st = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.danger + "44",
   },
-  disconnectBtnText: { color: colors.danger, fontWeight: "700", fontSize: 13 },
+  disconnectBtnText: { color: colors.danger, fontWeight: "700", fontSize: 13, fontFamily: fontFamily, lineHeight: lh(13) },
 
   // Edit profile
   editProfileBtn: {
@@ -973,7 +1021,7 @@ const st = StyleSheet.create({
     marginTop: 10,
     paddingVertical: 10,
   },
-  editProfileBtnText: { color: colors.primary, fontWeight: "700", fontSize: 14 },
+  editProfileBtnText: { color: colors.primary, fontWeight: "700", fontSize: 14, fontFamily: fontFamily, lineHeight: lh(14) },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.45)",
@@ -992,8 +1040,8 @@ const st = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 20,
   },
-  modalTitle: { fontSize: 18, fontWeight: "800", color: colors.text },
-  modalLabel: { fontSize: 14, fontWeight: "700", color: colors.text, marginBottom: 8 },
+  modalTitle: { fontSize: 18, fontWeight: "800", color: colors.text, fontFamily: fontFamily, lineHeight: lh(18) },
+  modalLabel: { fontSize: 14, fontWeight: "700", color: colors.text, marginBottom: 8, fontFamily: fontFamily, lineHeight: lh(14) },
   modalInput: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -1004,8 +1052,9 @@ const st = StyleSheet.create({
     color: colors.text,
     marginBottom: 16,
     backgroundColor: "#fff",
+    fontFamily: fontFamily,
   },
-  modalError: { color: colors.danger, fontSize: 13, marginBottom: 12, fontWeight: "600" },
+  modalError: { color: colors.danger, fontSize: 13, marginBottom: 12, fontWeight: "600", fontFamily: fontFamily, lineHeight: lh(13) },
 
   // Privacy & Consent section
   consentHeader: {
@@ -1032,16 +1081,102 @@ const st = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     color: colors.text,
+    fontFamily: fontFamily,
+    lineHeight: lh(14),
   },
   consentDesc: {
     fontSize: 12,
     color: colors.textMuted,
     lineHeight: 17,
+    fontFamily: fontFamily,
   },
   consentUpdated: {
     fontSize: 11,
     color: colors.primary,
     fontWeight: "600",
     marginTop: 2,
+    fontFamily: fontFamily,
+    lineHeight: lh(11),
+  },
+
+  // ── Campaign Banner section ──────────────────────────────────────────────
+  bannerSection: {
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1.5,
+    borderColor: colors.trsGold + "55",
+    ...shadow,
+  },
+  bannerSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    marginBottom: 14,
+  },
+  bannerSectionTitle: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.text,
+    fontFamily: fontFamily,
+    lineHeight: lh(15),
+  },
+  bannerSectionSub: {
+    fontSize: 11,
+    color: colors.textMuted,
+    fontFamily: fontFamily,
+    lineHeight: lh(11),
+  },
+  bannerPreviewRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 14,
+  },
+  bannerPreviewWrap: {
+    borderRadius: 6,
+    overflow: "hidden",
+    borderWidth: 1.5,
+    borderColor: colors.trsGold + "88",
+    ...shadow,
+  },
+  bannerInfoCol: {
+    flex: 1,
+    gap: 8,
+  },
+  bannerInfoTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.text,
+    fontFamily: fontFamily,
+    lineHeight: lh(13),
+  },
+  bannerInfoDesc: {
+    fontSize: 12,
+    color: colors.textMuted,
+    fontFamily: fontFamily,
+    lineHeight: lh(12),
+  },
+  bannerTagRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  bannerTag: {
+    backgroundColor: colors.trsNavy + "15",
+    borderRadius: radius.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: colors.trsNavy + "30",
+  },
+  bannerTagText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: colors.trsNavy,
+    fontFamily: fontFamily,
+    lineHeight: lh(10),
+    textTransform: "uppercase",
   },
 });

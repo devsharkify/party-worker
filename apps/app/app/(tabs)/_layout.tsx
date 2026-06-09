@@ -17,7 +17,7 @@ import { useAuth } from "../../src/auth/auth-context";
 import { DrawerProvider } from "../../src/context/drawer-context";
 import { AppHeader } from "../../src/components/AppHeader";
 import { AppDrawer } from "../../src/components/AppDrawer";
-import { colors } from "../../src/theme";
+import { colors, fontFamily } from "../../src/theme";
 
 function makeHeader(title: string) {
   return function Header() {
@@ -50,8 +50,12 @@ export default function TabsLayout() {
               shadowRadius: 8,
               shadowOffset: { width: 0, height: -2 },
               elevation: 8,
+              height: 60,
+              paddingBottom: 8,
+              paddingTop: 6,
             },
-            tabBarLabelStyle: { fontSize: 11, fontWeight: "700" },
+            tabBarLabelStyle: { fontSize: 11, fontWeight: "700", fontFamily },
+            tabBarIconStyle: { marginBottom: 0 },
           }}
         >
           {/* ── 5 visible tabs ── */}

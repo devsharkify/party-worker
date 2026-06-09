@@ -7,7 +7,7 @@ import type { ConsentState } from "@pw/shared";
 import { ConsentPurpose } from "@pw/shared";
 import { useAuth } from "../../src/auth/auth-context";
 import { PrimaryButton } from "../../src/components/ui";
-import { colors, fontWeight, radius, shadow } from "../../src/theme";
+import { colors, fontFamily, fontWeight, lh, radius, shadow } from "../../src/theme";
 
 const CONSENT_META: Record<ConsentPurpose, { label: string; description: string }> = {
   data_processing: {
@@ -148,6 +148,8 @@ const st = StyleSheet.create({
     color: colors.primary,
     textAlign: "center",
     marginBottom: 12,
+    fontFamily: fontFamily,
+    lineHeight: lh(24),
   },
   subtitle: {
     fontSize: 14,
@@ -155,6 +157,7 @@ const st = StyleSheet.create({
     textAlign: "center",
     lineHeight: 21,
     marginBottom: 24,
+    fontFamily: fontFamily,
   },
   card: {
     width: "100%",
@@ -182,11 +185,14 @@ const st = StyleSheet.create({
     fontSize: 14,
     fontWeight: fontWeight.bold,
     color: colors.text,
+    fontFamily: fontFamily,
+    lineHeight: lh(14),
   },
   rowDesc: {
     fontSize: 12,
     color: colors.textMuted,
     lineHeight: 17,
+    fontFamily: fontFamily,
   },
   legalNote: {
     fontSize: 12,
@@ -195,6 +201,7 @@ const st = StyleSheet.create({
     lineHeight: 18,
     marginBottom: 24,
     paddingHorizontal: 8,
+    fontFamily: fontFamily,
   },
   bottom: {
     width: "100%",

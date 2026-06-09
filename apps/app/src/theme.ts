@@ -1,3 +1,5 @@
+import { Platform } from "react-native";
+
 export const colors = {
   bg: "#FFFFFF",
   bgElevated: "#FFF0F8",
@@ -12,6 +14,10 @@ export const colors = {
   navyDark: "#0f0f1a",
   green: "#16a34a",
   gold: "#FFB300",
+  // Official TRS party emblem palette (Telangana Rakshana Sena)
+  trsGold: "#E8A820",   // golden-yellow logo background
+  trsNavy: "#1A3580",   // dark-blue Telangana map silhouette
+  trsGreen: "#2B5216",  // dark-green bottom banner
   text: "#1a1a2e",
   textOnDark: "#FFFFFF",
   textMuted: "#64748b",
@@ -53,3 +59,20 @@ export const fontWeight = {
   bold: "700",
   heavy: "800",
 } as const;
+
+/**
+ * Explicit font family — never rely on system defaults.
+ * Web: full CSS stack; iOS: SF Pro via -apple-system; Android: Roboto.
+ */
+export const fontFamily = Platform.select({
+  web: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  ios: "System",
+  android: "Roboto",
+  default: "System",
+}) as string;
+
+/**
+ * Line-height helper — always 1.4× the font size, rounded to nearest integer.
+ * Use in every Text style: lineHeight: lh(fontSize).
+ */
+export const lh = (fontSize: number): number => Math.round(fontSize * 1.4);

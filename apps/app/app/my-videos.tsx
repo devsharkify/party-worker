@@ -5,7 +5,7 @@ import { Feather } from "@expo/vector-icons";
 import { useApi } from "../src/hooks";
 import { StateView } from "../src/components/StateView";
 import { SkeletonBlock } from "../src/components/Skeleton";
-import { colors, fontWeight, radius, shadow } from "../src/theme";
+import { colors, fontFamily, fontWeight, lh, radius, shadow } from "../src/theme";
 
 interface MyRender {
   id: string;
@@ -106,7 +106,7 @@ export default function MyVideos() {
           title: "My Videos",
           headerStyle: { backgroundColor: colors.bg },
           headerTintColor: "#fff",
-          headerTitleStyle: { fontWeight: fontWeight.bold },
+          headerTitleStyle: { fontWeight: fontWeight.bold, fontFamily: fontFamily, fontSize: 17 },
         }}
       />
       <View style={st.fill}>
@@ -164,6 +164,8 @@ const st = StyleSheet.create({
     fontSize: 13,
     fontWeight: fontWeight.semibold,
     marginBottom: 4,
+    fontFamily: fontFamily,
+    lineHeight: lh(13),
   },
   card: {
     flexDirection: "row",
@@ -201,10 +203,10 @@ const st = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 3,
   },
-  personalizedBadgeText: { color: "#fff", fontSize: 9, fontWeight: fontWeight.bold },
+  personalizedBadgeText: { color: "#fff", fontSize: 9, fontWeight: fontWeight.bold, fontFamily: fontFamily, lineHeight: lh(9) },
   info: { flex: 1, padding: 12, justifyContent: "space-between" },
-  cardTitle: { color: colors.text, fontSize: 14, fontWeight: fontWeight.semibold, lineHeight: 20 },
-  cardTime: { color: colors.textMuted, fontSize: 12, marginTop: 4 },
+  cardTitle: { color: colors.text, fontSize: 14, fontWeight: fontWeight.semibold, lineHeight: 20, fontFamily: fontFamily },
+  cardTime: { color: colors.textMuted, fontSize: 12, marginTop: 4, fontFamily: fontFamily, lineHeight: lh(12) },
   actions: { flexDirection: "row", gap: 8, marginTop: 10 },
   actionBtn: {
     flexDirection: "row",
@@ -216,5 +218,5 @@ const st = StyleSheet.create({
   },
   downloadBtn: { backgroundColor: colors.primary },
   shareBtn: { borderWidth: 1.5, borderColor: colors.primary },
-  actionBtnText: { color: "#fff", fontSize: 12, fontWeight: fontWeight.semibold },
+  actionBtnText: { color: "#fff", fontSize: 12, fontWeight: fontWeight.semibold, fontFamily: fontFamily, lineHeight: lh(12) },
 });

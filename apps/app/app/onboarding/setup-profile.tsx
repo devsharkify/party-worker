@@ -15,7 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../src/auth/auth-context";
 import { setLanguage } from "../../src/i18n";
 import { PrimaryButton } from "../../src/components/ui";
-import { colors, fontWeight, radius, shadow } from "../../src/theme";
+import { colors, fontFamily, fontWeight, lh, radius, shadow } from "../../src/theme";
 
 export default function SetupProfile() {
   const { t, i18n } = useTranslation();
@@ -77,7 +77,7 @@ export default function SetupProfile() {
                 <Pressable
                   key={l}
                   onPress={() => setLanguage(l)}
-                  style={[st.lang, i18n.language === l && st.langActive]}
+                  style={({ pressed }) => [st.lang, i18n.language === l && st.langActive, pressed && { opacity: 0.75 }]}
                 >
                   <Text style={[st.langText, i18n.language === l && st.langTextActive]}>
                     {l === "te" ? "తెలుగు" : "English"}
@@ -141,6 +141,8 @@ const st = StyleSheet.create({
     color: colors.primary,
     textAlign: "center",
     marginBottom: 4,
+    fontFamily: fontFamily,
+    lineHeight: lh(28),
   },
   titleEn: {
     fontSize: 16,
@@ -148,6 +150,8 @@ const st = StyleSheet.create({
     color: colors.textMutedOnDark,
     textAlign: "center",
     marginBottom: 28,
+    fontFamily: fontFamily,
+    lineHeight: lh(16),
   },
   card: {
     backgroundColor: "#fff",
@@ -162,6 +166,8 @@ const st = StyleSheet.create({
     fontWeight: fontWeight.bold,
     color: colors.text,
     marginBottom: 8,
+    fontFamily: fontFamily,
+    lineHeight: lh(14),
   },
   input: {
     borderWidth: 1,
@@ -173,6 +179,7 @@ const st = StyleSheet.create({
     color: colors.text,
     marginBottom: 16,
     backgroundColor: "#fff",
+    fontFamily: fontFamily,
   },
   langRow: { flexDirection: "row", gap: 8, marginBottom: 4 },
   lang: {
@@ -183,12 +190,13 @@ const st = StyleSheet.create({
     borderColor: colors.textMuted,
   },
   langActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  langText: { color: colors.textMuted, fontWeight: fontWeight.semibold },
-  langTextActive: { color: "#fff" },
+  langText: { color: colors.textMuted, fontWeight: fontWeight.semibold, fontFamily: fontFamily },
+  langTextActive: { color: "#fff", fontFamily: fontFamily },
   error: {
     color: colors.danger,
     marginBottom: 14,
     textAlign: "center",
     fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily,
   },
 });

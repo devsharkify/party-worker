@@ -5,7 +5,8 @@ import { BlurView } from "expo-blur";
 import { useAuth } from "../auth/auth-context";
 import { useDrawer } from "../context/drawer-context";
 import { RemoteImage } from "./RemoteImage";
-import { colors, fontWeight, shadow } from "../theme";
+import { TRSLogo } from "./TRSLogo";
+import { colors, fontFamily, fontWeight, lh, shadow } from "../theme";
 
 function HeaderContent({ title }: { title?: string }) {
   const { toggle } = useDrawer();
@@ -15,13 +16,13 @@ function HeaderContent({ title }: { title?: string }) {
   return (
     <>
       {/* Hamburger */}
-      <Pressable onPress={toggle} style={st.iconBtn} hitSlop={8}>
+      <Pressable onPress={toggle} style={({ pressed }) => [st.iconBtn, pressed && { opacity: 0.75 }]} hitSlop={8}>
         <Feather name="menu" size={22} color="#fff" />
       </Pressable>
 
       {/* Brand + Title */}
       <View style={st.titleRow}>
-        <Text style={st.brandDot}>★</Text>
+        <TRSLogo size={28} showBanner={false} borderRadius={3} />
         <Text style={st.title} numberOfLines={1}>
           {title ?? "myTRS"}
         </Text>
@@ -31,7 +32,7 @@ function HeaderContent({ title }: { title?: string }) {
       <View style={st.right}>
         <Pressable
           onPress={() => router.push("/(tabs)/updates")}
-          style={st.iconBtn}
+          style={({ pressed }) => [st.iconBtn, pressed && { opacity: 0.75 }]}
           hitSlop={8}
         >
           <Feather name="bell" size={20} color="#fff" />
@@ -39,7 +40,7 @@ function HeaderContent({ title }: { title?: string }) {
 
         <Pressable
           onPress={() => router.push("/(tabs)/profile")}
-          style={st.avatarBtn}
+          style={({ pressed }) => [st.avatarBtn, pressed && { opacity: 0.75 }]}
           hitSlop={4}
         >
           {user?.photoUrl ? (
@@ -108,12 +109,16 @@ const st = StyleSheet.create({
     color: colors.gold,
     fontSize: 14,
     fontWeight: fontWeight.heavy,
+    fontFamily,
+    lineHeight: lh(14),
   },
   title: {
     color: "#fff",
     fontSize: 17,
     fontWeight: fontWeight.bold,
     textAlign: "center",
+    fontFamily,
+    lineHeight: lh(17),
   },
   right: {
     flexDirection: "row",
@@ -137,5 +142,7 @@ const st = StyleSheet.create({
     color: "#fff",
     fontSize: 14,
     fontWeight: fontWeight.bold,
+    fontFamily,
+    lineHeight: lh(14),
   },
 });

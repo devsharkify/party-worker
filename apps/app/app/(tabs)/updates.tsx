@@ -5,7 +5,7 @@ import { useApi } from "../../src/hooks";
 import { Card, Pill } from "../../src/components/ui";
 import { SkeletonBlock } from "../../src/components/Skeleton";
 import { StateView } from "../../src/components/StateView";
-import { colors, radius } from "../../src/theme";
+import { colors, fontFamily, lh, radius } from "../../src/theme";
 
 type Lang = "te" | "en";
 
@@ -106,7 +106,7 @@ function Segment({
   onPress: () => void;
 }) {
   return (
-    <Pressable onPress={onPress} style={[st.seg, active && st.segActive]}>
+    <Pressable onPress={onPress} style={({ pressed }) => [st.seg, active && st.segActive, pressed && { opacity: 0.75 }]}>
       <Text style={[st.segText, active && st.segTextActive]} numberOfLines={1}>
         {label}
       </Text>
@@ -233,7 +233,7 @@ function RowSkeletons() {
 const st = StyleSheet.create({
   fill: { flex: 1, backgroundColor: colors.cardMuted },
   content: { padding: 16, paddingBottom: 48 },
-  screenTitle: { fontSize: 22, fontWeight: "800", color: colors.text, marginBottom: 14 },
+  screenTitle: { fontSize: 22, fontWeight: "800", color: colors.text, marginBottom: 14, fontFamily: fontFamily, lineHeight: lh(22) },
 
   segWrap: {
     flexDirection: "row",
@@ -253,16 +253,16 @@ const st = StyleSheet.create({
     borderRadius: radius.pill,
   },
   segActive: { backgroundColor: colors.primary },
-  segText: { fontWeight: "700", color: colors.textMuted, fontSize: 13 },
-  segTextActive: { color: "#fff" },
+  segText: { fontWeight: "700", color: colors.textMuted, fontSize: 13, fontFamily: fontFamily, lineHeight: lh(13) },
+  segTextActive: { color: "#fff", fontFamily: fontFamily },
 
-  annTitle: { fontSize: 16, fontWeight: "800", color: colors.text },
-  annBody: { fontSize: 14, color: colors.text, marginTop: 6, lineHeight: 20 },
-  date: { fontSize: 12, color: colors.textMuted, marginTop: 10 },
+  annTitle: { fontSize: 16, fontWeight: "800", color: colors.text, fontFamily: fontFamily, lineHeight: lh(16) },
+  annBody: { fontSize: 14, color: colors.text, marginTop: 6, lineHeight: 20, fontFamily: fontFamily },
+  date: { fontSize: 12, color: colors.textMuted, marginTop: 10, fontFamily: fontFamily, lineHeight: lh(12) },
 
   actCard: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
   actMain: { flex: 1 },
-  actLabel: { fontSize: 15, fontWeight: "700", color: colors.text },
+  actLabel: { fontSize: 15, fontWeight: "700", color: colors.text, fontFamily: fontFamily, lineHeight: lh(15) },
 
   skelCard: {
     backgroundColor: colors.card,

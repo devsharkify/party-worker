@@ -3,7 +3,8 @@ import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { PrimaryButton } from "../../src/components/ui";
-import { colors, fontWeight, radius, shadow } from "../../src/theme";
+import { TRSLogo } from "../../src/components/TRSLogo";
+import { colors, fontFamily, fontWeight, lh, radius, shadow } from "../../src/theme";
 
 export default function Welcome() {
   const { t } = useTranslation();
@@ -13,8 +14,8 @@ export default function Welcome() {
     <SafeAreaView style={st.safe}>
       <View style={st.wrap}>
         <View style={st.logoSection}>
-          <View style={st.logoRing}>
-            <Text style={st.logoEmoji}>🙏</Text>
+          <View style={st.logoWrap}>
+            <TRSLogo size={120} showBanner borderRadius={10} />
           </View>
           <Text style={st.appName}>myTRS</Text>
           <View style={st.taglineCard}>
@@ -50,22 +51,14 @@ const st = StyleSheet.create({
     justifyContent: "center",
     gap: 16,
   },
-  logoRing: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: colors.primary,
-    borderWidth: 3,
-    borderColor: colors.gold,
-    alignItems: "center",
-    justifyContent: "center",
+  logoWrap: {
+    alignSelf: "center",
     marginBottom: 8,
-    ...shadow,
-  },
-  logoEmoji: {
-    fontSize: 56,
-    textAlign: "center",
-    lineHeight: 68,
+    shadowColor: "#000",
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 8,
   },
   appName: {
     fontSize: 34,
@@ -73,6 +66,8 @@ const st = StyleSheet.create({
     color: colors.primary,
     textAlign: "center",
     letterSpacing: 2,
+    fontFamily: fontFamily,
+    lineHeight: lh(34),
   },
   taglineCard: {
     marginTop: 8,
@@ -91,12 +86,16 @@ const st = StyleSheet.create({
     color: colors.textOnDark,
     textAlign: "center",
     marginBottom: 6,
+    fontFamily: fontFamily,
+    lineHeight: lh(22),
   },
   taglineEn: {
     fontSize: 15,
     fontWeight: fontWeight.semibold,
     color: colors.textMutedOnDark,
     textAlign: "center",
+    fontFamily: fontFamily,
+    lineHeight: lh(15),
   },
   bottom: {
     width: "100%",

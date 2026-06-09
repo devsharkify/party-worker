@@ -9,7 +9,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import * as Haptics from "expo-haptics";
-import { colors, radius } from "../theme";
+import { colors, fontFamily, lh, radius, shadow } from "../theme";
 
 export function Screen({
   children,
@@ -86,6 +86,7 @@ const s = StyleSheet.create({
     marginBottom: 14,
     borderWidth: 1,
     borderColor: colors.border,
+    ...shadow,
   },
   btn: {
     height: 52,
@@ -94,7 +95,7 @@ const s = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 20,
   },
-  btnText: { color: "#fff", fontSize: 17, fontWeight: "700" },
+  btnText: { color: "#fff", fontSize: 17, fontWeight: "700", fontFamily, lineHeight: lh(17) },
   pill: {
     alignSelf: "flex-start",
     paddingHorizontal: 10,
@@ -102,5 +103,5 @@ const s = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
   },
-  pillText: { fontSize: 12, fontWeight: "700" },
+  pillText: { fontSize: 12, fontWeight: "700", fontFamily, lineHeight: lh(12) },
 });

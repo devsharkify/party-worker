@@ -1,5 +1,6 @@
 import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, Dimensions, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -10,7 +11,8 @@ import { useApi } from "../../src/hooks";
 import { useAuth } from "../../src/auth/auth-context";
 import { StateView } from "../../src/components/StateView";
 import { RemoteImage } from "../../src/components/RemoteImage";
-import { colors, radius, shadow, tierColor } from "../../src/theme";
+import { BannerShareModal } from "../../src/components/BannerShareModal";
+import { colors, fontFamily, lh, radius, shadow, tierColor } from "../../src/theme";
 import { useIsOnline } from "../../src/lib/offline";
 import { useLeaderMode } from "../../src/hooks/useLeaderMode";
 
@@ -25,7 +27,7 @@ function formatDuration(sec: number): string {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-function Tile({ item, onPress }: { item: FeedItem; onPress: () => void }) {
+function Tile({ item, onPress, onShare }: { item: FeedItem; onPress: () => void; onShare: () => void }) {
   const isVideo = item.type === "video";
   const isPersonalized = !!(item.personalizedUrl || item.personalizedVideoUrl);
   const uri = item.personalizedUrl ?? item.thumbnailUrl ?? item.sourceUrl;
@@ -69,6 +71,15 @@ function Tile({ item, onPress }: { item: FeedItem; onPress: () => void }) {
       <View style={st.scrim} pointerEvents="none">
         <Text style={st.tileTitle} numberOfLines={2}>{item.title}</Text>
       </View>
+
+      {/* Share button — bottom-right above scrim */}
+      <Pressable
+        style={({ pressed }) => [st.shareBtn, pressed && { opacity: 0.75 }]}
+        onPress={(e) => { e.stopPropagation?.(); onShare(); }}
+        hitSlop={4}
+      >
+        <Feather name="instagram" size={12} color="#fff" />
+      </Pressable>
     </Pressable>
   );
 }
@@ -146,14 +157,14 @@ function LeaderModeToggle({
   return (
     <View style={lt.wrap}>
       <Pressable
-        style={[lt.pill, mode === "worker" && lt.pillActive]}
+        style={({ pressed }) => [lt.pill, mode === "worker" && lt.pillActive, pressed && { opacity: 0.75 }]}
         onPress={() => onToggle("worker")}
       >
         <Feather name="user" size={13} color={mode === "worker" ? "#fff" : colors.textMuted} />
         <Text style={[lt.pillText, mode === "worker" && lt.pillTextActive]}>Worker Mode</Text>
       </Pressable>
       <Pressable
-        style={[lt.pill, mode === "leader" && lt.pillLeaderActive]}
+        style={({ pressed }) => [lt.pill, mode === "leader" && lt.pillLeaderActive, pressed && { opacity: 0.75 }]}
         onPress={() => onToggle("leader")}
       >
         <Feather name="star" size={13} color={mode === "leader" ? "#fff" : colors.textMuted} />
@@ -184,8 +195,8 @@ const lt = StyleSheet.create({
   },
   pillActive: { backgroundColor: colors.navy },
   pillLeaderActive: { backgroundColor: colors.primary },
-  pillText: { fontSize: 13, fontWeight: "700", color: colors.textMuted },
-  pillTextActive: { color: "#fff" },
+  pillText: { fontSize: 13, fontWeight: "700", color: colors.textMuted, fontFamily, lineHeight: lh(13) },
+  pillTextActive: { color: "#fff", fontFamily },
 });
 
 // ---------------------------------------------------------------------------
@@ -351,16 +362,16 @@ const ld = StyleSheet.create({
     ...shadow,
   },
   teamCardHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
-  teamCardTitle: { fontSize: 16, fontWeight: "800", color: colors.gold, letterSpacing: 0.3 },
-  teamUnitName: { fontSize: 13, color: colors.textMutedOnDark, fontWeight: "600", marginBottom: 14 },
+  teamCardTitle: { fontSize: 16, fontWeight: "800", color: colors.gold, letterSpacing: 0.3, fontFamily, lineHeight: lh(16) },
+  teamUnitName: { fontSize: 13, color: colors.textMutedOnDark, fontWeight: "600", marginBottom: 14, fontFamily, lineHeight: lh(13) },
   teamStats: { flexDirection: "row", alignItems: "center" },
   teamStat: { flex: 1, alignItems: "center" },
-  teamStatValue: { fontSize: 28, fontWeight: "900", color: "#fff" },
-  teamStatLabel: { fontSize: 12, color: colors.textMutedOnDark, fontWeight: "600", marginTop: 2 },
+  teamStatValue: { fontSize: 28, fontWeight: "900", color: "#fff", fontFamily, lineHeight: lh(28) },
+  teamStatLabel: { fontSize: 12, color: colors.textMutedOnDark, fontWeight: "600", marginTop: 2, fontFamily, lineHeight: lh(12) },
   teamStatDivider: { width: 1, height: 40, backgroundColor: "rgba(255,255,255,0.2)" },
 
   sectionHeader: { flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 8 },
-  sectionTitle: { fontSize: 14, fontWeight: "800", color: colors.text, textTransform: "uppercase", letterSpacing: 0.5 },
+  sectionTitle: { fontSize: 14, fontWeight: "800", color: colors.text, textTransform: "uppercase", letterSpacing: 0.5, fontFamily, lineHeight: lh(14) },
 
   card: {
     backgroundColor: "#fff",
@@ -371,7 +382,7 @@ const ld = StyleSheet.create({
     borderColor: colors.border,
     ...shadow,
   },
-  emptyMsg: { color: colors.textMuted, fontSize: 14, textAlign: "center", paddingVertical: 8 },
+  emptyMsg: { color: colors.textMuted, fontSize: 14, textAlign: "center", paddingVertical: 8, fontFamily, lineHeight: lh(14) },
 
   performerRow: {
     flexDirection: "row",
@@ -389,14 +400,14 @@ const ld = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  rankText: { fontSize: 12, fontWeight: "900" },
+  rankText: { fontSize: 12, fontWeight: "900", fontFamily, lineHeight: lh(12) },
   avatarFallback: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
-  avatarInitial: { fontSize: 15, fontWeight: "800" },
-  performerName: { fontWeight: "700", color: colors.text, fontSize: 14 },
-  performerDesig: { fontSize: 11, color: colors.textMuted, fontWeight: "600" },
+  avatarInitial: { fontSize: 15, fontWeight: "800", fontFamily, lineHeight: lh(15) },
+  performerName: { fontWeight: "700", color: colors.text, fontSize: 14, fontFamily, lineHeight: lh(14) },
+  performerDesig: { fontSize: 11, color: colors.textMuted, fontWeight: "600", fontFamily, lineHeight: lh(11) },
   pointsWrap: { alignItems: "flex-end" },
-  pointsVal: { fontWeight: "900", color: colors.primaryDark, fontSize: 16 },
-  pointsLabel: { fontSize: 10, color: colors.textMuted, fontWeight: "600" },
+  pointsVal: { fontWeight: "900", color: colors.primaryDark, fontSize: 16, fontFamily, lineHeight: lh(16) },
+  pointsLabel: { fontSize: 10, color: colors.textMuted, fontWeight: "600", fontFamily, lineHeight: lh(10) },
 
   activityRow: {
     flexDirection: "row",
@@ -414,9 +425,9 @@ const ld = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  activityLabel: { flex: 1, fontSize: 13, color: colors.text, fontWeight: "600" },
-  activityMeta: { fontSize: 11, color: colors.textMuted, fontWeight: "600" },
-  activityPts: { fontSize: 13, fontWeight: "800", color: colors.success, minWidth: 30, textAlign: "right" },
+  activityLabel: { flex: 1, fontSize: 13, color: colors.text, fontWeight: "600", fontFamily, lineHeight: lh(13) },
+  activityMeta: { fontSize: 11, color: colors.textMuted, fontWeight: "600", fontFamily, lineHeight: lh(11) },
+  activityPts: { fontSize: 13, fontWeight: "800", color: colors.success, minWidth: 30, textAlign: "right", fontFamily, lineHeight: lh(13) },
 
   actionRow: { gap: 10 },
   actionBtn: {
@@ -434,7 +445,7 @@ const ld = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.primary,
   },
-  actionBtnText: { fontSize: 15, fontWeight: "700", color: "#fff" },
+  actionBtnText: { fontSize: 15, fontWeight: "700", color: "#fff", fontFamily, lineHeight: lh(15) },
 });
 
 // ---------------------------------------------------------------------------
@@ -451,6 +462,7 @@ export default function Feed() {
   const { mode, setMode, ready } = useLeaderMode();
 
   const firstName = user?.name?.split(" ")[0] ?? "Worker";
+  const [shareItem, setShareItem] = useState<FeedItem | null>(null);
 
   // Leader mode — show leader dashboard instead of worker feed
   if (user?.isLeader && ready && mode === "leader") {
@@ -514,6 +526,18 @@ export default function Feed() {
     rows.push([items[i], items[i + 1] ?? null, items[i + 2] ?? null]);
   }
 
+  const bannerUser = user ? {
+    id: user.id,
+    name: user.name,
+    designation: user.designation,
+    photoUrl: user.photoUrl,
+    tier: user.tier,
+    boothName: user.boothName,
+    orgUnitName: user.orgUnitName,
+    weeklyLeaguePoints: user.weeklyLeaguePoints,
+    lifetimeReputation: user.lifetimeReputation,
+  } : null;
+
   return (
     <View style={st.fill}>
       {!isOnline && (
@@ -558,7 +582,7 @@ export default function Feed() {
               animate={{ opacity: 1, translateY: 0 }}
               transition={{ type: "timing", duration: 400, delay: (index * 3) * 80 }}
             >
-              <Tile item={a} onPress={() => router.push(`/personalize/${a.creativeId}`)} />
+              <Tile item={a} onPress={() => router.push(`/personalize/${a.creativeId}`)} onShare={() => setShareItem(a)} />
             </MotiView>
             {b ? (
               <MotiView
@@ -566,7 +590,7 @@ export default function Feed() {
                 animate={{ opacity: 1, translateY: 0 }}
                 transition={{ type: "timing", duration: 400, delay: (index * 3 + 1) * 80 }}
               >
-                <Tile item={b} onPress={() => router.push(`/personalize/${b.creativeId}`)} />
+                <Tile item={b} onPress={() => router.push(`/personalize/${b.creativeId}`)} onShare={() => setShareItem(b)} />
               </MotiView>
             ) : <View style={st.tilePlaceholder} />}
             {c ? (
@@ -575,12 +599,22 @@ export default function Feed() {
                 animate={{ opacity: 1, translateY: 0 }}
                 transition={{ type: "timing", duration: 400, delay: (index * 3 + 2) * 80 }}
               >
-                <Tile item={c} onPress={() => router.push(`/personalize/${c.creativeId}`)} />
+                <Tile item={c} onPress={() => router.push(`/personalize/${c.creativeId}`)} onShare={() => setShareItem(c)} />
               </MotiView>
             ) : <View style={st.tilePlaceholder} />}
           </View>
         )}
       />
+
+      {/* Banner share modal — shown when worker taps IG icon on a tile */}
+      {bannerUser && (
+        <BannerShareModal
+          item={shareItem}
+          visible={shareItem !== null}
+          onClose={() => setShareItem(null)}
+          user={bannerUser}
+        />
+      )}
     </View>
   );
 }
@@ -604,6 +638,8 @@ const st = StyleSheet.create({
     letterSpacing: 0.5,
     textTransform: "uppercase",
     marginBottom: 4,
+    fontFamily,
+    lineHeight: lh(11),
   },
   offlineBanner: {
     flexDirection: "row",
@@ -614,7 +650,7 @@ const st = StyleSheet.create({
     paddingVertical: 7,
     paddingHorizontal: 14,
   },
-  offlineBannerText: { fontSize: 13, fontWeight: "600", color: "#92400e" },
+  offlineBannerText: { fontSize: 13, fontWeight: "600", color: "#92400e", fontFamily, lineHeight: lh(13) },
 
   // Dashboard header
   dashHeader: {
@@ -636,12 +672,16 @@ const st = StyleSheet.create({
     color: colors.textMutedOnDark,
     fontWeight: "600",
     letterSpacing: 0.2,
+    fontFamily,
+    lineHeight: lh(13),
   },
   welcomeName: {
     fontSize: 22,
     fontWeight: "800",
     color: "#fff",
     letterSpacing: -0.3,
+    fontFamily,
+    lineHeight: lh(22),
   },
   trsLogo: {
     backgroundColor: colors.primary,
@@ -654,12 +694,16 @@ const st = StyleSheet.create({
     fontWeight: "800",
     fontSize: 13,
     letterSpacing: 0.5,
+    fontFamily,
+    lineHeight: lh(13),
   },
   dashSub: {
     fontSize: 13,
     color: colors.textMutedOnDark,
     fontWeight: "500",
     marginBottom: 12,
+    fontFamily,
+    lineHeight: lh(13),
   },
   statsCard: {
     borderRadius: radius.md,
@@ -677,12 +721,16 @@ const st = StyleSheet.create({
     color: "#fff",
     fontSize: 22,
     fontWeight: "900",
+    fontFamily,
+    lineHeight: lh(22),
   },
   statsLabel: {
     color: "rgba(255,255,255,0.8)",
     fontSize: 12,
     fontWeight: "600",
     marginTop: 2,
+    fontFamily,
+    lineHeight: lh(12),
   },
   statsDivider: {
     width: 1,
@@ -705,6 +753,8 @@ const st = StyleSheet.create({
     color: colors.primary,
     letterSpacing: 0.4,
     textTransform: "uppercase",
+    fontFamily,
+    lineHeight: lh(13),
   },
 
   grid: { flexDirection: "row", flexWrap: "wrap", gap: GAP, padding: GAP },
@@ -746,7 +796,7 @@ const st = StyleSheet.create({
     paddingHorizontal: 5,
     paddingVertical: 2,
   },
-  durationText: { color: "#fff", fontSize: 11, fontWeight: "700" },
+  durationText: { color: "#fff", fontSize: 11, fontWeight: "700", fontFamily, lineHeight: lh(11) },
 
   // Personalized tick top-left
   personalizedDot: {
@@ -771,7 +821,7 @@ const st = StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 2.5,
   },
-  newBadgeText: { color: "#fff", fontSize: 9, fontWeight: "900", letterSpacing: 0.8 },
+  newBadgeText: { color: "#fff", fontSize: 9, fontWeight: "900", letterSpacing: 0.8, fontFamily, lineHeight: lh(9) },
 
   // Bottom scrim + title
   scrim: {
@@ -784,7 +834,20 @@ const st = StyleSheet.create({
     paddingTop: 20,
     backgroundColor: "rgba(0,0,0,0.55)",
   },
-  tileTitle: { color: "#fff", fontSize: 11, fontWeight: "700", lineHeight: 14 },
+  tileTitle: { color: "#fff", fontSize: 11, fontWeight: "700", lineHeight: 14, fontFamily },
+
+  // Share (Instagram) button — bottom-right corner of tile
+  shareBtn: {
+    position: "absolute",
+    bottom: 6,
+    right: 6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "rgba(233,30,140,0.85)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
 
   // Empty state
   emptyWrap: {
@@ -793,6 +856,6 @@ const st = StyleSheet.create({
     paddingHorizontal: 24,
     gap: 12,
   },
-  emptyTitle: { fontSize: 18, fontWeight: "800", color: "#fff" },
-  emptySub: { fontSize: 14, color: "#64748b", textAlign: "center", lineHeight: 20 },
+  emptyTitle: { fontSize: 18, fontWeight: "800", color: "#fff", fontFamily, lineHeight: lh(18) },
+  emptySub: { fontSize: 14, color: "#64748b", textAlign: "center", lineHeight: 20, fontFamily },
 });

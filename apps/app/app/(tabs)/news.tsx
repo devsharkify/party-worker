@@ -14,7 +14,7 @@ import { useRef, useState } from "react";
 import { Feather } from "@expo/vector-icons";
 import { RemoteImage } from "../../src/components/RemoteImage";
 import { useApi } from "../../src/hooks";
-import { colors, radius, shadow } from "../../src/theme";
+import { colors, fontFamily, lh, radius, shadow } from "../../src/theme";
 
 const SCREEN_W = Dimensions.get("window").width;
 const CARD_W = Math.min(SCREEN_W, 480);
@@ -86,28 +86,28 @@ function ShareSheet({
         <Text style={st.sheetTitle}>Share</Text>
 
         <View style={st.sheetRow}>
-          <Pressable style={st.sheetBtn} onPress={toWhatsApp}>
+          <Pressable style={({ pressed }) => [st.sheetBtn, pressed && { opacity: 0.75 }]} onPress={toWhatsApp}>
             <View style={[st.sheetIcon, { backgroundColor: "#25D366" }]}>
               <Feather name="message-circle" size={22} color="#fff" />
             </View>
             <Text style={st.sheetLabel}>WhatsApp</Text>
           </Pressable>
 
-          <Pressable style={st.sheetBtn} onPress={toWhatsAppStatus}>
+          <Pressable style={({ pressed }) => [st.sheetBtn, pressed && { opacity: 0.75 }]} onPress={toWhatsAppStatus}>
             <View style={[st.sheetIcon, { backgroundColor: "#075e54" }]}>
               <Feather name="circle" size={22} color="#fff" />
             </View>
             <Text style={st.sheetLabel}>WA Status</Text>
           </Pressable>
 
-          <Pressable style={st.sheetBtn} onPress={toInstagram}>
+          <Pressable style={({ pressed }) => [st.sheetBtn, pressed && { opacity: 0.75 }]} onPress={toInstagram}>
             <View style={[st.sheetIcon, { backgroundColor: "#c13584" }]}>
               <Feather name="instagram" size={22} color="#fff" />
             </View>
             <Text style={st.sheetLabel}>Instagram</Text>
           </Pressable>
 
-          <Pressable style={st.sheetBtn} onPress={nativeShare}>
+          <Pressable style={({ pressed }) => [st.sheetBtn, pressed && { opacity: 0.75 }]} onPress={nativeShare}>
             <View style={[st.sheetIcon, { backgroundColor: colors.primary }]}>
               <Feather name="share-2" size={22} color="#fff" />
             </View>
@@ -226,7 +226,7 @@ export default function News() {
           <Feather name="wifi-off" size={40} color={colors.textMuted} />
           <Text style={st.errorTitle}>Couldn't load news</Text>
           <Text style={st.errorMsg}>{error}</Text>
-          <Pressable style={st.retryBtn} onPress={reload}>
+          <Pressable style={({ pressed }) => [st.retryBtn, pressed && { opacity: 0.75 }]} onPress={reload}>
             <Text style={st.retryText}>Retry</Text>
           </Pressable>
         </View>
@@ -268,7 +268,7 @@ export default function News() {
           {/* Prev / Next nav */}
           <View style={st.navRow}>
             <Pressable
-              style={[st.navBtn, currentIndex === 0 && st.navBtnDisabled]}
+              style={({ pressed }) => [st.navBtn, currentIndex === 0 && st.navBtnDisabled, pressed && { opacity: 0.75 }]}
               onPress={goPrev}
               disabled={currentIndex === 0}
             >
@@ -301,9 +301,10 @@ export default function News() {
             </View>
 
             <Pressable
-              style={[
+              style={({ pressed }) => [
                 st.navBtn,
                 currentIndex === items.length - 1 && st.navBtnDisabled,
+                pressed && { opacity: 0.75 },
               ]}
               onPress={goNext}
               disabled={currentIndex === items.length - 1}
@@ -347,9 +348,9 @@ const st = StyleSheet.create({
     paddingBottom: 12,
     backgroundColor: "#0d0d1a",
   },
-  headerTitle: { fontSize: 24, fontWeight: "800", color: "#fff" },
+  headerTitle: { fontSize: 24, fontWeight: "800", color: "#fff", fontFamily, lineHeight: lh(24) },
   headerRight: { flexDirection: "row", alignItems: "center", gap: 6 },
-  headerSub: { fontSize: 13, color: colors.textMuted },
+  headerSub: { fontSize: 13, color: colors.textMuted, fontFamily, lineHeight: lh(13) },
 
   // Card
   card: {
@@ -376,16 +377,17 @@ const st = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  handleText: { fontSize: 12, fontWeight: "700", color: colors.primary },
-  timeText: { fontSize: 12, color: colors.textMuted },
+  handleText: { fontSize: 12, fontWeight: "700", color: colors.primary, fontFamily, lineHeight: lh(12) },
+  timeText: { fontSize: 12, color: colors.textMuted, fontFamily, lineHeight: lh(12) },
   cardTitle: {
     fontSize: 17,
     fontWeight: "800",
     color: "#fff",
     lineHeight: 24,
     marginBottom: 10,
+    fontFamily,
   },
-  cardBody2: { fontSize: 14, color: "#94a3b8", lineHeight: 22 },
+  cardBody2: { fontSize: 14, color: "#94a3b8", lineHeight: 22, fontFamily },
   cardFooter: {
     flexDirection: "row",
     alignItems: "center",
@@ -395,7 +397,7 @@ const st = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "#222",
   },
-  paginationText: { fontSize: 12, color: colors.textMuted },
+  paginationText: { fontSize: 12, color: colors.textMuted, fontFamily, lineHeight: lh(12) },
   shareBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -405,7 +407,7 @@ const st = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: radius.pill,
   },
-  shareBtnText: { fontSize: 13, fontWeight: "700", color: "#fff" },
+  shareBtnText: { fontSize: 13, fontWeight: "700", color: "#fff", fontFamily, lineHeight: lh(13) },
 
   // Navigation
   navRow: {
@@ -426,7 +428,7 @@ const st = StyleSheet.create({
     backgroundColor: "#1a1a1a",
   },
   navBtnDisabled: { backgroundColor: "#111" },
-  navBtnText: { fontSize: 13, fontWeight: "700", color: "#fff" },
+  navBtnText: { fontSize: 13, fontWeight: "700", color: "#fff", fontFamily, lineHeight: lh(13) },
   dots: { flexDirection: "row", alignItems: "center", gap: 5 },
   dot: {
     width: 6,
@@ -435,7 +437,7 @@ const st = StyleSheet.create({
     backgroundColor: "#333",
   },
   dotActive: { backgroundColor: colors.primary, width: 18 },
-  dotMore: { fontSize: 11, color: colors.textMuted, marginLeft: 2 },
+  dotMore: { fontSize: 11, color: colors.textMuted, marginLeft: 2, fontFamily, lineHeight: lh(11) },
 
   // Skeleton
   skeletonWrap: { flex: 1, alignItems: "center", paddingTop: 8 },
@@ -452,8 +454,8 @@ const st = StyleSheet.create({
     padding: 32,
     gap: 12,
   },
-  errorTitle: { fontSize: 17, fontWeight: "800", color: "#fff" },
-  errorMsg: { fontSize: 14, color: colors.textMuted, textAlign: "center" },
+  errorTitle: { fontSize: 17, fontWeight: "800", color: "#fff", fontFamily, lineHeight: lh(17) },
+  errorMsg: { fontSize: 14, color: colors.textMuted, textAlign: "center", fontFamily, lineHeight: lh(14) },
   retryBtn: {
     marginTop: 8,
     backgroundColor: colors.primary,
@@ -461,7 +463,7 @@ const st = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: radius.md,
   },
-  retryText: { color: "#fff", fontWeight: "800" },
+  retryText: { color: "#fff", fontWeight: "800", fontFamily },
 
   // Share sheet
   sheetOverlay: {
@@ -495,6 +497,8 @@ const st = StyleSheet.create({
     color: "#fff",
     marginBottom: 20,
     textAlign: "center",
+    fontFamily,
+    lineHeight: lh(16),
   },
   sheetRow: {
     flexDirection: "row",
@@ -508,5 +512,5 @@ const st = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  sheetLabel: { fontSize: 12, color: "#94a3b8", fontWeight: "600" },
+  sheetLabel: { fontSize: 12, color: "#94a3b8", fontWeight: "600", fontFamily, lineHeight: lh(12) },
 });

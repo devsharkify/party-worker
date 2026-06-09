@@ -16,7 +16,7 @@ import { Feather } from "@expo/vector-icons";
 import { useAuth } from "../../src/auth/auth-context";
 import { SkeletonBlock } from "../../src/components/Skeleton";
 import { StateView } from "../../src/components/StateView";
-import { colors, radius, shadow } from "../../src/theme";
+import { colors, fontFamily, lh, radius, shadow } from "../../src/theme";
 
 interface ShareResponse {
   shareEventId: string;
@@ -228,8 +228,8 @@ const st = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderOnDark,
   },
-  pointsText: { color: colors.gold, fontSize: 30, fontWeight: "800" },
-  trackedNote: { color: colors.textMutedOnDark, fontSize: 13, marginTop: 6, textAlign: "center", lineHeight: 18 },
+  pointsText: { color: colors.gold, fontSize: 30, fontWeight: "800", fontFamily: fontFamily, lineHeight: lh(30) },
+  trackedNote: { color: colors.textMutedOnDark, fontSize: 13, marginTop: 6, textAlign: "center", lineHeight: 18, fontFamily: fontFamily },
   primary: {
     backgroundColor: colors.primary,
     borderRadius: radius.md,
@@ -238,8 +238,8 @@ const st = StyleSheet.create({
     justifyContent: "center",
     ...shadow,
   },
-  primaryText: { color: "#fff", fontWeight: "800", fontSize: 18 },
-  hint: { color: colors.textMuted, fontSize: 13, textAlign: "center", marginTop: 10, marginBottom: 18 },
+  primaryText: { color: "#fff", fontWeight: "800", fontSize: 18, fontFamily: fontFamily, lineHeight: lh(18) },
+  hint: { color: colors.textMuted, fontSize: 13, textAlign: "center", marginTop: 10, marginBottom: 18, fontFamily: fontFamily, lineHeight: lh(13) },
   channels: { gap: 10, marginBottom: 20 },
   channel: {
     flexDirection: "row",
@@ -251,8 +251,8 @@ const st = StyleSheet.create({
     paddingHorizontal: 16,
     backgroundColor: "#fff",
   },
-  channelText: { fontWeight: "800", fontSize: 16 },
-  capLabel: { fontWeight: "700", color: colors.textMuted, marginBottom: 6 },
+  channelText: { fontWeight: "800", fontSize: 16, fontFamily: fontFamily, lineHeight: lh(16) },
+  capLabel: { fontWeight: "700", color: colors.textMuted, marginBottom: 6, fontFamily: fontFamily },
   captionBox: { backgroundColor: "#fff", borderRadius: radius.md, padding: 14, borderWidth: 1, borderColor: colors.border },
-  caption: { color: colors.text, lineHeight: 21 },
+  caption: { color: colors.text, lineHeight: 21, fontFamily: fontFamily },
 });

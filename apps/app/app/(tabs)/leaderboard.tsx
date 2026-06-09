@@ -15,7 +15,7 @@ import { RowSkeleton } from "../../src/components/Skeleton";
 import { StateView } from "../../src/components/StateView";
 import { RemoteImage } from "../../src/components/RemoteImage";
 import { Feather } from "@expo/vector-icons";
-import { colors, radius, shadow, tierColor } from "../../src/theme";
+import { colors, fontFamily, lh, radius, shadow, tierColor } from "../../src/theme";
 
 const LEVELS: OrgUnitType[] = ["booth", "mandal", "constituency", "district", "state"];
 
@@ -57,7 +57,7 @@ export default function Leaderboard() {
               <Pressable
                 key={l}
                 onPress={() => setLevel(l)}
-                style={[st.chip, active && st.chipActive]}
+                style={({ pressed }) => [st.chip, active && st.chipActive, pressed && { opacity: 0.75 }]}
               >
                 <Text style={[st.chipText, active && st.chipTextActive]}>
                   {t(`leaderboard.${l}`)}
@@ -224,8 +224,8 @@ const st = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.06)",
   },
   chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { color: colors.textMutedOnDark, fontWeight: "700", fontSize: 13 },
-  chipTextActive: { color: "#fff" },
+  chipText: { color: colors.textMutedOnDark, fontWeight: "700", fontSize: 13, fontFamily, lineHeight: lh(13) },
+  chipTextActive: { color: "#fff", fontFamily },
   rankBanner: {
     backgroundColor: colors.navy,
     paddingHorizontal: 16,
@@ -243,7 +243,7 @@ const st = StyleSheet.create({
     gap: 6,
     flex: 1,
   },
-  rankUnit: { color: "#fff", fontWeight: "700", fontSize: 14, flex: 1 },
+  rankUnit: { color: "#fff", fontWeight: "700", fontSize: 14, flex: 1, fontFamily, lineHeight: lh(14) },
   rankPill: {
     flexDirection: "row",
     alignItems: "center",
@@ -255,8 +255,8 @@ const st = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
-  rankPillLabel: { color: colors.textMutedOnDark, fontSize: 12, fontWeight: "600" },
-  rankPillValue: { color: colors.primary, fontWeight: "900", fontSize: 16 },
+  rankPillLabel: { color: colors.textMutedOnDark, fontSize: 12, fontWeight: "600", fontFamily, lineHeight: lh(12) },
+  rankPillValue: { color: colors.primary, fontWeight: "900", fontSize: 16, fontFamily, lineHeight: lh(16) },
   listContent: { padding: 14, paddingBottom: 32, gap: 0 },
   row: {
     flexDirection: "row",
@@ -276,18 +276,18 @@ const st = StyleSheet.create({
     backgroundColor: colors.primarySoft,
   },
   rankCol: { width: 34, alignItems: "center" },
-  rank: { fontWeight: "800", color: colors.textMuted, fontSize: 17 },
-  medalEmoji: { fontSize: 24 },
+  rank: { fontWeight: "800", color: colors.textMuted, fontSize: 17, fontFamily, lineHeight: lh(17) },
+  medalEmoji: { fontSize: 24, fontFamily, lineHeight: lh(24) },
   nameRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  name: { fontWeight: "700", color: colors.text, fontSize: 15, flex: 1 },
-  nameViewer: { color: colors.primaryDark },
+  name: { fontWeight: "700", color: colors.text, fontSize: 15, flex: 1, fontFamily, lineHeight: lh(15) },
+  nameViewer: { color: colors.primaryDark, fontFamily },
   youBadge: {
     backgroundColor: colors.primary,
     borderRadius: radius.pill,
     paddingHorizontal: 7,
     paddingVertical: 2,
   },
-  youBadgeText: { color: "#fff", fontSize: 9, fontWeight: "900", letterSpacing: 0.5 },
+  youBadgeText: { color: "#fff", fontSize: 9, fontWeight: "900", letterSpacing: 0.5, fontFamily, lineHeight: lh(9) },
   tierChip: {
     flexDirection: "row",
     alignItems: "center",
@@ -299,11 +299,11 @@ const st = StyleSheet.create({
     marginTop: 4,
   },
   tierDot: { width: 7, height: 7, borderRadius: 4 },
-  tier: { fontSize: 11, fontWeight: "800", textTransform: "capitalize" },
+  tier: { fontSize: 11, fontWeight: "800", textTransform: "capitalize", fontFamily, lineHeight: lh(11) },
   pointsCol: { alignItems: "flex-end" },
-  points: { fontWeight: "800", color: colors.navy, fontSize: 18 },
-  pointsViewer: { color: colors.primaryDark },
-  pointsLabel: { fontSize: 10, color: colors.textMuted, fontWeight: "600" },
+  points: { fontWeight: "800", color: colors.navy, fontSize: 18, fontFamily, lineHeight: lh(18) },
+  pointsViewer: { color: colors.primaryDark, fontFamily },
+  pointsLabel: { fontSize: 10, color: colors.textMuted, fontWeight: "600", fontFamily, lineHeight: lh(10) },
 
   // Pool card
   poolCard: {
@@ -320,8 +320,8 @@ const st = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 12,
   },
-  poolTitle: { color: "#fff", fontWeight: "800", fontSize: 15 },
-  poolSize: { color: colors.textMutedOnDark, fontSize: 13, fontWeight: "600" },
+  poolTitle: { color: "#fff", fontWeight: "800", fontSize: 15, fontFamily, lineHeight: lh(15) },
+  poolSize: { color: colors.textMutedOnDark, fontSize: 13, fontWeight: "600", fontFamily, lineHeight: lh(13) },
   poolRankRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -332,8 +332,8 @@ const st = StyleSheet.create({
     paddingVertical: 8,
     marginBottom: 12,
   },
-  poolRankLabel: { color: colors.textMutedOnDark, fontSize: 13, fontWeight: "600" },
-  poolRankValue: { color: colors.gold, fontWeight: "900", fontSize: 20 },
+  poolRankLabel: { color: colors.textMutedOnDark, fontSize: 13, fontWeight: "600", fontFamily, lineHeight: lh(13) },
+  poolRankValue: { color: colors.gold, fontWeight: "900", fontSize: 20, fontFamily, lineHeight: lh(20) },
   poolThresholds: { flexDirection: "row", gap: 8 },
   poolThresholdChip: {
     flex: 1,
@@ -344,6 +344,6 @@ const st = StyleSheet.create({
     alignItems: "center",
   },
   poolThresholdChipDown: { backgroundColor: "rgba(239,68,68,0.14)" },
-  poolThresholdUp: { color: "#22c55e", fontSize: 12, fontWeight: "700" },
-  poolThresholdDown: { color: "#ef4444", fontSize: 12, fontWeight: "700" },
+  poolThresholdUp: { color: "#22c55e", fontSize: 12, fontWeight: "700", fontFamily, lineHeight: lh(12) },
+  poolThresholdDown: { color: "#ef4444", fontSize: 12, fontWeight: "700", fontFamily, lineHeight: lh(12) },
 });

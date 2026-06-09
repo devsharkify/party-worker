@@ -23,7 +23,7 @@ import { RemoteImage } from "../../src/components/RemoteImage";
 import { Feather } from "@expo/vector-icons";
 import { captureComposite } from "../../src/lib/composite";
 import VideoPlayer from "../../src/components/VideoPlayer";
-import { colors, radius } from "../../src/theme";
+import { colors, fontFamily, lh, radius } from "../../src/theme";
 
 function detectTier(): DeviceTier {
   return Platform.OS === "web" ? "high" : "mid";
@@ -102,12 +102,12 @@ const be = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#1e3a5f",
   },
-  label: { color: colors.gold, fontWeight: "800", fontSize: 13, marginBottom: 12 },
+  label: { color: colors.gold, fontWeight: "800", fontSize: 13, marginBottom: 12, fontFamily: fontFamily, lineHeight: lh(13) },
   photoRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 14 },
   photoBorder: { borderRadius: 30, borderWidth: 2, borderColor: colors.primary, overflow: "hidden" },
-  photoHint: { color: "#64748b", fontSize: 12, flex: 1 },
+  photoHint: { color: colors.textMuted, fontSize: 12, flex: 1, fontFamily: fontFamily, lineHeight: lh(12) },
   field: { marginBottom: 10 },
-  fieldLabel: { color: "#94a3b8", fontSize: 11, fontWeight: "700", marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 },
+  fieldLabel: { color: "#94a3b8", fontSize: 11, fontWeight: "700", marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5, fontFamily: fontFamily, lineHeight: lh(11) },
   input: {
     backgroundColor: "#1e293b",
     borderRadius: radius.md,
@@ -118,6 +118,7 @@ const be = StyleSheet.create({
     fontWeight: "600",
     borderWidth: 1,
     borderColor: "#334155",
+    fontFamily: fontFamily,
   },
 });
 
@@ -471,7 +472,7 @@ const st = StyleSheet.create({
     paddingVertical: 12,
     marginTop: 10,
   },
-  downloadBtnText: { color: colors.primary, fontWeight: "700", fontSize: 15 },
+  downloadBtnText: { color: colors.primary, fontWeight: "700", fontSize: 15, fontFamily: fontFamily, lineHeight: lh(15) },
   scroll: { flex: 1, backgroundColor: colors.bg },
   wrap: { padding: 16, alignItems: "center", paddingBottom: 40 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.bg },
@@ -482,7 +483,7 @@ const st = StyleSheet.create({
     paddingVertical: 6,
     marginBottom: 14,
   },
-  ready: { color: colors.gold, fontWeight: "800", fontSize: 13 },
+  ready: { color: colors.gold, fontWeight: "800", fontSize: 13, fontFamily: fontFamily, lineHeight: lh(13) },
   canvas: {
     width: "100%",
     maxWidth: 340,
@@ -502,9 +503,9 @@ const st = StyleSheet.create({
     gap: 12,
   },
   photoWrap: { borderRadius: 35, borderWidth: 3, borderColor: "#fff", overflow: "hidden" },
-  name: { color: "#fff", fontSize: 22, fontWeight: "800", textShadowColor: "#000", textShadowRadius: 6 },
-  designation: { color: colors.gold, fontSize: 14, fontWeight: "700" },
-  area: { color: "#fff", fontSize: 13 },
+  name: { color: "#fff", fontSize: 22, fontWeight: "800", textShadowColor: "#000", textShadowRadius: 6, fontFamily: fontFamily, lineHeight: lh(22) },
+  designation: { color: colors.gold, fontSize: 14, fontWeight: "700", fontFamily: fontFamily, lineHeight: lh(14) },
+  area: { color: "#fff", fontSize: 13, fontFamily: fontFamily, lineHeight: lh(13) },
   aiBand: {
     position: "absolute",
     left: 0, right: 0, bottom: 0,
@@ -513,8 +514,8 @@ const st = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  aiText: { color: "#fff", fontSize: 11, fontWeight: "600" },
-  fallbackNote: { color: colors.textMutedOnDark, fontSize: 12, marginVertical: 10 },
+  aiText: { color: "#fff", fontSize: 11, fontWeight: "600", fontFamily: fontFamily, lineHeight: lh(11) },
+  fallbackNote: { color: colors.textMutedOnDark, fontSize: 12, marginVertical: 10, fontFamily: fontFamily, lineHeight: lh(12) },
   captureWrap: { width: "100%", maxWidth: 340, marginBottom: 12 },
   captureBtn: {
     height: 46,
@@ -524,7 +525,7 @@ const st = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 20,
   },
-  captureBtnText: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  captureBtnText: { color: "#fff", fontSize: 15, fontWeight: "700", fontFamily: fontFamily, lineHeight: lh(15) },
   progressWrap: {
     height: 46,
     borderRadius: radius.md,
@@ -539,7 +540,7 @@ const st = StyleSheet.create({
     backgroundColor: colors.primary,
     opacity: 0.35,
   },
-  progressText: { color: colors.textOnDark, fontSize: 14, fontWeight: "700" },
+  progressText: { color: colors.textOnDark, fontSize: 14, fontWeight: "700", fontFamily: fontFamily, lineHeight: lh(14) },
   donePill: {
     height: 46,
     borderRadius: radius.md,
@@ -550,7 +551,7 @@ const st = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 20,
   },
-  doneText: { color: colors.green, fontSize: 14, fontWeight: "700" },
+  doneText: { color: colors.green, fontSize: 14, fontWeight: "700", fontFamily: fontFamily, lineHeight: lh(14) },
   captionWrap: { width: "100%", maxWidth: 340, marginBottom: 16 },
   captionBtn: {
     height: 46,
@@ -562,8 +563,8 @@ const st = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 20,
   },
-  captionBtnText: { color: colors.gold, fontSize: 15, fontWeight: "700" },
-  captionUnavailable: { color: colors.textMutedOnDark, fontSize: 13, marginTop: 10, textAlign: "center" },
+  captionBtnText: { color: colors.gold, fontSize: 15, fontWeight: "700", fontFamily: fontFamily, lineHeight: lh(15) },
+  captionUnavailable: { color: colors.textMutedOnDark, fontSize: 13, marginTop: 10, textAlign: "center", fontFamily: fontFamily, lineHeight: lh(13) },
   captionTextWrap: {
     marginTop: 12,
     backgroundColor: colors.bgElevated,
@@ -573,7 +574,7 @@ const st = StyleSheet.create({
     padding: 12,
   },
   captionScroll: { maxHeight: 120 },
-  captionText: { color: colors.textOnDark, fontSize: 14, lineHeight: 22 },
-  captionCopyHint: { color: colors.textMutedOnDark, fontSize: 11, marginTop: 8, textAlign: "right" },
+  captionText: { color: colors.textOnDark, fontSize: 14, lineHeight: 22, fontFamily: fontFamily },
+  captionCopyHint: { color: colors.textMutedOnDark, fontSize: 11, marginTop: 8, textAlign: "right", fontFamily: fontFamily, lineHeight: lh(11) },
   btnWrap: { width: "100%", maxWidth: 340 },
 });

@@ -22,7 +22,7 @@ import type {
 import { useAuth } from "../../src/auth/auth-context";
 import { useApi } from "../../src/hooks";
 import { Card, Pill, PrimaryButton, Screen } from "../../src/components/ui";
-import { colors, radius } from "../../src/theme";
+import { colors, fontFamily, lh, radius } from "../../src/theme";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -409,7 +409,7 @@ export default function Grievances() {
           {CATEGORY_KEYS.map((key) => {
             const active = category === key;
             return (
-              <Pressable key={key} onPress={() => setCategory(key)} style={[st.cat, active && st.catActive]}>
+              <Pressable key={key} onPress={() => setCategory(key)} style={({ pressed }) => [st.cat, active && st.catActive, pressed && { opacity: 0.75 }]}>
                 <Text style={[st.catText, active && st.catTextActive]}>{t(`grievances.${key}`)}</Text>
               </Pressable>
             );
@@ -478,7 +478,7 @@ export default function Grievances() {
       {/* ---- Tabs: Mine / Area ---- */}
       <View style={st.tabs}>
         <Pressable
-          style={[st.tab, activeTab === "mine" && st.tabActive]}
+          style={({ pressed }) => [st.tab, activeTab === "mine" && st.tabActive, pressed && { opacity: 0.75 }]}
           onPress={() => setActiveTab("mine")}
         >
           <Text style={[st.tabText, activeTab === "mine" && st.tabTextActive]}>
@@ -486,7 +486,7 @@ export default function Grievances() {
           </Text>
         </Pressable>
         <Pressable
-          style={[st.tab, activeTab === "area" && st.tabActive]}
+          style={({ pressed }) => [st.tab, activeTab === "area" && st.tabActive, pressed && { opacity: 0.75 }]}
           onPress={() => setActiveTab("area")}
         >
           <Text style={[st.tabText, activeTab === "area" && st.tabTextActive]}>
@@ -532,8 +532,8 @@ export default function Grievances() {
 // Styles
 // ---------------------------------------------------------------------------
 const st = StyleSheet.create({
-  formTitle: { fontSize: 18, fontWeight: "800", color: colors.text, marginBottom: 8 },
-  label: { fontSize: 13, fontWeight: "700", color: colors.text, marginTop: 12, marginBottom: 6 },
+  formTitle: { fontSize: 18, fontWeight: "800", color: colors.text, marginBottom: 8, fontFamily: fontFamily, lineHeight: lh(18) },
+  label: { fontSize: 13, fontWeight: "700", color: colors.text, marginTop: 12, marginBottom: 6, fontFamily: fontFamily, lineHeight: lh(13) },
   catWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   cat: {
     paddingHorizontal: 12,
@@ -544,8 +544,8 @@ const st = StyleSheet.create({
     backgroundColor: colors.cardMuted,
   },
   catActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  catText: { fontWeight: "700", color: colors.text, fontSize: 13 },
-  catTextActive: { color: "#fff" },
+  catText: { fontWeight: "700", color: colors.text, fontSize: 13, fontFamily: fontFamily, lineHeight: lh(13) },
+  catTextActive: { color: "#fff", fontFamily: fontFamily },
   input: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -555,6 +555,7 @@ const st = StyleSheet.create({
     fontSize: 15,
     color: colors.text,
     backgroundColor: "#fff",
+    fontFamily: fontFamily,
   },
   multiline: { minHeight: 90, textAlignVertical: "top" },
   // Photo
@@ -570,7 +571,7 @@ const st = StyleSheet.create({
     gap: 8,
     backgroundColor: colors.cardMuted,
   } as object,
-  photoAddText: { fontSize: 14, fontWeight: "700", color: colors.textMuted },
+  photoAddText: { fontSize: 14, fontWeight: "700", color: colors.textMuted, fontFamily: fontFamily, lineHeight: lh(14) },
   photoPreviewWrap: {
     borderRadius: radius.md,
     overflow: "hidden",
@@ -595,7 +596,7 @@ const st = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  photoClearText: { color: "#fff", fontSize: 14, fontWeight: "800" },
+  photoClearText: { color: "#fff", fontSize: 14, fontWeight: "800", fontFamily: fontFamily, lineHeight: lh(14) },
   photoPH: {
     flexDirection: "row",
     gap: 8,
@@ -607,7 +608,7 @@ const st = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: colors.cardMuted,
   },
-  photoPHText: { color: colors.textMuted, fontSize: 13 },
+  photoPHText: { color: colors.textMuted, fontSize: 13, fontFamily: fontFamily, lineHeight: lh(13) },
   // Location
   locationRow: { flexDirection: "row", gap: 8, alignItems: "stretch" },
   gpsBtn: {
@@ -619,9 +620,9 @@ const st = StyleSheet.create({
     justifyContent: "center",
     minWidth: 72,
   },
-  gpsBtnText: { color: "#fff", fontSize: 13, fontWeight: "700" },
-  gpsConfirm: { color: colors.green, fontSize: 12, marginTop: 4, fontWeight: "600" },
-  done: { marginTop: 12, textAlign: "center", color: colors.success, fontWeight: "800" },
+  gpsBtnText: { color: "#fff", fontSize: 13, fontWeight: "700", fontFamily: fontFamily, lineHeight: lh(13) },
+  gpsConfirm: { color: colors.green, fontSize: 12, marginTop: 4, fontWeight: "600", fontFamily: fontFamily, lineHeight: lh(12) },
+  done: { marginTop: 12, textAlign: "center", color: colors.success, fontWeight: "800", fontFamily: fontFamily },
   // Tabs
   tabs: {
     flexDirection: "row",
@@ -640,19 +641,19 @@ const st = StyleSheet.create({
     borderBottomColor: colors.primary,
     marginBottom: -2,
   },
-  tabText: { fontSize: 14, fontWeight: "700", color: colors.textMuted },
-  tabTextActive: { color: colors.primary },
+  tabText: { fontSize: 14, fontWeight: "700", color: colors.textMuted, fontFamily: fontFamily, lineHeight: lh(14) },
+  tabTextActive: { color: colors.primary, fontFamily: fontFamily },
   // Cards
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
-  gTitle: { flex: 1, fontSize: 16, fontWeight: "700", color: colors.text },
-  gDate: { fontSize: 12, color: colors.textMuted, marginTop: 4 },
+  gTitle: { flex: 1, fontSize: 16, fontWeight: "700", color: colors.text, fontFamily: fontFamily, lineHeight: lh(16) },
+  gDate: { fontSize: 12, color: colors.textMuted, marginTop: 4, fontFamily: fontFamily, lineHeight: lh(12) },
   areaCard: { borderLeftWidth: 3, borderLeftColor: "#e2e8f0" } as object,
-  areaUnit: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+  areaUnit: { fontSize: 12, color: colors.textMuted, marginTop: 2, fontFamily: fontFamily, lineHeight: lh(12) },
   expandedDetail: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border },
-  detailText: { fontSize: 14, color: colors.text, lineHeight: 20, marginBottom: 6 },
-  detailMeta: { fontSize: 12, color: colors.textMuted, marginBottom: 4 },
+  detailText: { fontSize: 14, color: colors.text, lineHeight: 20, marginBottom: 6, fontFamily: fontFamily },
+  detailMeta: { fontSize: 12, color: colors.textMuted, marginBottom: 4, fontFamily: fontFamily, lineHeight: lh(12) },
   photoThumb: { width: "100%", height: 160, borderRadius: radius.md, marginTop: 8 },
-  empty: { color: colors.textMuted, textAlign: "center", marginTop: 16, marginBottom: 20 },
+  empty: { color: colors.textMuted, textAlign: "center", marginTop: 16, marginBottom: 20, fontFamily: fontFamily },
 });
 
 // ---------------------------------------------------------------------------
@@ -683,7 +684,7 @@ const ss = StyleSheet.create({
     borderColor: colors.primary,
     backgroundColor: colors.primary,
   },
-  stepDotText: { fontSize: 10, fontWeight: "800", color: "#fff" },
+  stepDotText: { fontSize: 10, fontWeight: "800", color: "#fff", fontFamily: fontFamily, lineHeight: lh(10) },
   stepLine: {
     flex: 1,
     height: 2,
@@ -697,5 +698,5 @@ const ss = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: "#fee2e2",
   },
-  rejectedText: { fontSize: 12, fontWeight: "700", color: colors.danger },
+  rejectedText: { fontSize: 12, fontWeight: "700", color: colors.danger, fontFamily: fontFamily, lineHeight: lh(12) },
 });

@@ -20,7 +20,7 @@ import { RemoteImage } from "../../src/components/RemoteImage";
 import { RowSkeleton } from "../../src/components/Skeleton";
 import { StateView } from "../../src/components/StateView";
 import { Feather } from "@expo/vector-icons";
-import { colors, radius, shadow, tierColor } from "../../src/theme";
+import { colors, fontFamily, lh, radius, shadow, tierColor } from "../../src/theme";
 
 type Lang = "te" | "en";
 type Loc = Record<string, { te: string; en: string }>;
@@ -317,7 +317,7 @@ function UnitChips({
       {units.map((u) => {
         const active = u.id === value;
         return (
-          <Pressable key={u.id} onPress={() => onChange(u.id)} style={[st.chip, active && st.chipActive]}>
+          <Pressable key={u.id} onPress={() => onChange(u.id)} style={({ pressed }) => [st.chip, active && st.chipActive, pressed && { opacity: 0.75 }]}>
             <Text style={[st.chipText, active && st.chipTextActive]} numberOfLines={1}>
               {u.name}
             </Text>
@@ -433,7 +433,7 @@ function OnboardForm(props: {
             <Pressable
               key={r}
               onPress={() => props.onPickRole(r)}
-              style={[st.opt, active && st.optActive]}
+              style={({ pressed }) => [st.opt, active && st.optActive, pressed && { opacity: 0.75 }]}
             >
               <Text style={[st.optText, active && st.optTextActive]}>{tx(ROLE_LABEL[r], lang)}</Text>
             </Pressable>
@@ -482,9 +482,9 @@ function OnboardForm(props: {
 const st = StyleSheet.create({
   fill: { flex: 1, backgroundColor: colors.cardMuted },
   listContent: { padding: 14, paddingBottom: 40 },
-  screenTitle: { fontSize: 22, fontWeight: "800", color: colors.text, marginBottom: 12 },
-  sectionTitle: { fontSize: 16, fontWeight: "800", color: colors.text, marginTop: 6, marginBottom: 10 },
-  label: { fontSize: 13, fontWeight: "700", color: colors.text, marginTop: 12, marginBottom: 6 },
+  screenTitle: { fontSize: 22, fontWeight: "800", color: colors.text, marginBottom: 12, fontFamily: fontFamily, lineHeight: lh(22) },
+  sectionTitle: { fontSize: 16, fontWeight: "800", color: colors.text, marginTop: 6, marginBottom: 10, fontFamily: fontFamily, lineHeight: lh(16) },
+  label: { fontSize: 13, fontWeight: "700", color: colors.text, marginTop: 12, marginBottom: 6, fontFamily: fontFamily, lineHeight: lh(13) },
 
   chipsContent: { gap: 8, paddingVertical: 2, paddingRight: 8 },
   chip: {
@@ -497,9 +497,9 @@ const st = StyleSheet.create({
     maxWidth: 200,
   },
   chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontWeight: "700", color: colors.text, fontSize: 14 },
-  chipSub: { fontWeight: "600", color: colors.textMuted, fontSize: 11, marginTop: 1 },
-  chipTextActive: { color: "#fff" },
+  chipText: { fontWeight: "700", color: colors.text, fontSize: 14, fontFamily: fontFamily, lineHeight: lh(14) },
+  chipSub: { fontWeight: "600", color: colors.textMuted, fontSize: 11, marginTop: 1, fontFamily: fontFamily, lineHeight: lh(11) },
+  chipTextActive: { color: "#fff", fontFamily: fontFamily },
 
   unitBanner: {
     flexDirection: "row",
@@ -512,8 +512,8 @@ const st = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
-  unitBannerName: { color: "#fff", fontWeight: "800", fontSize: 15, flex: 1 },
-  unitBannerMeta: { color: colors.textMutedOnDark, fontWeight: "700", fontSize: 12 },
+  unitBannerName: { color: "#fff", fontWeight: "800", fontSize: 15, flex: 1, fontFamily: fontFamily, lineHeight: lh(15) },
+  unitBannerMeta: { color: colors.textMutedOnDark, fontWeight: "700", fontSize: 12, fontFamily: fontFamily, lineHeight: lh(12) },
 
   memberRow: {
     flexDirection: "row",
@@ -529,7 +529,7 @@ const st = StyleSheet.create({
   },
   avatarWrap: { width: 44, height: 44 },
   avatarFallback: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
-  avatarInitial: { fontSize: 18, fontWeight: "800" },
+  avatarInitial: { fontSize: 18, fontWeight: "800", fontFamily: fontFamily, lineHeight: lh(18) },
   memberDot: {
     position: "absolute",
     right: -1,
@@ -540,19 +540,19 @@ const st = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#fff",
   },
-  memberName: { fontWeight: "700", color: colors.text, fontSize: 15 },
+  memberName: { fontWeight: "700", color: colors.text, fontSize: 15, fontFamily: fontFamily, lineHeight: lh(15) },
   chipsRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4 },
   roleChip: { borderRadius: radius.pill, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 2 },
-  roleChipText: { fontSize: 11, fontWeight: "800" },
+  roleChipText: { fontSize: 11, fontWeight: "800", fontFamily: fontFamily, lineHeight: lh(11) },
   tierChip: { borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 2 },
-  tierChipText: { fontSize: 11, fontWeight: "800" },
-  memberDesignation: { fontSize: 12, color: colors.textMuted, marginTop: 4 },
+  tierChipText: { fontSize: 11, fontWeight: "800", fontFamily: fontFamily, lineHeight: lh(11) },
+  memberDesignation: { fontSize: 12, color: colors.textMuted, marginTop: 4, fontFamily: fontFamily, lineHeight: lh(12) },
   pointsCol: { alignItems: "flex-end", minWidth: 48 },
-  points: { fontWeight: "800", color: colors.primaryDark, fontSize: 17 },
-  pointsLabel: { fontSize: 10, color: colors.textMuted, fontWeight: "600" },
+  points: { fontWeight: "800", color: colors.primaryDark, fontSize: 17, fontFamily: fontFamily, lineHeight: lh(17) },
+  pointsLabel: { fontSize: 10, color: colors.textMuted, fontWeight: "600", fontFamily: fontFamily, lineHeight: lh(10) },
 
   formCard: { marginTop: 18, marginBottom: 8 },
-  formTitle: { fontSize: 18, fontWeight: "800", color: colors.text, marginBottom: 4 },
+  formTitle: { fontSize: 18, fontWeight: "800", color: colors.text, marginBottom: 4, fontFamily: fontFamily, lineHeight: lh(18) },
   input: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -562,6 +562,7 @@ const st = StyleSheet.create({
     fontSize: 15,
     color: colors.text,
     backgroundColor: "#fff",
+    fontFamily: fontFamily,
   },
   optWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   opt: {
@@ -573,8 +574,8 @@ const st = StyleSheet.create({
     backgroundColor: colors.cardMuted,
   },
   optActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  optText: { fontWeight: "700", color: colors.text, fontSize: 13 },
-  optTextActive: { color: "#fff" },
+  optText: { fontWeight: "700", color: colors.text, fontSize: 13, fontFamily: fontFamily, lineHeight: lh(13) },
+  optTextActive: { color: "#fff", fontFamily: fontFamily },
   celebrate: {
     marginTop: 14,
     alignItems: "center",
@@ -584,7 +585,7 @@ const st = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.primary,
   },
-  celebrateText: { color: colors.primaryDark, fontWeight: "800", fontSize: 15 },
-  celebratePoints: { color: colors.primaryDark, fontWeight: "800", fontSize: 20, marginTop: 2 },
-  formError: { marginTop: 12, color: colors.danger, fontWeight: "700", fontSize: 14 },
+  celebrateText: { color: colors.primaryDark, fontWeight: "800", fontSize: 15, fontFamily: fontFamily, lineHeight: lh(15) },
+  celebratePoints: { color: colors.primaryDark, fontWeight: "800", fontSize: 20, marginTop: 2, fontFamily: fontFamily, lineHeight: lh(20) },
+  formError: { marginTop: 12, color: colors.danger, fontWeight: "700", fontSize: 14, fontFamily: fontFamily, lineHeight: lh(14) },
 });

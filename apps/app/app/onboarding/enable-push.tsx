@@ -8,7 +8,7 @@ import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 import { PrimaryButton } from "../../src/components/ui";
 import { markOnboarded } from "../../src/lib/onboarding";
-import { colors, fontWeight, radius, shadow } from "../../src/theme";
+import { colors, fontFamily, fontWeight, lh, radius, shadow } from "../../src/theme";
 import { useAuth } from "../../src/auth/auth-context";
 
 type PermState = "idle" | "granted" | "denied";
@@ -143,6 +143,8 @@ const st = StyleSheet.create({
     fontWeight: fontWeight.heavy,
     color: colors.primary,
     textAlign: "center",
+    fontFamily: fontFamily,
+    lineHeight: lh(26),
   },
   titleEn: {
     fontSize: 16,
@@ -150,6 +152,8 @@ const st = StyleSheet.create({
     color: colors.textMutedOnDark,
     textAlign: "center",
     marginTop: -6,
+    fontFamily: fontFamily,
+    lineHeight: lh(16),
   },
   body: {
     fontSize: 16,
@@ -162,6 +166,7 @@ const st = StyleSheet.create({
     padding: 18,
     borderWidth: 1,
     borderColor: colors.borderOnDark,
+    fontFamily: fontFamily,
   },
   statusArea: {
     minHeight: 56,
@@ -188,11 +193,15 @@ const st = StyleSheet.create({
     color: colors.success,
     fontWeight: fontWeight.bold,
     fontSize: 15,
+    fontFamily: fontFamily,
+    lineHeight: lh(15),
   },
   statusTextDenied: {
     color: colors.textMutedOnDark,
     fontSize: 14,
     textAlign: "center",
+    fontFamily: fontFamily,
+    lineHeight: lh(14),
   },
   bottom: {
     width: "100%",

@@ -4,7 +4,7 @@ import type { EventItem } from "@pw/shared";
 import { useApi } from "../../src/hooks";
 import { Screen } from "../../src/components/ui";
 import { EventCard } from "../../src/components/EventCard";
-import { colors } from "../../src/theme";
+import { colors, fontFamily, lh } from "../../src/theme";
 
 export default function Events() {
   const { t } = useTranslation();
@@ -31,6 +31,6 @@ export default function Events() {
 
 const st = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.cardMuted },
-  error: { color: colors.danger, fontWeight: "700", marginBottom: 12 },
-  empty: { color: colors.textMuted, textAlign: "center", marginTop: 40, fontSize: 15 },
+  error: { color: colors.danger, fontWeight: "700", marginBottom: 12, fontFamily: fontFamily },
+  empty: { color: colors.textMuted, textAlign: "center", marginTop: 40, fontSize: 15, fontFamily: fontFamily, lineHeight: lh(15) },
 });

@@ -1,6 +1,6 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, radius } from "../theme";
+import { colors, fontFamily, lh, radius } from "../theme";
 
 /**
  * Centered empty / error state with an optional emoji glyph and a Retry button.
@@ -58,9 +58,9 @@ const s = StyleSheet.create({
     borderColor: colors.border,
     marginBottom: 16,
   },
-  glyph: { fontSize: 32 },
-  title: { fontSize: 17, fontWeight: "800", textAlign: "center" },
-  message: { fontSize: 14, textAlign: "center", marginTop: 6, lineHeight: 20 },
+  glyph: { fontSize: 32, fontFamily: fontFamily, lineHeight: lh(32) },
+  title: { fontSize: 17, fontWeight: "800", textAlign: "center", fontFamily: fontFamily, lineHeight: lh(17) },
+  message: { fontSize: 14, textAlign: "center", marginTop: 6, lineHeight: 20, fontFamily: fontFamily },
   retry: {
     marginTop: 18,
     backgroundColor: colors.primary,
@@ -68,5 +68,5 @@ const s = StyleSheet.create({
     paddingVertical: 11,
     borderRadius: radius.md,
   },
-  retryText: { color: "#fff", fontWeight: "800", fontSize: 15 },
+  retryText: { color: "#fff", fontWeight: "800", fontSize: 15, fontFamily: fontFamily, lineHeight: lh(15) },
 });

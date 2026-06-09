@@ -5,7 +5,7 @@ import type { CheckInResult, EventItem, RsvpResult, RsvpStatus } from "@pw/share
 import { useAuth } from "../auth/auth-context";
 import { Feather } from "@expo/vector-icons";
 import { Card, Pill, PrimaryButton } from "./ui";
-import { colors, radius } from "../theme";
+import { colors, fontFamily, lh, radius } from "../theme";
 
 const RSVP_OPTIONS: RsvpStatus[] = ["going", "maybe", "no"];
 
@@ -104,11 +104,11 @@ export function EventCard({ event, onChanged }: { event: EventItem; onChanged: (
 }
 
 const st = StyleSheet.create({
-  title: { fontSize: 18, fontWeight: "800", color: colors.text },
-  when: { fontSize: 14, color: colors.primaryDark, fontWeight: "700", marginTop: 4 },
-  location: { fontSize: 13, color: colors.textMuted, marginTop: 4 },
-  desc: { fontSize: 14, color: colors.textMuted, marginTop: 8, lineHeight: 20 },
-  rsvpLabel: { fontSize: 13, fontWeight: "700", color: colors.text, marginTop: 14 },
+  title: { fontSize: 18, fontWeight: "800", color: colors.text, fontFamily: fontFamily, lineHeight: lh(18) },
+  when: { fontSize: 14, color: colors.primaryDark, fontWeight: "700", marginTop: 4, fontFamily: fontFamily, lineHeight: lh(14) },
+  location: { fontSize: 13, color: colors.textMuted, marginTop: 4, fontFamily: fontFamily, lineHeight: lh(13) },
+  desc: { fontSize: 14, color: colors.textMuted, marginTop: 8, lineHeight: 20, fontFamily: fontFamily },
+  rsvpLabel: { fontSize: 13, fontWeight: "700", color: colors.text, marginTop: 14, fontFamily: fontFamily, lineHeight: lh(13) },
   rsvpRow: { flexDirection: "row", gap: 8, marginTop: 8 },
   rsvpBtn: {
     flex: 1,
@@ -120,8 +120,8 @@ const st = StyleSheet.create({
     backgroundColor: colors.cardMuted,
   },
   rsvpBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  rsvpText: { fontWeight: "700", color: colors.text, fontSize: 14 },
-  rsvpTextActive: { color: "#fff" },
+  rsvpText: { fontWeight: "700", color: colors.text, fontSize: 14, fontFamily: fontFamily, lineHeight: lh(14) },
+  rsvpTextActive: { color: "#fff", fontFamily: fontFamily },
   footer: { marginTop: 14 },
-  points: { marginTop: 10, textAlign: "center", color: colors.success, fontWeight: "800" },
+  points: { marginTop: 10, textAlign: "center", color: colors.success, fontWeight: "800", fontFamily: fontFamily },
 });
