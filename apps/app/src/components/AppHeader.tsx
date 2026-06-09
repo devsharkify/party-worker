@@ -89,8 +89,8 @@ const st = StyleSheet.create({
   },
   pinkOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#E91E8C",
-    opacity: 0.85,
+    backgroundColor: colors.primary,
+    opacity: 0.92,
   },
   iconBtn: {
     width: 36,

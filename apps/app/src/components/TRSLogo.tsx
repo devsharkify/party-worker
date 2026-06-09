@@ -1,49 +1,31 @@
 /**
- * TRSLogo — pixel-accurate SVG representation of the official TRS party emblem.
+ * TRSLogo — SVG fallback rendering of the TRS party emblem.
  *
- * Brand palette extracted from the official logo:
- *   Gold   #E8A820  background
- *   Navy   #1A3580  Telangana map silhouette + TRS text outline
- *   Green  #2B5216  bottom banner
- *   White  #FFFFFF  TRS lettering + banner text
- *
- * Props:
- *   size        — width in dp; height is auto-calculated by aspect ratio
- *   showBanner  — include the dark-green "Telangana Rakshana Sena" strip (default true)
- *   borderRadius — clip the gold panel corners (default 6)
+ * To swap in the official PNG instead of this SVG:
+ *   1. Save the logo PNGs to:
+ *        apps/app/assets/trs-logo.png         (gold + green banner)
+ *        apps/app/assets/trs-logo-square.png  (gold panel only)
+ *   2. Replace the body of this component with the Image-based version.
  */
 
 import React from "react";
-import Svg, {
-  ClipPath,
-  Defs,
-  Path,
-  Rect,
-  Text as SvgText,
-} from "react-native-svg";
+import Svg, { ClipPath, Defs, Path, Rect, Text as SvgText } from "react-native-svg";
 
-// ─── brand constants ────────────────────────────────────────────────────────
-const GOLD  = "#E8A820";
-const NAVY  = "#1A3580";
+const GOLD = "#E8A820";
+const NAVY = "#1A3580";
 const GREEN = "#2B5216";
 const WHITE = "#FFFFFF";
 
-// SVG canvas: 100 wide × 128 tall (100 gold panel + 28 green banner)
 const VW = 100;
-const VH_GOLD   = 100;
+const VH_GOLD = 100;
 const VH_BANNER = 28;
-const VH_TOTAL  = VH_GOLD + VH_BANNER;
 
-/**
- * Simplified Telangana state silhouette — hand-traced polygon that captures
- * the distinctive wider-north, tapering-south shape of the state.
- */
+// Stylized Telangana silhouette — distinct shape (wider north, pointed south,
+// notched west). Not pixel-accurate; swap for the real PNG when available.
 const TELANGANA_PATH =
-  "M24,12 L36,7 L52,6 L67,9 L78,17 L84,30 L86,44 " +
-  "L83,57 L77,68 L67,77 L54,83 L41,83 L28,77 L18,67 " +
-  "L12,54 L11,40 L15,26 Z";
+  "M28,10 L42,7 L58,6 L72,11 L82,18 L88,28 L86,40 L83,52 L78,62 " +
+  "L70,72 L58,82 L48,85 L40,80 L30,72 L22,62 L16,50 L13,38 L18,24 Z";
 
-// ─── component ──────────────────────────────────────────────────────────────
 type Props = {
   size?: number;
   showBanner?: boolean;
@@ -51,57 +33,31 @@ type Props = {
 };
 
 export function TRSLogo({ size = 80, showBanner = true, borderRadius = 6 }: Props) {
-  const totalVH = showBanner ? VH_TOTAL : VH_GOLD;
-  const height  = (size / VW) * totalVH;
+  const totalVH = showBanner ? VH_GOLD + VH_BANNER : VH_GOLD;
+  const height = (size / VW) * totalVH;
 
   return (
-    <Svg
-      width={size}
-      height={height}
-      viewBox={`0 0 ${VW} ${totalVH}`}
-    >
+    <Svg width={size} height={height} viewBox={`0 0 ${VW} ${totalVH}`}>
       <Defs>
         <ClipPath id="goldClip">
-          <Rect
-            x="0" y="0"
-            width={VW} height={VH_GOLD}
-            rx={borderRadius} ry={borderRadius}
-          />
+          <Rect x="0" y="0" width={VW} height={VH_GOLD} rx={borderRadius} ry={borderRadius} />
         </ClipPath>
         <ClipPath id="totalClip">
-          <Rect
-            x="0" y="0"
-            width={VW} height={totalVH}
-            rx={borderRadius} ry={borderRadius}
-          />
+          <Rect x="0" y="0" width={VW} height={totalVH} rx={borderRadius} ry={borderRadius} />
         </ClipPath>
       </Defs>
 
-      {/* ── gold background ─────────────────────────────────── */}
-      <Rect
-        x="0" y="0"
-        width={VW} height={VH_GOLD}
-        fill={GOLD}
-        clipPath="url(#goldClip)"
-      />
+      <Rect x="0" y="0" width={VW} height={VH_GOLD} fill={GOLD} clipPath="url(#goldClip)" />
+      <Path d={TELANGANA_PATH} fill={NAVY} clipPath="url(#goldClip)" />
 
-      {/* ── Telangana map silhouette ─────────────────────────── */}
-      <Path
-        d={TELANGANA_PATH}
-        fill={NAVY}
-        clipPath="url(#goldClip)"
-      />
-
-      {/* ── "TRS" lettering ──────────────────────────────────── */}
-      {/* stroke painted first so the fill sits on top (paintOrder) */}
       <SvgText
-        x="49"
-        y="63"
-        fontSize="30"
+        x="50"
+        y="62"
+        fontSize="26"
         fontWeight="900"
         fill={WHITE}
         stroke={NAVY}
-        strokeWidth="2.5"
+        strokeWidth="2"
         strokeLinejoin="round"
         textAnchor="middle"
         clipPath="url(#goldClip)"
@@ -109,17 +65,9 @@ export function TRSLogo({ size = 80, showBanner = true, borderRadius = 6 }: Prop
         TRS
       </SvgText>
 
-      {/* ── green banner ─────────────────────────────────────── */}
       {showBanner && (
         <>
-          <Rect
-            x="0" y={VH_GOLD}
-            width={VW} height={VH_BANNER}
-            fill={GREEN}
-            clipPath="url(#totalClip)"
-          />
-
-          {/* Telugu script */}
+          <Rect x="0" y={VH_GOLD} width={VW} height={VH_BANNER} fill={GREEN} clipPath="url(#totalClip)" />
           <SvgText
             x="50"
             y={VH_GOLD + 11}
@@ -131,8 +79,6 @@ export function TRSLogo({ size = 80, showBanner = true, borderRadius = 6 }: Prop
           >
             తెలంగాణ రక్షణ సేన
           </SvgText>
-
-          {/* English name */}
           <SvgText
             x="50"
             y={VH_GOLD + 22}

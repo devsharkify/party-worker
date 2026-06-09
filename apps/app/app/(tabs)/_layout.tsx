@@ -39,13 +39,13 @@ export default function TabsLayout() {
         <Tabs
           screenOptions={{
             headerShown: true,
-            tabBarActiveTintColor: "#E91E8C",
+            tabBarActiveTintColor: colors.gold,
             tabBarInactiveTintColor: "#94a3b8",
             tabBarStyle: {
               backgroundColor: "#FFFFFF",
-              borderTopColor: "#E91E8C",
+              borderTopColor: colors.gold,
               borderTopWidth: 2,
-              shadowColor: "#E91E8C",
+              shadowColor: colors.gold,
               shadowOpacity: 0.12,
               shadowRadius: 8,
               shadowOffset: { width: 0, height: -2 },

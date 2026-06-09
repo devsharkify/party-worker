@@ -1,33 +1,65 @@
 import { Platform } from "react-native";
 
+/**
+ * myTRS design system — TRS official brand palette.
+ *
+ *   Navy   #1A3580   primary  — header, primary actions, key text
+ *   Gold   #E8A820   accent   — hero CTAs, badges, highlights, active states
+ *   Green  #2B5216   tertiary — success, supporting accents
+ *
+ * Naming convention preserved so existing screen code keeps working —
+ * `primary` is now navy (not pink). Every reference in the app inherits
+ * the new palette automatically.
+ */
+
 export const colors = {
-  bg: "#FFFFFF",
-  bgElevated: "#FFF0F8",
-  bgDeep: "#FCE4F2",
+  // Surfaces — warm off-white for premium feel, pure white for cards
+  bg: "#FAFAF5",
+  bgElevated: "#FFFFFF",
+  bgDeep: "#F4EFE0",
   card: "#FFFFFF",
-  cardMuted: "#FFF5FB",
-  // TRS/BRS brand: magenta-pink primary
-  primary: "#E91E8C",
-  primaryDark: "#AD1066",
-  primarySoft: "#FCE4F2",
-  navy: "#1a1a2e",
-  navyDark: "#0f0f1a",
-  green: "#16a34a",
-  gold: "#FFB300",
-  // Official TRS party emblem palette (Telangana Rakshana Sena)
-  trsGold: "#E8A820",   // golden-yellow logo background
-  trsNavy: "#1A3580",   // dark-blue Telangana map silhouette
-  trsGreen: "#2B5216",  // dark-green bottom banner
-  text: "#1a1a2e",
+  cardMuted: "#F7F3E8",
+
+  // Primary brand: NAVY
+  primary: "#1A3580",
+  primaryDark: "#0F1F4E",
+  primarySoft: "#E8EDF7",
+
+  // Accent: GOLD
+  gold: "#E8A820",
+  goldDark: "#B8841A",
+  goldSoft: "#FCF2D9",
+
+  // Tertiary: GREEN
+  green: "#2B5216",
+  greenSoft: "#E6EFD7",
+
+  // Aliases used by some legacy components
+  navy: "#0F1F4E",
+  navyDark: "#0A1535",
+
+  // Official TRS emblem palette (used by TRSLogo + banner)
+  trsGold: "#E8A820",
+  trsNavy: "#1A3580",
+  trsGreen: "#2B5216",
+
+  // Text
+  text: "#0F1F4E",
   textOnDark: "#FFFFFF",
-  textMuted: "#64748b",
-  textMutedOnDark: "#f0b8d9",
-  border: "#F0D4E8",
-  borderOnDark: "#3a2040",
-  danger: "#EF4444",
-  success: "#16a34a",
-  skeleton: "#F5E0EE",
-  skeletonOnDark: "#3a2040",
+  textMuted: "#5A6378",
+  textMutedOnDark: "#B8C2DA",
+
+  // Borders + neutrals
+  border: "#E2E5EE",
+  borderOnDark: "#2A4A8E",
+
+  // Semantic
+  danger: "#DC2626",
+  success: "#16A34A",
+
+  // Skeleton loading states
+  skeleton: "#EEF0F5",
+  skeletonOnDark: "#2A4A8E",
 };
 
 export const tierColor: Record<string, string> = {
@@ -35,7 +67,7 @@ export const tierColor: Record<string, string> = {
   sevak: "#38bdf8",
   pramukh: "#a78bfa",
   nayak: "#fb923c",
-  ratna: "#FFB300",
+  ratna: "#E8A820",
 };
 
 /** Subtle tint of a tier color for backgrounds. */
@@ -44,13 +76,25 @@ export const tint = (hex: string, alpha = "22") => hex + alpha;
 export const radius = { sm: 8, md: 12, lg: 18, xl: 26, pill: 999 };
 export const space = (n: number) => n * 4;
 
-/** Soft, brand-consistent shadow that degrades gracefully on web + native. */
+/**
+ * Soft, brand-consistent shadow — navy-tinted so it reads as premium
+ * rather than the previous pink halo.
+ */
 export const shadow = {
-  shadowColor: "#E91E8C",
-  shadowOpacity: 0.10,
-  shadowRadius: 16,
-  shadowOffset: { width: 0, height: 6 },
-  elevation: 4,
+  shadowColor: "#0F1F4E",
+  shadowOpacity: 0.08,
+  shadowRadius: 14,
+  shadowOffset: { width: 0, height: 4 },
+  elevation: 3,
+} as const;
+
+/** Stronger shadow for hero CTAs and floating elements. */
+export const shadowLg = {
+  shadowColor: "#0F1F4E",
+  shadowOpacity: 0.16,
+  shadowRadius: 22,
+  shadowOffset: { width: 0, height: 8 },
+  elevation: 6,
 } as const;
 
 export const fontWeight = {

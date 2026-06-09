@@ -12,7 +12,8 @@ import { useAuth } from "../../src/auth/auth-context";
 import { StateView } from "../../src/components/StateView";
 import { RemoteImage } from "../../src/components/RemoteImage";
 import { BannerShareModal } from "../../src/components/BannerShareModal";
-import { colors, fontFamily, lh, radius, shadow, tierColor } from "../../src/theme";
+import { TRSLogo } from "../../src/components/TRSLogo";
+import { colors, fontFamily, lh, radius, shadow, shadowLg, tierColor } from "../../src/theme";
 import { useIsOnline } from "../../src/lib/offline";
 import { useLeaderMode } from "../../src/hooks/useLeaderMode";
 
@@ -103,41 +104,37 @@ function SkeletonGrid() {
 function DashboardHeader({ name, items }: { name: string; items: number }) {
   return (
     <View style={st.dashHeader}>
-      {/* Welcome row */}
+      {/* Welcome row — name on left, TRS emblem on right */}
       <View style={st.welcomeRow}>
         <View style={{ flex: 1 }}>
-          <Text style={st.welcomeGreeting}>Welcome back,</Text>
+          <Text style={st.welcomeGreeting}>WELCOME BACK</Text>
           <Text style={st.welcomeName} numberOfLines={1}>{name}</Text>
         </View>
-        <View style={st.trsLogo}>
-          <Text style={st.trsLogoText}>★ TRS</Text>
-        </View>
+        <TRSLogo size={42} showBanner={false} borderRadius={6} />
       </View>
 
-      {/* Stats card with LinearGradient */}
+      {/* Stats hero — deep navy with subtle navy gradient and gold accent line */}
       <LinearGradient
-        colors={["#E91E8C", "#AD1066"]}
+        colors={[colors.primary, colors.primaryDark]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={st.statsCard}
       >
+        <View style={st.statsGoldLine} />
         <View style={st.statsItem}>
           <Text style={st.statsValue}>{items}</Text>
-          <Text style={st.statsLabel}>{items === 1 ? "Creative" : "Creatives"}</Text>
+          <Text style={st.statsLabel}>{items === 1 ? "CREATIVE" : "CREATIVES"}</Text>
         </View>
         <View style={st.statsDivider} />
         <View style={st.statsItem}>
-          <Text style={st.statsValue}>★</Text>
-          <Text style={st.statsLabel}>Share Now</Text>
+          <Feather name="share-2" size={18} color={colors.gold} />
+          <Text style={[st.statsLabel, { marginTop: 6 }]}>READY TO SHARE</Text>
         </View>
       </LinearGradient>
 
-      {/* Divider */}
-      <View style={st.dashDivider} />
-
       {/* Section label */}
       <View style={st.sectionLabelRow}>
-        <Feather name="grid" size={14} color={colors.primary} />
+        <View style={st.sectionAccent} />
         <Text style={st.sectionLabel}>Campaign Creatives</Text>
       </View>
     </View>
@@ -193,8 +190,8 @@ const lt = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: radius.pill,
   },
-  pillActive: { backgroundColor: colors.navy },
-  pillLeaderActive: { backgroundColor: colors.primary },
+  pillActive: { backgroundColor: colors.primary },
+  pillLeaderActive: { backgroundColor: colors.gold },
   pillText: { fontSize: 13, fontWeight: "700", color: colors.textMuted, fontFamily, lineHeight: lh(13) },
   pillTextActive: { color: "#fff", fontFamily },
 });
@@ -620,16 +617,16 @@ export default function Feed() {
 }
 
 const st = StyleSheet.create({
-  fill: { flex: 1, backgroundColor: colors.navy },
-  list: { flex: 1, backgroundColor: colors.navy },
+  fill: { flex: 1, backgroundColor: colors.primaryDark },
+  list: { flex: 1, backgroundColor: colors.primaryDark },
   leaderToggleBar: {
-    backgroundColor: colors.navy,
+    backgroundColor: colors.primaryDark,
     paddingTop: 10,
     paddingBottom: 4,
     paddingHorizontal: 16,
     alignItems: "center",
     borderBottomWidth: 2,
-    borderBottomColor: colors.primary,
+    borderBottomColor: colors.gold,
   },
   leaderHello: {
     fontSize: 11,
@@ -646,112 +643,107 @@ const st = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    backgroundColor: "#fef3c7",
+    backgroundColor: colors.goldSoft,
     paddingVertical: 7,
     paddingHorizontal: 14,
   },
-  offlineBannerText: { fontSize: 13, fontWeight: "600", color: "#92400e", fontFamily, lineHeight: lh(13) },
+  offlineBannerText: { fontSize: 13, fontWeight: "600", color: colors.goldDark, fontFamily, lineHeight: lh(13) },
 
-  // Dashboard header
+  // Dashboard header — deep navy with gold accent line
   dashHeader: {
-    backgroundColor: colors.navy,
-    paddingHorizontal: 16,
-    paddingTop: 18,
-    paddingBottom: 14,
-    borderBottomWidth: 3,
-    borderBottomColor: colors.primary,
+    backgroundColor: colors.primaryDark,
+    paddingHorizontal: 18,
+    paddingTop: 22,
+    paddingBottom: 18,
+    borderBottomWidth: 2,
+    borderBottomColor: colors.gold,
   },
   welcomeRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    marginBottom: 6,
+    gap: 14,
+    marginBottom: 18,
   },
   welcomeGreeting: {
-    fontSize: 13,
-    color: colors.textMutedOnDark,
-    fontWeight: "600",
-    letterSpacing: 0.2,
+    fontSize: 10,
+    color: colors.gold,
+    fontWeight: "700",
+    letterSpacing: 1.6,
+    textTransform: "uppercase",
+    marginBottom: 4,
     fontFamily,
-    lineHeight: lh(13),
+    lineHeight: lh(10),
   },
   welcomeName: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: "800",
     color: "#fff",
-    letterSpacing: -0.3,
+    letterSpacing: -0.4,
     fontFamily,
-    lineHeight: lh(22),
-  },
-  trsLogo: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: radius.pill,
-  },
-  trsLogoText: {
-    color: "#fff",
-    fontWeight: "800",
-    fontSize: 13,
-    letterSpacing: 0.5,
-    fontFamily,
-    lineHeight: lh(13),
-  },
-  dashSub: {
-    fontSize: 13,
-    color: colors.textMutedOnDark,
-    fontWeight: "500",
-    marginBottom: 12,
-    fontFamily,
-    lineHeight: lh(13),
+    lineHeight: lh(24),
   },
   statsCard: {
-    borderRadius: radius.md,
-    paddingVertical: 14,
-    paddingHorizontal: 18,
+    borderRadius: radius.lg,
+    paddingVertical: 18,
+    paddingHorizontal: 22,
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(232,168,32,0.25)",
+    position: "relative",
+    overflow: "hidden",
+  },
+  statsGoldLine: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: colors.gold,
   },
   statsItem: {
     flex: 1,
     alignItems: "center",
   },
   statsValue: {
-    color: "#fff",
-    fontSize: 22,
+    color: colors.gold,
+    fontSize: 32,
     fontWeight: "900",
     fontFamily,
-    lineHeight: lh(22),
+    lineHeight: lh(32),
+    letterSpacing: -0.5,
   },
   statsLabel: {
-    color: "rgba(255,255,255,0.8)",
-    fontSize: 12,
-    fontWeight: "600",
-    marginTop: 2,
+    color: "rgba(255,255,255,0.65)",
+    fontSize: 10,
+    fontWeight: "700",
+    marginTop: 6,
+    letterSpacing: 1.2,
     fontFamily,
-    lineHeight: lh(12),
+    lineHeight: lh(10),
   },
   statsDivider: {
     width: 1,
-    height: 36,
-    backgroundColor: "rgba(255,255,255,0.3)",
-  },
-  dashDivider: {
-    height: 1,
-    backgroundColor: colors.borderOnDark,
-    marginBottom: 12,
+    height: 44,
+    backgroundColor: "rgba(232,168,32,0.25)",
   },
   sectionLabelRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 10,
+  },
+  sectionAccent: {
+    width: 3,
+    height: 14,
+    backgroundColor: colors.gold,
+    borderRadius: 2,
   },
   sectionLabel: {
     fontSize: 13,
     fontWeight: "700",
-    color: colors.primary,
-    letterSpacing: 0.4,
+    color: "#FFFFFF",
+    letterSpacing: 1.0,
     textTransform: "uppercase",
     fontFamily,
     lineHeight: lh(13),
@@ -806,22 +798,22 @@ const st = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.gold,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  // NEW badge top-left
+  // NEW badge top-left — gold pill with navy text for premium feel
   newBadge: {
     position: "absolute",
     top: 8,
     left: 8,
-    backgroundColor: "#EF4444",
-    borderRadius: 4,
+    backgroundColor: colors.gold,
+    borderRadius: 3,
     paddingHorizontal: 7,
     paddingVertical: 2.5,
   },
-  newBadgeText: { color: "#fff", fontSize: 9, fontWeight: "900", letterSpacing: 0.8, fontFamily, lineHeight: lh(9) },
+  newBadgeText: { color: colors.primaryDark, fontSize: 9, fontWeight: "900", letterSpacing: 0.8, fontFamily, lineHeight: lh(9) },
 
   // Bottom scrim + title
   scrim: {
@@ -836,17 +828,19 @@ const st = StyleSheet.create({
   },
   tileTitle: { color: "#fff", fontSize: 11, fontWeight: "700", lineHeight: 14, fontFamily },
 
-  // Share (Instagram) button — bottom-right corner of tile
+  // Share (Instagram) button — bottom-right corner of tile, gold accent
   shareBtn: {
     position: "absolute",
     bottom: 6,
     right: 6,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: "rgba(233,30,140,0.85)",
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.gold,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: "rgba(15,31,78,0.9)",
   },
 
   // Empty state
