@@ -1,9 +1,9 @@
-# TRS logo sources
+# TRS logo assets
 
-Generated from Wikimedia Commons `Telangana_outline_shape.svg` (CC BY-SA 4.0), Douglas-Peucker simplified to 464 points, composited to the official TRS flag layout.
+`apps/app/assets/trs-logo.png` (820x1066) and `trs-logo-square.png` (820x820),
+mirrored in `apps/admin/public/`, are the OFFICIAL party artwork uploaded
+2026-06-10 — do not regenerate over them.
 
-Regenerate PNGs:
-
-    rsvg-convert -w 820 -h 1046 trs-logo.svg -o ../../apps/app/assets/trs-logo.png
-    rsvg-convert -w 820 -h 886 trs-logo-square.svg -o ../../apps/app/assets/trs-logo-square.png
-    cp ../../apps/app/assets/trs-logo.png ../../apps/admin/public/trs-logo.png
+The `trs-logo*.svg` files here are the earlier reconstructed sources
+(Wikimedia Telangana outline, CC BY-SA 4.0), kept only as fallback if a
+scalable vector variant is ever needed.
