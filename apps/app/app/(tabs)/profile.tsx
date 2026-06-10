@@ -355,7 +355,7 @@ export default function Profile() {
             <Text style={st.bannerSectionSub}>Shown when you share</Text>
           </View>
           <View style={st.bannerPreviewRow}>
-            {/* Scaled-down banner preview: renders at width=110, aspect 350:1080 */}
+            {/* Scaled-down strip banner preview (1080×140) */}
             <View style={st.bannerPreviewWrap}>
               <WorkerBanner
                 user={{
@@ -369,12 +369,11 @@ export default function Profile() {
                   weeklyLeaguePoints: sum?.weeklyLeaguePoints,
                   lifetimeReputation: sum?.lifetimeReputation,
                 }}
-                width={110}
-                prefs={{ showStats: true }}
+                width={300}
               />
             </View>
             <View style={st.bannerInfoCol}>
-              <Text style={st.bannerInfoTitle}>350 × 1080 px</Text>
+              <Text style={st.bannerInfoTitle}>1080 × 140 px</Text>
               <Text style={st.bannerInfoDesc}>Your personalized banner is automatically composited with creatives when you share to Instagram.</Text>
               <View style={st.bannerTagRow}>
                 <View style={st.bannerTag}>
@@ -1130,9 +1129,9 @@ const st = StyleSheet.create({
     lineHeight: lh(11),
   },
   bannerPreviewRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 14,
+    flexDirection: "column",
+    alignItems: "stretch",
+    gap: 12,
   },
   bannerPreviewWrap: {
     borderRadius: 6,

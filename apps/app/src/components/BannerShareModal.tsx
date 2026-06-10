@@ -35,10 +35,8 @@ type Status = "idle" | "capturing" | "uploading" | "posting" | "done" | "error";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const COMPOSITE_SIZE = 300; // dp — square preview box
-const BANNER_RATIO = 350 / 1080; // ≈ 0.324
-const bannerPreviewW = Math.round(COMPOSITE_SIZE * BANNER_RATIO); // ~97 dp
-const creativePreviewW = COMPOSITE_SIZE - bannerPreviewW; // ~203 dp
+const COMPOSITE_SIZE = 300; // dp — creative is a square this wide
+const STRIP_H = Math.round(COMPOSITE_SIZE * (140 / 1080)); // strip height ≈ 39 dp
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -154,15 +152,15 @@ export function BannerShareModal({ item, visible, onClose, user }: Props) {
             collapsable={false}
             style={s.composite}
           >
-            {/* LEFT: creative thumbnail */}
+            {/* TOP: creative thumbnail */}
             <RemoteImage
               uri={item.thumbnailUrl ?? item.sourceUrl}
-              width={creativePreviewW}
+              width={COMPOSITE_SIZE}
               height={COMPOSITE_SIZE}
             />
 
-            {/* RIGHT: worker banner scaled to fit */}
-            <WorkerBanner user={user} width={bannerPreviewW} prefs={{ showStats: true }} />
+            {/* BOTTOM: worker strip banner */}
+            <WorkerBanner user={user} width={COMPOSITE_SIZE} />
           </View>
         </View>
 
@@ -266,8 +264,8 @@ const s = StyleSheet.create({
   },
   composite: {
     width: COMPOSITE_SIZE,
-    height: COMPOSITE_SIZE,
-    flexDirection: "row",
+    height: COMPOSITE_SIZE + STRIP_H,
+    flexDirection: "column",
     overflow: "hidden",
   },
 

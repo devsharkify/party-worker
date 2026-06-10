@@ -6,7 +6,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
+
   View,
 } from "react-native";
 import { Image } from "expo-image";
@@ -29,98 +29,6 @@ function detectTier(): DeviceTier {
   return Platform.OS === "web" ? "high" : "mid";
 }
 
-// ─── Banner Editor ────────────────────────────────────────────────────────────
-function BannerEditor({
-  name, designation, area, photoUrl,
-  onChange,
-}: {
-  name: string; designation: string; area: string; photoUrl: string | null | undefined;
-  onChange: (field: "name" | "designation" | "area", val: string) => void;
-}) {
-  return (
-    <View style={be.wrap}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 12 }}>
-        <Feather name="edit-2" size={13} color={colors.gold} />
-        <Text style={[be.label, { marginBottom: 0 }]}>Customise your banner</Text>
-      </View>
-
-      {/* Photo preview */}
-      <View style={be.photoRow}>
-        <View style={be.photoBorder}>
-          <RemoteImage uri={photoUrl} width={56} height={56} radius={28} placeholderColor="#334155" />
-        </View>
-        <Text style={be.photoHint}>Photo is taken from your profile</Text>
-      </View>
-
-      <View style={be.field}>
-        <Text style={be.fieldLabel}>Name</Text>
-        <TextInput
-          style={be.input}
-          value={name}
-          onChangeText={(v) => onChange("name", v)}
-          placeholderTextColor="#64748b"
-          placeholder="Your name"
-          maxLength={40}
-        />
-      </View>
-
-      <View style={be.field}>
-        <Text style={be.fieldLabel}>Designation</Text>
-        <TextInput
-          style={be.input}
-          value={designation}
-          onChangeText={(v) => onChange("designation", v)}
-          placeholderTextColor="#64748b"
-          placeholder="e.g. Area Secretary"
-          maxLength={40}
-        />
-      </View>
-
-      <View style={be.field}>
-        <Text style={be.fieldLabel}>Area</Text>
-        <TextInput
-          style={be.input}
-          value={area}
-          onChangeText={(v) => onChange("area", v)}
-          placeholderTextColor="#64748b"
-          placeholder="Your area / constituency"
-          maxLength={40}
-        />
-      </View>
-    </View>
-  );
-}
-
-const be = StyleSheet.create({
-  wrap: {
-    width: "100%",
-    maxWidth: 340,
-    backgroundColor: "#0f1f36",
-    borderRadius: radius.lg,
-    padding: 16,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: "#1e3a5f",
-  },
-  label: { color: colors.gold, fontWeight: "800", fontSize: 13, marginBottom: 12, fontFamily: fontFamily, lineHeight: lh(13) },
-  photoRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 14 },
-  photoBorder: { borderRadius: 30, borderWidth: 2, borderColor: colors.primary, overflow: "hidden" },
-  photoHint: { color: colors.textMuted, fontSize: 12, flex: 1, fontFamily: fontFamily, lineHeight: lh(12) },
-  field: { marginBottom: 10 },
-  fieldLabel: { color: "#94a3b8", fontSize: 11, fontWeight: "700", marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5, fontFamily: fontFamily, lineHeight: lh(11) },
-  input: {
-    backgroundColor: "#1e293b",
-    borderRadius: radius.md,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
-    borderWidth: 1,
-    borderColor: "#334155",
-    fontFamily: fontFamily,
-  },
-});
 
 // ─── Preview overlay (image) ──────────────────────────────────────────────────
 function ImagePreview({
@@ -175,12 +83,6 @@ export default function Personalize() {
       setBannerReady(true);
     }
   }, [user, bannerReady]);
-
-  function handleBannerChange(field: "name" | "designation" | "area", val: string) {
-    if (field === "name") setBannerName(val);
-    else if (field === "designation") setBannerDesignation(val);
-    else setBannerArea(val);
-  }
 
   // Personalized data URLs (for download)
   const [personalizedDataUrl, setPersonalizedDataUrl] = useState<string | null>(null);
@@ -366,15 +268,6 @@ export default function Personalize() {
           ? "Your name & photo will appear on the video when shared."
           : t("personalize.fallbackNote")}
       </Text>
-
-      {/* ── Banner customisation editor ── */}
-      <BannerEditor
-        name={bannerName}
-        designation={bannerDesignation}
-        area={bannerArea}
-        photoUrl={user?.photoUrl}
-        onChange={handleBannerChange}
-      />
 
       {/* ── Video capture (web only) ── */}
       {isVideo && Platform.OS === "web" && (
