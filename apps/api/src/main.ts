@@ -10,6 +10,7 @@ import fastifyMultipart from "@fastify/multipart";
 import fastifyStatic from "@fastify/static";
 import { AppModule } from "./app.module";
 import { loadEnv , isProdLike} from "./config/env";
+import { AllExceptionsFilter } from "./common/prisma-exception.filter";
 
 async function bootstrap() {
   const env = loadEnv();
@@ -78,6 +79,8 @@ async function bootstrap() {
   SwaggerModule.setup("docs", app, document);
 
   const port = env.PORT ?? env.API_PORT;
+  app.useGlobalFilters(new AllExceptionsFilter());
+
   await app.listen({ port, host: "0.0.0.0" });
   // eslint-disable-next-line no-console
   console.log(`[api] ready on ${env.API_BASE_URL} — OpenAPI at ${env.API_BASE_URL}/docs`);

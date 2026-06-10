@@ -7,6 +7,7 @@ import {
   SetMetadata,
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
+import { RedisRateLimitStore } from "../common/redis-ratelimit.store";
 
 export interface RateLimitOptions {
   /** max requests allowed inside the window */
@@ -26,21 +27,20 @@ export const RateLimit = (opts: RateLimitOptions) => SetMetadata(RATE_LIMIT_KEY,
 const DEFAULTS: RateLimitOptions = { limit: 8, windowMs: 10 * 60_000 };
 
 /**
- * A small in-memory, per-IP sliding-window limiter. Targeted (not global) so it
- * only throttles the routes it guards — normal app browsing is untouched.
+ * Per-IP, per-route sliding-window limiter. Targeted (not global) so it only
+ * throttles the routes it guards — normal app browsing is untouched.
  *
- * Note: process-local. A multi-instance prod deployment would back this with
- * Redis; for this single-process API it is sufficient and dependency-free.
+ * Backed by Redis (RedisRateLimitStore) so limits hold across all API replicas;
+ * falls back to per-process memory only if Redis is down.
  */
 @Injectable()
 export class RateLimitGuard implements CanActivate {
-  /** key = `${routeKey}:${ip}` -> recent request timestamps (ms) */
-  private readonly hits = new Map<string, number[]>();
-  private lastSweep = 0;
+  constructor(
+    private readonly reflector: Reflector,
+    private readonly store: RedisRateLimitStore,
+  ) {}
 
-  constructor(private readonly reflector: Reflector) {}
-
-  canActivate(ctx: ExecutionContext): boolean {
+  async canActivate(ctx: ExecutionContext): Promise<boolean> {
     const opts =
       this.reflector.getAllAndOverride<RateLimitOptions>(RATE_LIMIT_KEY, [
         ctx.getHandler(),
@@ -51,16 +51,13 @@ export class RateLimitGuard implements CanActivate {
     const ip: string = req.ip ?? req.socket?.remoteAddress ?? "unknown";
     // Scope the bucket per-route so distinct limited routes don't share a budget.
     const routeKey = `${ctx.getClass().name}.${ctx.getHandler().name}`;
-    const key = `${routeKey}:${ip}`;
+    const key = `rl:${routeKey}:${ip}`;
 
-    const now = Date.now();
-    this.maybeSweep(now);
+    const count = await this.store.hit(key, opts.windowMs);
 
-    const windowStart = now - opts.windowMs;
-    const timestamps = (this.hits.get(key) ?? []).filter((t) => t > windowStart);
-
-    if (timestamps.length >= opts.limit) {
-      const retryAfterMs = timestamps[0] + opts.windowMs - now;
+    if (count > opts.limit) {
+      const oldest = await this.store.oldest(key, opts.windowMs);
+      const retryAfterMs = oldest ? oldest + opts.windowMs - Date.now() : opts.windowMs;
       throw new HttpException(
         {
           statusCode: HttpStatus.TOO_MANY_REQUESTS,
@@ -70,21 +67,6 @@ export class RateLimitGuard implements CanActivate {
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
-
-    timestamps.push(now);
-    this.hits.set(key, timestamps);
     return true;
-  }
-
-  /** Periodically drop empty/expired buckets so the map can't grow unbounded. */
-  private maybeSweep(now: number): void {
-    if (now - this.lastSweep < 60_000) return;
-    this.lastSweep = now;
-    const cutoff = now - DEFAULTS.windowMs;
-    for (const [key, ts] of this.hits) {
-      const live = ts.filter((t) => t > cutoff);
-      if (live.length === 0) this.hits.delete(key);
-      else this.hits.set(key, live);
-    }
   }
 }

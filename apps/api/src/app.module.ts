@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { EnvModule } from "./config/env.module";
+import { CommonModule } from "./common/common.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { ProvidersModule } from "./providers/providers.module";
 import { AuthModule } from "./auth/auth.module";
@@ -35,6 +36,7 @@ import { AppController } from "./app.controller";
 @Module({
   imports: [
     EnvModule,
+    CommonModule,
     PrismaModule,
     ProvidersModule,
     ComplianceModule,
