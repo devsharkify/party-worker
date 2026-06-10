@@ -233,7 +233,7 @@ function RowSkeletons() {
 const st = StyleSheet.create({
   fill: { flex: 1, backgroundColor: colors.cardMuted },
   content: { padding: 16, paddingBottom: 48 },
-  screenTitle: { fontSize: 22, fontWeight: "800", color: colors.text, marginBottom: 14, fontFamily: fontFamily, lineHeight: lh(22) },
+  screenTitle: { fontSize: 22, fontWeight: "700", color: colors.text, marginBottom: 14, fontFamily: fontFamily, lineHeight: lh(22) },
 
   segWrap: {
     flexDirection: "row",
@@ -256,7 +256,7 @@ const st = StyleSheet.create({
   segText: { fontWeight: "700", color: colors.textMuted, fontSize: 13, fontFamily: fontFamily, lineHeight: lh(13) },
   segTextActive: { color: "#fff", fontFamily: fontFamily },
 
-  annTitle: { fontSize: 16, fontWeight: "800", color: colors.text, fontFamily: fontFamily, lineHeight: lh(16) },
+  annTitle: { fontSize: 16, fontWeight: "700", color: colors.text, fontFamily: fontFamily, lineHeight: lh(16) },
   annBody: { fontSize: 14, color: colors.text, marginTop: 6, lineHeight: 20, fontFamily: fontFamily },
   date: { fontSize: 12, color: colors.textMuted, marginTop: 10, fontFamily: fontFamily, lineHeight: lh(12) },
 

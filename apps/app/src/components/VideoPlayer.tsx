@@ -119,7 +119,7 @@ const st = StyleSheet.create({
     borderColor: "#fff",
     overflow: "hidden",
   },
-  name: { color: "#fff", fontSize: 16, fontWeight: "800", textShadowColor: "#000", textShadowRadius: 6, fontFamily: fontFamily, lineHeight: lh(16) },
+  name: { color: "#fff", fontSize: 16, fontWeight: "700", textShadowColor: "#000", textShadowRadius: 6, fontFamily: fontFamily, lineHeight: lh(16) },
   designation: { color: colors.gold, fontSize: 12, fontWeight: "700", fontFamily: fontFamily, lineHeight: lh(12) },
   booth: { color: "#fff", fontSize: 11, fontFamily: fontFamily, lineHeight: lh(11) },
   aiBand: {

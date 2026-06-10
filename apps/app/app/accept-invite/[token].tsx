@@ -233,7 +233,7 @@ const st = StyleSheet.create({
   logo: { fontSize: 44, textAlign: "center", color: colors.primary, lineHeight: 52 },
   title: {
     fontSize: 30,
-    fontWeight: "800",
+    fontWeight: "700",
     color: "#fff",
     textAlign: "center",
     marginTop: 14,
@@ -252,7 +252,7 @@ const st = StyleSheet.create({
   // Invite ready state
   inviteHeading: {
     fontSize: 22,
-    fontWeight: "800",
+    fontWeight: "700",
     color: colors.text,
     textAlign: "center",
     marginBottom: 6,
@@ -299,7 +299,7 @@ const st = StyleSheet.create({
   errorIcon: { fontSize: 36, textAlign: "center", marginBottom: 10 },
   errorHeading: {
     fontSize: 20,
-    fontWeight: "800",
+    fontWeight: "700",
     color: colors.text,
     textAlign: "center",
     marginBottom: 8,
@@ -317,7 +317,7 @@ const st = StyleSheet.create({
   successIcon: { fontSize: 44, textAlign: "center", marginBottom: 10 },
   successHeading: {
     fontSize: 22,
-    fontWeight: "800",
+    fontWeight: "700",
     color: colors.text,
     textAlign: "center",
     marginBottom: 8,

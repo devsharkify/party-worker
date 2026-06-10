@@ -59,7 +59,7 @@ const s = StyleSheet.create({
     marginBottom: 16,
   },
   glyph: { fontSize: 32, fontFamily: fontFamily, lineHeight: lh(32) },
-  title: { fontSize: 17, fontWeight: "800", textAlign: "center", fontFamily: fontFamily, lineHeight: lh(17) },
+  title: { fontSize: 17, fontWeight: "700", textAlign: "center", fontFamily: fontFamily, lineHeight: lh(17) },
   message: { fontSize: 14, textAlign: "center", marginTop: 6, lineHeight: 20, fontFamily: fontFamily },
   retry: {
     marginTop: 18,
@@ -68,5 +68,5 @@ const s = StyleSheet.create({
     paddingVertical: 11,
     borderRadius: radius.md,
   },
-  retryText: { color: "#fff", fontWeight: "800", fontSize: 15, fontFamily: fontFamily, lineHeight: lh(15) },
+  retryText: { color: "#fff", fontWeight: "700", fontSize: 15, fontFamily: fontFamily, lineHeight: lh(15) },
 });

@@ -158,7 +158,7 @@ const st = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
   },
-  title: { fontSize: 30, fontWeight: "800", color: colors.navy, textAlign: "center", marginTop: 14, fontFamily: fontFamily, lineHeight: lh(30) },
+  title: { fontSize: 30, fontWeight: "700", color: colors.navy, textAlign: "center", marginTop: 14, fontFamily: fontFamily, lineHeight: lh(30) },
   subtitle: { fontSize: 15, color: colors.textMuted, textAlign: "center", marginTop: 6, marginBottom: 28, fontFamily: fontFamily, lineHeight: lh(15) },
   card: {
     backgroundColor: "#fff",

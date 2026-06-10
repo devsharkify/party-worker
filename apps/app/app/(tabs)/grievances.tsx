@@ -532,7 +532,7 @@ export default function Grievances() {
 // Styles
 // ---------------------------------------------------------------------------
 const st = StyleSheet.create({
-  formTitle: { fontSize: 18, fontWeight: "800", color: colors.text, marginBottom: 8, fontFamily: fontFamily, lineHeight: lh(18) },
+  formTitle: { fontSize: 18, fontWeight: "700", color: colors.text, marginBottom: 8, fontFamily: fontFamily, lineHeight: lh(18) },
   label: { fontSize: 13, fontWeight: "700", color: colors.text, marginTop: 12, marginBottom: 6, fontFamily: fontFamily, lineHeight: lh(13) },
   catWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   cat: {
@@ -596,7 +596,7 @@ const st = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  photoClearText: { color: "#fff", fontSize: 14, fontWeight: "800", fontFamily: fontFamily, lineHeight: lh(14) },
+  photoClearText: { color: "#fff", fontSize: 14, fontWeight: "700", fontFamily: fontFamily, lineHeight: lh(14) },
   photoPH: {
     flexDirection: "row",
     gap: 8,
@@ -622,7 +622,7 @@ const st = StyleSheet.create({
   },
   gpsBtnText: { color: "#fff", fontSize: 13, fontWeight: "700", fontFamily: fontFamily, lineHeight: lh(13) },
   gpsConfirm: { color: colors.green, fontSize: 12, marginTop: 4, fontWeight: "600", fontFamily: fontFamily, lineHeight: lh(12) },
-  done: { marginTop: 12, textAlign: "center", color: colors.success, fontWeight: "800", fontFamily: fontFamily },
+  done: { marginTop: 12, textAlign: "center", color: colors.success, fontWeight: "700", fontFamily: fontFamily },
   // Tabs
   tabs: {
     flexDirection: "row",
@@ -684,7 +684,7 @@ const ss = StyleSheet.create({
     borderColor: colors.primary,
     backgroundColor: colors.primary,
   },
-  stepDotText: { fontSize: 10, fontWeight: "800", color: "#fff", fontFamily: fontFamily, lineHeight: lh(10) },
+  stepDotText: { fontSize: 10, fontWeight: "700", color: "#fff", fontFamily: fontFamily, lineHeight: lh(10) },
   stepLine: {
     flex: 1,
     height: 2,

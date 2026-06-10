@@ -560,8 +560,8 @@ function OnboardForm(props: {
 const st = StyleSheet.create({
   fill: { flex: 1, backgroundColor: colors.cardMuted },
   listContent: { padding: 14, paddingBottom: 40 },
-  screenTitle: { fontSize: 22, fontWeight: "800", color: colors.text, marginBottom: 12, fontFamily: fontFamily, lineHeight: lh(22) },
-  sectionTitle: { fontSize: 16, fontWeight: "800", color: colors.text, marginTop: 6, marginBottom: 10, fontFamily: fontFamily, lineHeight: lh(16) },
+  screenTitle: { fontSize: 22, fontWeight: "700", color: colors.text, marginBottom: 12, fontFamily: fontFamily, lineHeight: lh(22) },
+  sectionTitle: { fontSize: 16, fontWeight: "700", color: colors.text, marginTop: 6, marginBottom: 10, fontFamily: fontFamily, lineHeight: lh(16) },
   label: { fontSize: 13, fontWeight: "700", color: colors.text, marginTop: 12, marginBottom: 6, fontFamily: fontFamily, lineHeight: lh(13) },
 
   chipsContent: { gap: 8, paddingVertical: 2, paddingRight: 8 },
@@ -590,7 +590,7 @@ const st = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
-  unitBannerName: { color: "#fff", fontWeight: "800", fontSize: 15, flex: 1, fontFamily: fontFamily, lineHeight: lh(15) },
+  unitBannerName: { color: "#fff", fontWeight: "700", fontSize: 15, flex: 1, fontFamily: fontFamily, lineHeight: lh(15) },
   unitBannerMeta: { color: colors.textMutedOnDark, fontWeight: "700", fontSize: 12, fontFamily: fontFamily, lineHeight: lh(12) },
 
   memberRow: {
@@ -607,7 +607,7 @@ const st = StyleSheet.create({
   },
   avatarWrap: { width: 44, height: 44 },
   avatarFallback: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
-  avatarInitial: { fontSize: 18, fontWeight: "800", fontFamily: fontFamily, lineHeight: lh(18) },
+  avatarInitial: { fontSize: 18, fontWeight: "700", fontFamily: fontFamily, lineHeight: lh(18) },
   memberDot: {
     position: "absolute",
     right: -1,
@@ -621,16 +621,16 @@ const st = StyleSheet.create({
   memberName: { fontWeight: "700", color: colors.text, fontSize: 15, fontFamily: fontFamily, lineHeight: lh(15) },
   chipsRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4 },
   roleChip: { borderRadius: radius.pill, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 2 },
-  roleChipText: { fontSize: 11, fontWeight: "800", fontFamily: fontFamily, lineHeight: lh(11) },
+  roleChipText: { fontSize: 11, fontWeight: "700", fontFamily: fontFamily, lineHeight: lh(11) },
   tierChip: { borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 2 },
-  tierChipText: { fontSize: 11, fontWeight: "800", fontFamily: fontFamily, lineHeight: lh(11) },
+  tierChipText: { fontSize: 11, fontWeight: "700", fontFamily: fontFamily, lineHeight: lh(11) },
   memberDesignation: { fontSize: 12, color: colors.textMuted, marginTop: 4, fontFamily: fontFamily, lineHeight: lh(12) },
   pointsCol: { alignItems: "flex-end", minWidth: 48 },
-  points: { fontWeight: "800", color: colors.primaryDark, fontSize: 17, fontFamily: fontFamily, lineHeight: lh(17) },
+  points: { fontWeight: "700", color: colors.primaryDark, fontSize: 17, fontFamily: fontFamily, lineHeight: lh(17) },
   pointsLabel: { fontSize: 10, color: colors.textMuted, fontWeight: "600", fontFamily: fontFamily, lineHeight: lh(10) },
 
   formCard: { marginTop: 18, marginBottom: 8 },
-  formTitle: { fontSize: 18, fontWeight: "800", color: colors.text, marginBottom: 4, fontFamily: fontFamily, lineHeight: lh(18) },
+  formTitle: { fontSize: 18, fontWeight: "700", color: colors.text, marginBottom: 4, fontFamily: fontFamily, lineHeight: lh(18) },
   desigOverlay: {
     flex: 1,
     backgroundColor: "rgba(15,31,78,0.45)",
@@ -648,7 +648,7 @@ const st = StyleSheet.create({
   },
   desigTitle: {
     fontSize: 16,
-    fontWeight: "800",
+    fontWeight: "700",
     color: colors.text,
     fontFamily,
     lineHeight: lh(16),
@@ -732,7 +732,7 @@ const st = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.primary,
   },
-  celebrateText: { color: colors.primaryDark, fontWeight: "800", fontSize: 15, fontFamily: fontFamily, lineHeight: lh(15) },
-  celebratePoints: { color: colors.primaryDark, fontWeight: "800", fontSize: 20, marginTop: 2, fontFamily: fontFamily, lineHeight: lh(20) },
+  celebrateText: { color: colors.primaryDark, fontWeight: "700", fontSize: 15, fontFamily: fontFamily, lineHeight: lh(15) },
+  celebratePoints: { color: colors.primaryDark, fontWeight: "700", fontSize: 20, marginTop: 2, fontFamily: fontFamily, lineHeight: lh(20) },
   formError: { marginTop: 12, color: colors.danger, fontWeight: "700", fontSize: 14, fontFamily: fontFamily, lineHeight: lh(14) },
 });

@@ -101,7 +101,7 @@ export const fontWeight = {
   regular: "500",
   semibold: "600",
   bold: "700",
-  heavy: "800",
+  heavy: "700",
 } as const;
 
 /**

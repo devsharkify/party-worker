@@ -5,15 +5,27 @@
     "scheme": "mytrs",
     "version": "0.1.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "icon": "./assets/trs-logo-square.png",
     "splash": {
-      "backgroundColor": "#0b1f3a"
+      "image": "./assets/trs-logo-square.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#E8A820"
     },
     "ios": {
+      "bundleIdentifier": "com.devsharkify.mytrs",
+      "buildNumber": "1",
+      "supportsTablet": true,
       "associatedDomains": ["applinks:mytrs.app"]
     },
     "android": {
+      "package": "com.devsharkify.mytrs",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/trs-logo-square.png",
+        "backgroundColor": "#E8A820"
+      },
       "intentFilters": [
         {
           "action": "VIEW",

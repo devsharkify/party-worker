@@ -395,7 +395,7 @@ const st = StyleSheet.create({
     paddingVertical: 6,
     marginBottom: 14,
   },
-  ready: { color: colors.gold, fontWeight: "800", fontSize: 13, fontFamily: fontFamily, lineHeight: lh(13) },
+  ready: { color: colors.gold, fontWeight: "700", fontSize: 13, fontFamily: fontFamily, lineHeight: lh(13) },
   canvas: {
     width: "100%",
     maxWidth: 340,
@@ -415,7 +415,7 @@ const st = StyleSheet.create({
     gap: 12,
   },
   photoWrap: { borderRadius: 35, borderWidth: 3, borderColor: "#fff", overflow: "hidden" },
-  name: { color: "#fff", fontSize: 22, fontWeight: "800", textShadowColor: "#000", textShadowRadius: 6, fontFamily: fontFamily, lineHeight: lh(22) },
+  name: { color: "#fff", fontSize: 22, fontWeight: "700", textShadowColor: "#000", textShadowRadius: 6, fontFamily: fontFamily, lineHeight: lh(22) },
   designation: { color: colors.gold, fontSize: 14, fontWeight: "700", fontFamily: fontFamily, lineHeight: lh(14) },
   area: { color: "#fff", fontSize: 13, fontFamily: fontFamily, lineHeight: lh(13) },
   aiBand: {

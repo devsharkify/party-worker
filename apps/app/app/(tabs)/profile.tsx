@@ -904,7 +904,7 @@ const st = StyleSheet.create({
   },
   lockedFieldText: { color: colors.textMuted, fontSize: 14, fontWeight: "600", fontFamily, lineHeight: lh(14), flex: 1 },
   lockedFieldHint: { color: colors.textMuted, fontSize: 11, fontFamily, lineHeight: lh(11), marginTop: 4, marginBottom: 12, opacity: 0.8 },
-  memName: { color: "#fff", fontSize: 20, fontWeight: "800", fontFamily: fontFamily, lineHeight: lh(20) },
+  memName: { color: "#fff", fontSize: 20, fontWeight: "700", fontFamily: fontFamily, lineHeight: lh(20) },
   memSub: { color: colors.textMutedOnDark, fontSize: 13, marginTop: 1, fontFamily: fontFamily, lineHeight: lh(13) },
   boothRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 1 },
   qrSection: {
@@ -929,7 +929,7 @@ const st = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
-  statusText: { fontWeight: "800", fontSize: 13, fontFamily: fontFamily, lineHeight: lh(13) },
+  statusText: { fontWeight: "700", fontSize: 13, fontFamily: fontFamily, lineHeight: lh(13) },
   memberId: { color: colors.borderOnDark, fontSize: 11, fontWeight: "600", letterSpacing: 0.3, fontFamily: fontFamily, lineHeight: lh(11) },
   cardErr: { color: colors.textMutedOnDark, textAlign: "center", marginBottom: 12, fontFamily: fontFamily },
   smallRetry: {
@@ -938,7 +938,7 @@ const st = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 9,
   },
-  smallRetryText: { color: "#fff", fontWeight: "800", fontFamily: fontFamily },
+  smallRetryText: { color: "#fff", fontWeight: "700", fontFamily: fontFamily },
 
   // Tier progress bar
   progressWrap: {
@@ -952,7 +952,7 @@ const st = StyleSheet.create({
     marginBottom: 8,
   },
   progressLabel: { color: colors.textMutedOnDark, fontSize: 12, fontWeight: "600", fontFamily: fontFamily, lineHeight: lh(12) },
-  progressTierName: { fontWeight: "800", textTransform: "capitalize", fontFamily: fontFamily },
+  progressTierName: { fontWeight: "700", textTransform: "capitalize", fontFamily: fontFamily },
   progressNext: { color: colors.textMutedOnDark, fontSize: 12, fontWeight: "600", fontFamily: fontFamily, lineHeight: lh(12) },
   progressTrack: {
     height: 6,
@@ -974,7 +974,7 @@ const st = StyleSheet.create({
     borderColor: colors.border,
     ...shadow,
   },
-  sectionTitle: { fontWeight: "800", color: colors.text, marginBottom: 12, fontSize: 16, fontFamily: fontFamily, lineHeight: lh(16) },
+  sectionTitle: { fontWeight: "700", color: colors.text, marginBottom: 12, fontSize: 16, fontFamily: fontFamily, lineHeight: lh(16) },
   scoreRow: { flexDirection: "row", gap: 12 },
   stat: {
     flex: 1,
@@ -985,7 +985,7 @@ const st = StyleSheet.create({
     borderWidth: 1,
     borderColor: "transparent",
   },
-  statValue: { fontSize: 26, fontWeight: "800", color: colors.text, fontFamily: fontFamily, lineHeight: lh(26) },
+  statValue: { fontSize: 26, fontWeight: "700", color: colors.text, fontFamily: fontFamily, lineHeight: lh(26) },
   statLabel: { fontSize: 12, color: colors.textMuted, marginTop: 2, textAlign: "center", fontFamily: fontFamily, lineHeight: lh(12) },
   ranks: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 14 },
   rankChip: {
@@ -998,9 +998,9 @@ const st = StyleSheet.create({
     borderColor: colors.border,
   },
   rankChipLabel: { fontSize: 11, color: colors.textMuted, fontFamily: fontFamily, lineHeight: lh(11) },
-  rankChipVal: { fontSize: 15, fontWeight: "800", color: colors.navy, fontFamily: fontFamily, lineHeight: lh(15) },
+  rankChipVal: { fontSize: 15, fontWeight: "700", color: colors.navy, fontFamily: fontFamily, lineHeight: lh(15) },
   connectedRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  connected: { color: colors.success, fontWeight: "800", fontFamily: fontFamily },
+  connected: { color: colors.success, fontWeight: "700", fontFamily: fontFamily },
   handle: { color: colors.textMuted, fontWeight: "600", fontFamily: fontFamily },
   note: { color: colors.textMuted, marginBottom: 12, lineHeight: 20, fontFamily: fontFamily },
   lang: {
@@ -1028,7 +1028,7 @@ const st = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 4,
   },
-  activeBadgeText: { color: "#16a34a", fontWeight: "800", fontSize: 12, fontFamily: fontFamily, lineHeight: lh(12) },
+  activeBadgeText: { color: "#16a34a", fontWeight: "700", fontSize: 12, fontFamily: fontFamily, lineHeight: lh(12) },
   inactiveBadge: {
     backgroundColor: "rgba(156,163,175,0.16)",
     borderRadius: 99,
@@ -1064,7 +1064,7 @@ const st = StyleSheet.create({
     fontFamily: fontFamily,
     lineHeight: lh(11),
   },
-  reachBestTitle: { fontSize: 15, fontWeight: "800", color: colors.text, fontFamily: fontFamily, lineHeight: lh(15) },
+  reachBestTitle: { fontSize: 15, fontWeight: "700", color: colors.text, fontFamily: fontFamily, lineHeight: lh(15) },
   reachBestReach: { fontSize: 13, fontWeight: "600", color: colors.primaryDark, marginTop: 3, fontFamily: fontFamily, lineHeight: lh(13) },
   platformRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 },
   platformChip: {
@@ -1135,7 +1135,7 @@ const st = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 20,
   },
-  modalTitle: { fontSize: 18, fontWeight: "800", color: colors.text, fontFamily: fontFamily, lineHeight: lh(18) },
+  modalTitle: { fontSize: 18, fontWeight: "700", color: colors.text, fontFamily: fontFamily, lineHeight: lh(18) },
   modalLabel: { fontSize: 14, fontWeight: "700", color: colors.text, marginBottom: 8, fontFamily: fontFamily, lineHeight: lh(14) },
   modalInput: {
     borderWidth: 1,

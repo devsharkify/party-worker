@@ -4,7 +4,7 @@ import { forwardRef, useImperativeHandle, useRef } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 import { RemoteImage } from "./RemoteImage";
-import { colors } from "../theme";
+import { colors, fontFamily, lh } from "../theme";
 
 export interface VideoPlayerHandle {
   /** Returns the underlying HTMLVideoElement (web only). */
@@ -112,9 +112,9 @@ const st = StyleSheet.create({
     borderColor: "#fff",
     overflow: "hidden",
   },
-  name: { color: "#fff", fontSize: 18, fontWeight: "800", textShadowColor: "#000", textShadowRadius: 6 },
-  designation: { color: colors.gold, fontSize: 13, fontWeight: "700" },
-  booth: { color: "#fff", fontSize: 12 },
+  name: { color: "#fff", fontSize: 16, fontWeight: "700", textShadowColor: "#000", textShadowRadius: 6, fontFamily, lineHeight: lh(16) },
+  designation: { color: colors.gold, fontSize: 12, fontWeight: "700", fontFamily, lineHeight: lh(12) },
+  booth: { color: "#fff", fontSize: 11, fontFamily, lineHeight: lh(11) },
   aiBand: {
     position: "absolute",
     left: 0,

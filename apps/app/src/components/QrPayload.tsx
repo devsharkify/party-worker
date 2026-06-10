@@ -58,7 +58,7 @@ const s = StyleSheet.create({
     padding: 10,
   },
   fallback: { alignItems: "center", justifyContent: "center", padding: 6 },
-  fallbackLabel: { fontSize: 10, fontWeight: "800", color: colors.textMuted, letterSpacing: 1 },
+  fallbackLabel: { fontSize: 10, fontWeight: "700", color: colors.textMuted, letterSpacing: 1 },
   fallbackText: {
     fontFamily: "monospace",
     fontSize: 10,

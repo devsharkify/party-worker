@@ -348,7 +348,7 @@ const st = StyleSheet.create({
     paddingBottom: 12,
     backgroundColor: "#0d0d1a",
   },
-  headerTitle: { fontSize: 24, fontWeight: "800", color: "#fff", fontFamily, lineHeight: lh(24) },
+  headerTitle: { fontSize: 24, fontWeight: "700", color: "#fff", fontFamily, lineHeight: lh(24) },
   headerRight: { flexDirection: "row", alignItems: "center", gap: 6 },
   headerSub: { fontSize: 13, color: colors.textMuted, fontFamily, lineHeight: lh(13) },
 
@@ -381,7 +381,7 @@ const st = StyleSheet.create({
   timeText: { fontSize: 12, color: colors.textMuted, fontFamily, lineHeight: lh(12) },
   cardTitle: {
     fontSize: 17,
-    fontWeight: "800",
+    fontWeight: "700",
     color: "#fff",
     lineHeight: 24,
     marginBottom: 10,
@@ -454,7 +454,7 @@ const st = StyleSheet.create({
     padding: 32,
     gap: 12,
   },
-  errorTitle: { fontSize: 17, fontWeight: "800", color: "#fff", fontFamily, lineHeight: lh(17) },
+  errorTitle: { fontSize: 17, fontWeight: "700", color: "#fff", fontFamily, lineHeight: lh(17) },
   errorMsg: { fontSize: 14, color: colors.textMuted, textAlign: "center", fontFamily, lineHeight: lh(14) },
   retryBtn: {
     marginTop: 8,
@@ -463,7 +463,7 @@ const st = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: radius.md,
   },
-  retryText: { color: "#fff", fontWeight: "800", fontFamily },
+  retryText: { color: "#fff", fontWeight: "700", fontFamily },
 
   // Share sheet
   sheetOverlay: {
@@ -493,7 +493,7 @@ const st = StyleSheet.create({
   },
   sheetTitle: {
     fontSize: 16,
-    fontWeight: "800",
+    fontWeight: "700",
     color: "#fff",
     marginBottom: 20,
     textAlign: "center",

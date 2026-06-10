@@ -359,7 +359,7 @@ const ld = StyleSheet.create({
     ...shadow,
   },
   teamCardHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
-  teamCardTitle: { fontSize: 16, fontWeight: "800", color: colors.gold, letterSpacing: 0.3, fontFamily, lineHeight: lh(16) },
+  teamCardTitle: { fontSize: 16, fontWeight: "700", color: colors.gold, letterSpacing: 0.3, fontFamily, lineHeight: lh(16) },
   teamUnitName: { fontSize: 13, color: colors.textMutedOnDark, fontWeight: "600", marginBottom: 14, fontFamily, lineHeight: lh(13) },
   teamStats: { flexDirection: "row", alignItems: "center" },
   teamStat: { flex: 1, alignItems: "center" },
@@ -368,7 +368,7 @@ const ld = StyleSheet.create({
   teamStatDivider: { width: 1, height: 40, backgroundColor: "rgba(255,255,255,0.2)" },
 
   sectionHeader: { flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 8 },
-  sectionTitle: { fontSize: 14, fontWeight: "800", color: colors.text, textTransform: "uppercase", letterSpacing: 0.5, fontFamily, lineHeight: lh(14) },
+  sectionTitle: { fontSize: 14, fontWeight: "700", color: colors.text, textTransform: "uppercase", letterSpacing: 0.5, fontFamily, lineHeight: lh(14) },
 
   card: {
     backgroundColor: "#fff",
@@ -399,7 +399,7 @@ const ld = StyleSheet.create({
   },
   rankText: { fontSize: 12, fontWeight: "900", fontFamily, lineHeight: lh(12) },
   avatarFallback: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
-  avatarInitial: { fontSize: 15, fontWeight: "800", fontFamily, lineHeight: lh(15) },
+  avatarInitial: { fontSize: 15, fontWeight: "700", fontFamily, lineHeight: lh(15) },
   performerName: { fontWeight: "700", color: colors.text, fontSize: 14, fontFamily, lineHeight: lh(14) },
   performerDesig: { fontSize: 11, color: colors.textMuted, fontWeight: "600", fontFamily, lineHeight: lh(11) },
   pointsWrap: { alignItems: "flex-end" },
@@ -424,7 +424,7 @@ const ld = StyleSheet.create({
   },
   activityLabel: { flex: 1, fontSize: 13, color: colors.text, fontWeight: "600", fontFamily, lineHeight: lh(13) },
   activityMeta: { fontSize: 11, color: colors.textMuted, fontWeight: "600", fontFamily, lineHeight: lh(11) },
-  activityPts: { fontSize: 13, fontWeight: "800", color: colors.success, minWidth: 30, textAlign: "right", fontFamily, lineHeight: lh(13) },
+  activityPts: { fontSize: 13, fontWeight: "700", color: colors.success, minWidth: 30, textAlign: "right", fontFamily, lineHeight: lh(13) },
 
   actionRow: { gap: 10 },
   actionBtn: {
@@ -658,7 +658,7 @@ const st = StyleSheet.create({
   },
   welcomeName: {
     fontSize: 24,
-    fontWeight: "800",
+    fontWeight: "700",
     color: "#fff",
     letterSpacing: -0.4,
     fontFamily,
@@ -832,6 +832,6 @@ const st = StyleSheet.create({
     paddingHorizontal: 24,
     gap: 12,
   },
-  emptyTitle: { fontSize: 18, fontWeight: "800", color: "#fff", fontFamily, lineHeight: lh(18) },
+  emptyTitle: { fontSize: 18, fontWeight: "700", color: "#fff", fontFamily, lineHeight: lh(18) },
   emptySub: { fontSize: 14, color: "#64748b", textAlign: "center", lineHeight: 20, fontFamily },
 });

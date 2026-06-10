@@ -104,7 +104,7 @@ export function EventCard({ event, onChanged }: { event: EventItem; onChanged: (
 }
 
 const st = StyleSheet.create({
-  title: { fontSize: 18, fontWeight: "800", color: colors.text, fontFamily: fontFamily, lineHeight: lh(18) },
+  title: { fontSize: 18, fontWeight: "700", color: colors.text, fontFamily: fontFamily, lineHeight: lh(18) },
   when: { fontSize: 14, color: colors.primaryDark, fontWeight: "700", marginTop: 4, fontFamily: fontFamily, lineHeight: lh(14) },
   location: { fontSize: 13, color: colors.textMuted, marginTop: 4, fontFamily: fontFamily, lineHeight: lh(13) },
   desc: { fontSize: 14, color: colors.textMuted, marginTop: 8, lineHeight: 20, fontFamily: fontFamily },
@@ -123,5 +123,5 @@ const st = StyleSheet.create({
   rsvpText: { fontWeight: "700", color: colors.text, fontSize: 14, fontFamily: fontFamily, lineHeight: lh(14) },
   rsvpTextActive: { color: "#fff", fontFamily: fontFamily },
   footer: { marginTop: 14 },
-  points: { marginTop: 10, textAlign: "center", color: colors.success, fontWeight: "800", fontFamily: fontFamily },
+  points: { marginTop: 10, textAlign: "center", color: colors.success, fontWeight: "700", fontFamily: fontFamily },
 });
