@@ -35,8 +35,13 @@ type Status = "idle" | "capturing" | "uploading" | "posting" | "done" | "error";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const COMPOSITE_SIZE = 300; // dp — creative is a square this wide
-const STRIP_H = Math.round(COMPOSITE_SIZE * (240 / 1080)); // strip height ≈ 67 dp
+const COMPOSITE_W = 280; // dp — composite width (scales the 1080 design)
+const STRIP_H = Math.round(COMPOSITE_W * (240 / 1080)); // banner height
+// Images share as a square (1080×1080 + strip below = 1080×1320).
+const SQUARE_H = COMPOSITE_W;
+// Videos are 9:16 portrait (1080×1920) — strip OVERLAYS the bottom so the
+// final frame stays exactly 1080×1920 (Reels / Status ready).
+const PORTRAIT_H = Math.round(COMPOSITE_W * (1920 / 1080));
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -150,17 +155,23 @@ export function BannerShareModal({ item, visible, onClose, user }: Props) {
           <View
             ref={compositeRef}
             collapsable={false}
-            style={s.composite}
+            style={[
+              s.composite,
+              { height: item.type === "video" ? PORTRAIT_H : SQUARE_H + STRIP_H },
+            ]}
           >
-            {/* TOP: creative thumbnail */}
+            {/* Creative: full-bleed 9:16 for video, square for images */}
             <RemoteImage
               uri={item.thumbnailUrl ?? item.sourceUrl}
-              width={COMPOSITE_SIZE}
-              height={COMPOSITE_SIZE}
+              width={COMPOSITE_W}
+              height={item.type === "video" ? PORTRAIT_H : SQUARE_H}
             />
 
-            {/* BOTTOM: worker strip banner */}
-            <WorkerBanner user={user} width={COMPOSITE_SIZE} />
+            {/* Worker banner — overlaid at the bottom for video (frame stays
+                1080×1920); appended below the square for images */}
+            <View style={item.type === "video" ? s.stripOverlay : undefined}>
+              <WorkerBanner user={user} width={COMPOSITE_W} />
+            </View>
           </View>
         </View>
 
@@ -263,10 +274,15 @@ const s = StyleSheet.create({
     ...shadow,
   },
   composite: {
-    width: COMPOSITE_SIZE,
-    height: COMPOSITE_SIZE + STRIP_H,
+    width: COMPOSITE_W,
     flexDirection: "column",
     overflow: "hidden",
+  },
+  stripOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
 
   /* Hint */
