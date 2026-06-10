@@ -11,6 +11,9 @@ import {
   ORG_TYPE_LABEL,
   roleFitsUnit,
   SCORING,
+  type ImportMemberRow,
+  type ImportMembersResult,
+  type ImportRowResult,
   type CreateOrgUnitDto,
   type OnboardMemberDto,
   type OnboardResult,
@@ -129,6 +132,83 @@ export class TeamService {
     }
 
     return { member: await this.toRow(user.id), recruiterPointsAwarded };
+  }
+
+  /**
+   * Bulk import (HQ/state admin only — enforced at the controller).
+   * Each row: find the org unit by name (case-insensitive, any level),
+   * then create the member (role: worker) or update an existing one's
+   * name / designation / unit. Designation is admin-controlled — this and
+   * the onboard/roster flows are the only ways it changes.
+   */
+  async importMembers(
+    actor: AuthUser,
+    rows: ImportMemberRow[],
+  ): Promise<ImportMembersResult> {
+    const units = await this.prisma.orgUnit.findMany();
+    const byName = new Map(units.map((u) => [u.name.trim().toLowerCase(), u]));
+
+    const results: ImportRowResult[] = [];
+    let created = 0;
+    let updated = 0;
+    let failed = 0;
+
+    for (const row of rows) {
+      const name = row.name.trim();
+      // Normalize phone: keep digits, accept 10-digit Indian numbers or full +91…
+      const digits = row.phone.replace(/\D/g, "");
+      const phone =
+        digits.length === 10 ? `+91${digits}` : digits.length === 12 && digits.startsWith("91") ? `+${digits}` : null;
+      const unit = byName.get(row.orgUnitName.trim().toLowerCase());
+
+      if (!phone) {
+        results.push({ phone: row.phone, name, status: "failed", reason: "Invalid phone number" });
+        failed++;
+        continue;
+      }
+      if (!unit) {
+        results.push({ phone, name, status: "failed", reason: `Unit "${row.orgUnitName}" not found` });
+        failed++;
+        continue;
+      }
+
+      try {
+        const existing = await this.prisma.user.findUnique({ where: { phone } });
+        if (existing) {
+          await this.prisma.user.update({
+            where: { id: existing.id },
+            data: {
+              name,
+              orgUnitId: unit.id,
+              designation: row.designation?.trim() || null,
+            },
+          });
+          results.push({ phone, name, status: "updated" });
+          updated++;
+        } else {
+          await this.prisma.user.create({
+            data: {
+              name,
+              phone,
+              role: "worker",
+              orgUnitId: unit.id,
+              designation: row.designation?.trim() || null,
+              preferredLanguage: "te",
+              tier: "karyakarta",
+              recruitedById: actor.id,
+              recruitedAt: new Date(),
+            },
+          });
+          results.push({ phone, name, status: "created" });
+          created++;
+        }
+      } catch (e) {
+        results.push({ phone, name, status: "failed", reason: (e as Error).message });
+        failed++;
+      }
+    }
+
+    return { created, updated, failed, results };
   }
 
   /** Members in a unit (or its whole subtree when subtree=true). */

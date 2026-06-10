@@ -2,11 +2,15 @@ import { Body, Controller, Get, Param, Post, Query, UseGuards } from "@nestjs/co
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import {
   createOrgUnitSchema,
+  importMembersSchema,
   onboardMemberSchema,
   type CreateOrgUnitDto,
+  type ImportMembersDto,
   type OnboardMemberDto,
 } from "@pw/shared";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { RolesGuard } from "../auth/roles.guard";
+import { Roles } from "../auth/roles.decorator";
 import { CurrentUser } from "../auth/current-user.decorator";
 import type { AuthUser } from "../auth/auth.types";
 import { ZodValidationPipe } from "../common/zod-validation.pipe";
@@ -32,6 +36,17 @@ export class TeamController {
     @Body(new ZodValidationPipe(createOrgUnitSchema)) dto: CreateOrgUnitDto,
   ) {
     return this.team.createUnit(user, dto);
+  }
+
+  /** Bulk import members from an admin-uploaded Excel/CSV (HQ/state only). */
+  @Post("members/import")
+  @UseGuards(RolesGuard)
+  @Roles("hq_admin", "state_admin")
+  importMembers(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(importMembersSchema)) dto: ImportMembersDto,
+  ) {
+    return this.team.importMembers(user, dto.rows);
   }
 
   /** Onboard a member (worker or sub-leader) into a unit you manage. */

@@ -27,6 +27,7 @@ import { EmptyState, SectionHeader, SkeletonRow, StatCard, useToast } from "../s
 import { TemplateDesigner } from "../src/template-designer";
 import { AnalyticsSection } from "../src/analytics-section";
 import { TRSLogo } from "../src/TRSLogo";
+import { BulkImport } from "../src/bulk-import";
 
 export default function Page() {
   const { user, loading } = useAdmin();
@@ -1172,6 +1173,8 @@ function OrganizationSection() {
   return (
     <div className="space-y-8">
       <HierarchyTree tree={tree} />
+
+      <BulkImport />
 
       <div className="grid gap-8 lg:grid-cols-2">
         <CreateUnit

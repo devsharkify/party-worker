@@ -142,7 +142,6 @@ export default function Profile() {
         method: "PATCH",
         body: JSON.stringify({
           name: editName.trim(),
-          designation: editDesignation.trim() || undefined,
           preferredLanguage: editLang,
         }),
       });
@@ -490,14 +489,13 @@ export default function Profile() {
             />
 
             <Text style={st.modalLabel}>Designation</Text>
-            <TextInput
-              value={editDesignation}
-              onChangeText={setEditDesignation}
-              placeholder="e.g. Area Secretary"
-              placeholderTextColor="#94a3b8"
-              style={st.modalInput}
-              returnKeyType="done"
-            />
+            <View style={st.lockedField}>
+              <Feather name="lock" size={13} color={colors.textMuted} />
+              <Text style={st.lockedFieldText}>
+                {editDesignation || "Not assigned yet"}
+              </Text>
+            </View>
+            <Text style={st.lockedFieldHint}>Assigned by your leader or party admin</Text>
 
             <Text style={st.modalLabel}>Preferred Language</Text>
             <View style={{ flexDirection: "row", gap: 8, marginBottom: 20 }}>
@@ -893,6 +891,19 @@ const st = StyleSheet.create({
     paddingVertical: 5,
   },
   photoEditBtnText: { color: colors.primary, fontSize: 13, fontWeight: "700", fontFamily, lineHeight: lh(13) },
+  lockedField: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: colors.cardMuted,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  lockedFieldText: { color: colors.textMuted, fontSize: 14, fontWeight: "600", fontFamily, lineHeight: lh(14), flex: 1 },
+  lockedFieldHint: { color: colors.textMuted, fontSize: 11, fontFamily, lineHeight: lh(11), marginTop: 4, marginBottom: 12, opacity: 0.8 },
   memName: { color: "#fff", fontSize: 20, fontWeight: "800", fontFamily: fontFamily, lineHeight: lh(20) },
   memSub: { color: colors.textMutedOnDark, fontSize: 13, marginTop: 1, fontFamily: fontFamily, lineHeight: lh(13) },
   boothRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 1 },

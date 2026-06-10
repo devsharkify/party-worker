@@ -53,7 +53,7 @@ export class UsersService {
       where: { id: userId },
       data: {
         ...(dto.name !== undefined ? { name: dto.name } : {}),
-        ...(dto.designation !== undefined ? { designation: dto.designation } : {}),
+        // designation is admin/leader-controlled — not part of self-service edits
         ...(dto.preferredLanguage !== undefined
           ? { preferredLanguage: dto.preferredLanguage }
           : {}),

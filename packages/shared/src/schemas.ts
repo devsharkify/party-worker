@@ -94,10 +94,11 @@ export const publishCreativeSchema = z.object({
 export type PublishCreativeDto = z.infer<typeof publishCreativeSchema>;
 
 // --- Profile ---
+// NOTE: designation is intentionally NOT self-editable — it is assigned by a
+// leader/admin (onboard, roster, or bulk import).
 export const updateProfileSchema = z.object({
   name: z.string().min(1).optional(),
   photoKey: z.string().optional(),
-  designation: z.string().optional(),
   preferredLanguage: Language.optional(),
 });
 export type UpdateProfileDto = z.infer<typeof updateProfileSchema>;
@@ -215,6 +216,32 @@ export const onboardMemberSchema = z.object({
   designation: z.string().max(120).optional(),
 });
 export type OnboardMemberDto = z.infer<typeof onboardMemberSchema>;
+
+// --- Bulk member import (Excel/CSV uploaded by HQ/state admin) ---
+export const importMemberRowSchema = z.object({
+  name: z.string().min(1),
+  phone: z.string().min(10),
+  /** Division / constituency / unit name — matched case-insensitively. */
+  orgUnitName: z.string().min(1),
+  designation: z.string().optional(),
+});
+export const importMembersSchema = z.object({
+  rows: z.array(importMemberRowSchema).min(1).max(2000),
+});
+export type ImportMemberRow = z.infer<typeof importMemberRowSchema>;
+export type ImportMembersDto = z.infer<typeof importMembersSchema>;
+export interface ImportRowResult {
+  phone: string;
+  name: string;
+  status: "created" | "updated" | "failed";
+  reason?: string;
+}
+export interface ImportMembersResult {
+  created: number;
+  updated: number;
+  failed: number;
+  results: ImportRowResult[];
+}
 
 // --- Pagination ---
 export const paginationSchema = z.object({

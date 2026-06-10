@@ -37,7 +37,6 @@ export default function SetupProfile() {
           method: "PATCH",
           body: JSON.stringify({
             name: name.trim(),
-            designation: designation.trim(),
             preferredLanguage: i18n.language,
           }),
         },
@@ -96,18 +95,6 @@ export default function SetupProfile() {
               style={st.input}
               autoCapitalize="words"
               returnKeyType="next"
-            />
-
-            {/* Designation */}
-            <Text style={st.label}>{t("onboarding.designationLabel")}</Text>
-            <TextInput
-              value={designation}
-              onChangeText={setDesignation}
-              placeholder={t("onboarding.designationPlaceholder")}
-              placeholderTextColor="#94a3b8"
-              style={st.input}
-              autoCapitalize="words"
-              returnKeyType="done"
             />
 
             {error ? <Text style={st.error}>{error}</Text> : null}
