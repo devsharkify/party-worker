@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   FlatList,
+  Modal,
   Platform,
   Pressable,
   RefreshControl,
@@ -28,6 +29,10 @@ type Loc = Record<string, { te: string; en: string }>;
 const L: Loc = {
   title: { te: "నా బృందం", en: "My Team" },
   rosterTitle: { te: "మీ కార్యకర్తలు", en: "Your workers" },
+  setDesignation: { te: "హోదా మార్చండి", en: "Set designation" },
+  designationSaved: { te: "హోదా నవీకరించబడింది", en: "Designation updated" },
+  save: { te: "సేవ్ చేయండి", en: "Save" },
+  cancel: { te: "రద్దు", en: "Cancel" },
   unitLabel: { te: "యూనిట్", en: "Unit" },
   errorTitle: { te: "బృందం లోడ్ కాలేదు", en: "Couldn’t load your team" },
   emptyTitle: { te: "ఇంకా సభ్యులు లేరు", en: "No members yet" },
@@ -129,6 +134,36 @@ export default function Team() {
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | undefined>();
   const [awarded, setAwarded] = useState<number | null>(null);
+
+  // Designation editor (leader taps a member)
+  const [editMember, setEditMember] = useState<OrgMemberRow | null>(null);
+  const [editDesig, setEditDesig] = useState("");
+  const [desigBusy, setDesigBusy] = useState(false);
+  const [desigMsg, setDesigMsg] = useState<string | undefined>();
+
+  function openDesigEditor(m: OrgMemberRow) {
+    setEditMember(m);
+    setEditDesig(m.designation ?? "");
+    setDesigMsg(undefined);
+  }
+
+  async function saveDesignation() {
+    if (!editMember) return;
+    setDesigBusy(true);
+    try {
+      await api(`/org/members/${editMember.id}/designation`, {
+        method: "PATCH",
+        body: JSON.stringify({ designation: editDesig.trim() }),
+      });
+      setDesigMsg(tx(L.designationSaved, lang));
+      setEditMember(null);
+      await roster.reload();
+    } catch (e) {
+      setDesigMsg((e as Error).message);
+    } finally {
+      setDesigBusy(false);
+    }
+  }
 
   // Keep the form unit in sync with the roster unit until the user changes it.
   useEffect(() => {
@@ -268,7 +303,7 @@ export default function Team() {
               <StateView  title={tx(L.emptyTitle, lang)} message={tx(L.emptyMsg, lang)} />
             )
           }
-          renderItem={({ item }) => <MemberCard member={item} lang={lang} />}
+          renderItem={({ item }) => <MemberCard member={item} lang={lang} onEdit={openDesigEditor} />}
           ListFooterComponent={
             <OnboardForm
               lang={lang}
@@ -293,6 +328,46 @@ export default function Team() {
           }
         />
       )}
+
+      {/* ── Designation editor (leader taps a member) ── */}
+      <Modal
+        visible={editMember !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditMember(null)}
+      >
+        <View style={st.desigOverlay}>
+          <View style={st.desigSheet}>
+            <Text style={st.desigTitle}>{tx(L.setDesignation, lang)}</Text>
+            {editMember ? <Text style={st.desigMember}>{editMember.name}</Text> : null}
+            <TextInput
+              style={st.input}
+              value={editDesig}
+              onChangeText={setEditDesig}
+              placeholder={tx(L.designation, lang)}
+              placeholderTextColor={colors.textMuted}
+              maxLength={60}
+              autoFocus
+            />
+            {desigMsg ? <Text style={st.desigMsg}>{desigMsg}</Text> : null}
+            <View style={st.desigBtnRow}>
+              <Pressable
+                onPress={() => setEditMember(null)}
+                style={({ pressed }) => [st.desigCancelBtn, pressed && { opacity: 0.75 }]}
+              >
+                <Text style={st.desigCancelText}>{tx(L.cancel, lang)}</Text>
+              </Pressable>
+              <Pressable
+                onPress={saveDesignation}
+                disabled={desigBusy}
+                style={({ pressed }) => [st.desigSaveBtn, (pressed || desigBusy) && { opacity: 0.75 }]}
+              >
+                <Text style={st.desigSaveText}>{desigBusy ? "…" : tx(L.save, lang)}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -329,12 +404,15 @@ function UnitChips({
   );
 }
 
-function MemberCard({ member: m, lang }: { member: OrgMemberRow; lang: Lang }) {
+function MemberCard({ member: m, lang, onEdit }: { member: OrgMemberRow; lang: Lang; onEdit?: (m: OrgMemberRow) => void }) {
   const rc = tierColor[m.tier] ?? colors.textMuted;
   const roleColor = m.isLeader ? colors.primaryDark : colors.textMuted;
   const initial = m.name.trim().charAt(0).toUpperCase() || "?";
   return (
-    <View style={st.memberRow}>
+    <Pressable
+      onPress={onEdit ? () => onEdit(m) : undefined}
+      style={({ pressed }) => [st.memberRow, pressed && onEdit && { opacity: 0.8 }]}
+    >
       <View style={st.avatarWrap}>
         {m.photoUrl ? (
           <RemoteImage uri={m.photoUrl} width={44} height={44} radius={22} placeholderColor={colors.cardMuted} />
@@ -374,7 +452,7 @@ function MemberCard({ member: m, lang }: { member: OrgMemberRow; lang: Lang }) {
         <Text style={st.points}>{m.weeklyLeaguePoints.toLocaleString()}</Text>
         <Text style={st.pointsLabel}>{tx(L.weekly, lang)}</Text>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -553,6 +631,75 @@ const st = StyleSheet.create({
 
   formCard: { marginTop: 18, marginBottom: 8 },
   formTitle: { fontSize: 18, fontWeight: "800", color: colors.text, marginBottom: 4, fontFamily: fontFamily, lineHeight: lh(18) },
+  desigOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(15,31,78,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+  },
+  desigSheet: {
+    width: "100%",
+    maxWidth: 380,
+    backgroundColor: "#FFFFFF",
+    borderRadius: radius.lg,
+    padding: 20,
+    ...shadow,
+  },
+  desigTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: colors.text,
+    fontFamily,
+    lineHeight: lh(16),
+    marginBottom: 2,
+  },
+  desigMember: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.textMuted,
+    fontFamily,
+    lineHeight: lh(13),
+    marginBottom: 12,
+  },
+  desigMsg: {
+    fontSize: 12,
+    color: colors.danger,
+    fontFamily,
+    lineHeight: lh(12),
+    marginTop: 6,
+  },
+  desigBtnRow: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 10,
+    marginTop: 16,
+  },
+  desigCancelBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: radius.md,
+  },
+  desigCancelText: {
+    color: colors.textMuted,
+    fontSize: 14,
+    fontWeight: "700",
+    fontFamily,
+    lineHeight: lh(14),
+  },
+  desigSaveBtn: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 22,
+    paddingVertical: 9,
+    borderRadius: radius.md,
+  },
+  desigSaveText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "700",
+    fontFamily,
+    lineHeight: lh(14),
+  },
   input: {
     borderWidth: 1,
     borderColor: colors.border,

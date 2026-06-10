@@ -211,6 +211,25 @@ export class TeamService {
     return { created, updated, failed, results };
   }
 
+  /**
+   * Leader/admin updates an existing member's designation. Permission:
+   * the member must be inside the actor's subtree (whole tree for HQ/state).
+   */
+  async updateMemberDesignation(
+    actor: AuthUser,
+    memberId: string,
+    designation: string,
+  ): Promise<OrgMemberRow> {
+    const member = await this.prisma.user.findUnique({ where: { id: memberId } });
+    if (!member) throw new BadRequestException("Member not found.");
+    await this.assertCanManageUnit(actor, member.orgUnitId);
+    await this.prisma.user.update({
+      where: { id: memberId },
+      data: { designation: designation.trim() || null },
+    });
+    return this.toRow(memberId);
+  }
+
   /** Members in a unit (or its whole subtree when subtree=true). */
   async listMembers(
     actor: AuthUser,

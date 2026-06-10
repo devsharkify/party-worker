@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import {
   createOrgUnitSchema,
@@ -15,6 +15,9 @@ import { CurrentUser } from "../auth/current-user.decorator";
 import type { AuthUser } from "../auth/auth.types";
 import { ZodValidationPipe } from "../common/zod-validation.pipe";
 import { TeamService } from "./team.service";
+import { z } from "zod";
+
+const designationSchema = z.object({ designation: z.string().max(60) });
 
 @ApiTags("org")
 @ApiBearerAuth()
@@ -47,6 +50,16 @@ export class TeamController {
     @Body(new ZodValidationPipe(importMembersSchema)) dto: ImportMembersDto,
   ) {
     return this.team.importMembers(user, dto.rows);
+  }
+
+  /** Update a member's designation (leaders: own subtree; HQ/state: anyone). */
+  @Patch("members/:id/designation")
+  updateDesignation(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(designationSchema)) dto: { designation: string },
+  ) {
+    return this.team.updateMemberDesignation(user, id, dto.designation);
   }
 
   /** Onboard a member (worker or sub-leader) into a unit you manage. */
