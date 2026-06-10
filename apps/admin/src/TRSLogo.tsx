@@ -1,9 +1,9 @@
 /**
- * TRSLogo — official TRS party emblem (Next.js admin, real PNG asset).
+ * TRSLogo — the official TRS party emblem (real uploaded artwork).
  *
- * Asset: apps/admin/public/trs-logo.png (820x1046, gold field + blue
- * Telangana map with TRS + green name band). Square variant rendered by
- * cropping via aspect-ratio when showBanner is false.
+ * Assets (in public/):
+ *   /trs-logo.png        — full emblem: gold panel + green banner (820×1066)
+ *   /trs-logo-square.png — gold panel only, square crop (for headers)
  */
 
 type Props = {
@@ -13,9 +13,8 @@ type Props = {
   className?: string;
 };
 
-const FULL_W = 820;
-const FULL_H = 1046;
-const GOLD_H = 886; // height of the gold panel (without the green band)
+const ASPECT_FULL = 820 / 1066;
+const ASPECT_SQUARE = 1;
 
 export function TRSLogo({
   size = 80,
@@ -23,28 +22,18 @@ export function TRSLogo({
   borderRadius = 6,
   className = "",
 }: Props) {
-  const ratio = (showBanner ? FULL_H : GOLD_H) / FULL_W;
-  const height = Math.round(size * ratio);
+  const src = showBanner ? "/trs-logo.png" : "/trs-logo-square.png";
+  const aspect = showBanner ? ASPECT_FULL : ASPECT_SQUARE;
+  const height = Math.round(size / aspect);
 
   return (
-    <span
+    <img
+      src={src}
+      width={size}
+      height={height}
+      alt="TRS — Telangana Rakshana Sena"
       className={className}
-      style={{
-        display: "inline-block",
-        width: size,
-        height,
-        borderRadius,
-        overflow: "hidden",
-      }}
-    >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/trs-logo.png"
-        alt="TRS — Telangana Rakshana Sena"
-        width={size}
-        height={Math.round(size * (FULL_H / FULL_W))}
-        style={{ display: "block", width: size, height: "auto" }}
-      />
-    </span>
+      style={{ width: size, height, objectFit: "cover", borderRadius, display: "block" }}
+    />
   );
 }

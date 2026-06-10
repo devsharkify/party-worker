@@ -1,20 +1,20 @@
 /**
- * TRSLogo — official TRS party emblem (real PNG assets).
+ * TRSLogo — the official TRS party emblem (real uploaded artwork).
  *
- * Assets (generated from the accurate Telangana outline, matching the
- * official flag: gold field + blue map with TRS + green name band):
- *   apps/app/assets/trs-logo.png         820x1046  (gold + green banner)
- *   apps/app/assets/trs-logo-square.png  820x886   (gold panel only)
+ * Assets:
+ *   assets/trs-logo.png        — full emblem: gold panel + green banner (820×1066)
+ *   assets/trs-logo-square.png — gold panel only, square crop (for headers)
  */
 
 import React from "react";
-import { Image } from "react-native";
+import { Image, View } from "react-native";
 
 const LOGO_FULL = require("../../assets/trs-logo.png");
 const LOGO_SQUARE = require("../../assets/trs-logo-square.png");
 
-const FULL_RATIO = 1046 / 820;
-const SQUARE_RATIO = 886 / 820;
+// Real artwork dimensions
+const ASPECT_FULL = 820 / 1066; // width / height
+const ASPECT_SQUARE = 1;
 
 type Props = {
   size?: number;
@@ -23,13 +23,18 @@ type Props = {
 };
 
 export function TRSLogo({ size = 80, showBanner = true, borderRadius = 6 }: Props) {
-  const ratio = showBanner ? FULL_RATIO : SQUARE_RATIO;
+  const source = showBanner ? LOGO_FULL : LOGO_SQUARE;
+  const aspect = showBanner ? ASPECT_FULL : ASPECT_SQUARE;
+  const height = Math.round(size / aspect);
+
   return (
-    <Image
-      source={showBanner ? LOGO_FULL : LOGO_SQUARE}
-      style={{ width: size, height: size * ratio, borderRadius }}
-      resizeMode="contain"
-      accessibilityLabel="TRS — Telangana Rakshana Sena"
-    />
+    <View style={{ width: size, height, borderRadius, overflow: "hidden" }}>
+      <Image
+        source={source}
+        style={{ width: size, height }}
+        resizeMode="cover"
+        accessibilityLabel="TRS — Telangana Rakshana Sena"
+      />
+    </View>
   );
 }
