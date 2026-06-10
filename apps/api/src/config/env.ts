@@ -16,7 +16,10 @@ const EnvSchema = z.object({
   JWT_REFRESH_SECRET: z.string().default("dev-refresh-secret-change-me"),
   JWT_ACCESS_TTL: z.coerce.number().default(900),
   JWT_REFRESH_TTL: z.coerce.number().default(5184000),
-  COOKIE_DOMAIN: z.string().default("localhost"),
+  // Optional. Leave UNSET on Railway: *.up.railway.app is on the Public
+  // Suffix List, so browsers reject Domain=railway.app cookies entirely —
+  // host-only cookies (no Domain attribute) are the only kind that work there.
+  COOKIE_DOMAIN: z.string().optional(),
 
   // "fake"      — no SMS/WhatsApp, logs code to console (dev default)
   // "authkey"   — Authkey.io SMS gateway (requires AUTHKEY_* vars)

@@ -33,18 +33,23 @@ export class AuthController {
   ) {}
 
   private setRefreshCookie(reply: FastifyReply, token: string): void {
+    // Production web is cross-site (Vercel app → Railway API): SameSite=Lax
+    // cookies are never sent on cross-site XHR, so /auth/refresh always 401s
+    // and every page reload logs the user out. Cross-site cookies require
+    // SameSite=None + Secure. Local dev (localhost→localhost) stays Lax.
+    const prod = this.env.NODE_ENV === "production";
     (reply as any).setCookie(REFRESH_COOKIE, token, {
       httpOnly: true,
-      secure: this.env.NODE_ENV === "production",
-      sameSite: "lax",
+      secure: prod,
+      sameSite: prod ? "none" : "lax",
       path: "/",
-      domain: this.env.COOKIE_DOMAIN,
+      ...(this.env.COOKIE_DOMAIN ? { domain: this.env.COOKIE_DOMAIN } : {}),
       maxAge: this.env.JWT_REFRESH_TTL,
     });
   }
 
   private clearRefreshCookie(reply: FastifyReply): void {
-    (reply as any).clearCookie(REFRESH_COOKIE, { path: "/", domain: this.env.COOKIE_DOMAIN });
+    (reply as any).clearCookie(REFRESH_COOKIE, { path: "/", ...(this.env.COOKIE_DOMAIN ? { domain: this.env.COOKIE_DOMAIN } : {}) });
   }
 
   @Post("request-otp")

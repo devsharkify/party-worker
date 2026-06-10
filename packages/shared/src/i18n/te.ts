@@ -75,6 +75,7 @@ export const te: Catalog = {
   leaderboard: {
     title: "లీడర్‌బోర్డ్",
     area: "ఏరియా",
+    booth: "ఏరియా",
     mandal: "మండలం",
     constituency: "నియోజకవర్గం",
     district: "జిల్లా",

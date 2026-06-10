@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Platform, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -86,12 +86,13 @@ export default function EnablePush() {
                 onPress={onEnable}
                 loading={busy}
               />
-              <View style={{ height: 12 }} />
-              <PrimaryButton
-                title={t("onboarding.skipForNow")}
+              <Pressable
                 onPress={onContinue}
                 disabled={busy}
-              />
+                style={({ pressed }) => [st.skipBtn, pressed && { opacity: 0.7 }]}
+              >
+                <Text style={st.skipBtnText}>{t("onboarding.skipForNow")}</Text>
+              </Pressable>
             </>
           )}
           {permState !== "idle" && (
@@ -129,7 +130,7 @@ const st = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: "rgba(255,153,51,0.14)",
+    backgroundColor: colors.goldSoft,
     borderWidth: 2,
     borderColor: colors.primary,
     alignItems: "center",
@@ -149,7 +150,7 @@ const st = StyleSheet.create({
   titleEn: {
     fontSize: 16,
     fontWeight: fontWeight.semibold,
-    color: colors.textMutedOnDark,
+    color: colors.textMuted,
     textAlign: "center",
     marginTop: -6,
     fontFamily: fontFamily,
@@ -157,7 +158,7 @@ const st = StyleSheet.create({
   },
   body: {
     fontSize: 16,
-    color: colors.textMutedOnDark,
+    color: colors.text,
     textAlign: "center",
     lineHeight: 24,
     marginTop: 8,
@@ -165,7 +166,7 @@ const st = StyleSheet.create({
     borderRadius: radius.lg,
     padding: 18,
     borderWidth: 1,
-    borderColor: colors.borderOnDark,
+    borderColor: colors.border,
     fontFamily: fontFamily,
   },
   statusArea: {
@@ -186,7 +187,7 @@ const st = StyleSheet.create({
     borderColor: colors.green,
   },
   statusRowDenied: {
-    borderColor: colors.borderOnDark,
+    borderColor: colors.border,
   },
   successIcon: {},
   statusTextGranted: {
@@ -197,7 +198,7 @@ const st = StyleSheet.create({
     lineHeight: lh(15),
   },
   statusTextDenied: {
-    color: colors.textMutedOnDark,
+    color: colors.textMuted,
     fontSize: 14,
     textAlign: "center",
     fontFamily: fontFamily,
@@ -206,5 +207,19 @@ const st = StyleSheet.create({
   bottom: {
     width: "100%",
     paddingTop: 16,
+  },
+  skipBtn: {
+    marginTop: 14,
+    alignSelf: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  skipBtnText: {
+    color: colors.textMuted,
+    fontSize: 15,
+    fontWeight: "600",
+    textAlign: "center",
+    fontFamily: fontFamily,
+    lineHeight: lh(15),
   },
 });

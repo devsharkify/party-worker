@@ -147,7 +147,7 @@ const st = StyleSheet.create({
   titleEn: {
     fontSize: 16,
     fontWeight: fontWeight.semibold,
-    color: colors.textMutedOnDark,
+    color: colors.textMuted,
     textAlign: "center",
     marginBottom: 28,
     fontFamily: fontFamily,

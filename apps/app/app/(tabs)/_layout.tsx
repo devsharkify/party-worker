@@ -50,11 +50,11 @@ export default function TabsLayout() {
               shadowRadius: 8,
               shadowOffset: { width: 0, height: -2 },
               elevation: 8,
-              height: 60,
+              height: 64,
               paddingBottom: 8,
               paddingTop: 6,
             },
-            tabBarLabelStyle: { fontSize: 11, fontWeight: "700", fontFamily },
+            tabBarLabelStyle: { fontSize: 11, fontWeight: "700", fontFamily, lineHeight: 16, height: 17 },
             tabBarIconStyle: { marginBottom: 0 },
           }}
         >

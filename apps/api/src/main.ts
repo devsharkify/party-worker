@@ -61,6 +61,10 @@ async function bootstrap() {
       /https:\/\/mytrs.*\.vercel\.app$/,
     ],
     credentials: true,
+    // @fastify/cors defaults to GET,HEAD,POST — without this, every PATCH and
+    // DELETE from the browser fails CORS preflight (profile edit, grievance
+    // status, unpublish, deletes).
+    methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "bypass-tunnel-reminder"],
   });
 

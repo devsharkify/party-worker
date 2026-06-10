@@ -1,4 +1,4 @@
-import { ForbiddenException, Inject, Injectable, Logger } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import {
   computeSharePoints,
   type CaptionVariants,
@@ -263,23 +263,33 @@ export class SocialService {
     if (!acct || !acct.connected || acct.type === "personal") {
       throw new ForbiddenException("Connect a Creator/Business Instagram account first.");
     }
-    const creative = await this.prisma.creative.findUniqueOrThrow({ where: { id: creativeId } });
+    const creative = await this.prisma.creative.findUnique({ where: { id: creativeId } });
+    if (!creative) throw new NotFoundException("Creative not found.");
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     const render = await this.prisma.personalizedRender.findUnique({
       where: { userId_creativeId: { userId, creativeId } },
     });
     const mediaUrl = mediaUrlOverride ?? render?.cachedUrl ?? creative.sourceKey;
 
-    const { remoteId } = await this.ig.publish({
-      account: {
-        handle: acct.handle ?? "",
-        accessToken: this.tokenFor(acct),
-        igUserId: acct.remoteUserId ?? undefined,
-      },
-      mediaUrl,
-      caption: this.captionFor(creative.captionVariants, user.preferredLanguage),
-      kind,
-    });
+    let remoteId: string;
+    try {
+      ({ remoteId } = await this.ig.publish({
+        account: {
+          handle: acct.handle ?? "",
+          accessToken: this.tokenFor(acct),
+          igUserId: acct.remoteUserId ?? undefined,
+        },
+        mediaUrl,
+        caption: this.captionFor(creative.captionVariants, user.preferredLanguage),
+        kind,
+      }));
+    } catch (e) {
+      // Provider failures (expired/missing token, API errors) are a user-fixable
+      // state, not a server fault — surface a clean 400 instead of a 500.
+      throw new BadRequestException(
+        `Instagram publish failed: ${(e as Error).message}. Try reconnecting your Instagram account.`,
+      );
+    }
 
     // Link the post to a ShareEvent so insights/reach can accrue to it.
     let share = await this.prisma.shareEvent.findFirst({ where: { userId, creativeId } });

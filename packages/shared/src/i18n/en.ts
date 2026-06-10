@@ -73,6 +73,7 @@ export const en = {
   leaderboard: {
     title: "Leaderboard",
     area: "Area",
+    booth: "Area",
     mandal: "Mandal",
     constituency: "Constituency",
     district: "District",

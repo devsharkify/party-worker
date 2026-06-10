@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { MotiView } from "moti";
+
 import { Skeleton as MotiSkeleton } from "moti/skeleton";
 import type { FeedItem, OrgMemberRow } from "@pw/shared";
 import { useApi } from "../../src/hooks";
@@ -572,32 +572,14 @@ export default function Feed() {
             <Text style={st.emptySub}>{t("feed.empty")}</Text>
           </View>
         }
-        renderItem={({ item: [a, b, c], index }) => (
+        renderItem={({ item: [a, b, c] }) => (
           <View style={st.row}>
-            <MotiView
-              from={{ opacity: 0, translateY: 20 }}
-              animate={{ opacity: 1, translateY: 0 }}
-              transition={{ type: "timing", duration: 400, delay: (index * 3) * 80 }}
-            >
-              <Tile item={a} onPress={() => router.push(`/personalize/${a.creativeId}`)} onShare={() => setShareItem(a)} />
-            </MotiView>
+            <Tile item={a} onPress={() => router.push(`/personalize/${a.creativeId}`)} onShare={() => setShareItem(a)} />
             {b ? (
-              <MotiView
-                from={{ opacity: 0, translateY: 20 }}
-                animate={{ opacity: 1, translateY: 0 }}
-                transition={{ type: "timing", duration: 400, delay: (index * 3 + 1) * 80 }}
-              >
-                <Tile item={b} onPress={() => router.push(`/personalize/${b.creativeId}`)} onShare={() => setShareItem(b)} />
-              </MotiView>
+              <Tile item={b} onPress={() => router.push(`/personalize/${b.creativeId}`)} onShare={() => setShareItem(b)} />
             ) : <View style={st.tilePlaceholder} />}
             {c ? (
-              <MotiView
-                from={{ opacity: 0, translateY: 20 }}
-                animate={{ opacity: 1, translateY: 0 }}
-                transition={{ type: "timing", duration: 400, delay: (index * 3 + 2) * 80 }}
-              >
-                <Tile item={c} onPress={() => router.push(`/personalize/${c.creativeId}`)} onShare={() => setShareItem(c)} />
-              </MotiView>
+              <Tile item={c} onPress={() => router.push(`/personalize/${c.creativeId}`)} onShare={() => setShareItem(c)} />
             ) : <View style={st.tilePlaceholder} />}
           </View>
         )}
