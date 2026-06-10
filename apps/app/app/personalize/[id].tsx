@@ -23,6 +23,7 @@ import { RemoteImage } from "../../src/components/RemoteImage";
 import { Feather } from "@expo/vector-icons";
 import { captureComposite } from "../../src/lib/composite";
 import VideoPlayer from "../../src/components/VideoPlayer";
+import { WorkerBanner } from "../../src/components/WorkerBanner";
 import { colors, fontFamily, lh, radius } from "../../src/theme";
 
 function detectTier(): DeviceTier {
@@ -263,9 +264,27 @@ export default function Personalize() {
         />
       )}
 
+      {/* Strip banner — exactly what gets attached below the creative on share */}
+      {user && (
+        <View style={pb.stripWrap}>
+          <WorkerBanner
+            user={{
+              id: user.id,
+              name: user.name,
+              designation: user.designation,
+              photoUrl: user.photoUrl,
+              tier: user.tier,
+              boothName: user.boothName,
+              orgUnitName: user.orgUnitName,
+            }}
+            width={340}
+          />
+        </View>
+      )}
+
       <Text style={st.fallbackNote}>
         {isVideo
-          ? "Your name & photo will appear on the video when shared."
+          ? "Your banner is attached below the video when shared."
           : t("personalize.fallbackNote")}
       </Text>
 
@@ -470,4 +489,17 @@ const st = StyleSheet.create({
   captionText: { color: colors.textOnDark, fontSize: 14, lineHeight: 22, fontFamily: fontFamily },
   captionCopyHint: { color: colors.textMutedOnDark, fontSize: 11, marginTop: 8, textAlign: "right", fontFamily: fontFamily, lineHeight: lh(11) },
   btnWrap: { width: "100%", maxWidth: 340 },
+});
+
+const pb = StyleSheet.create({
+  stripWrap: {
+    marginTop: 2,
+    borderWidth: 1.5,
+    borderColor: colors.gold,
+    borderTopWidth: 0,
+    borderBottomLeftRadius: radius.sm,
+    borderBottomRightRadius: radius.sm,
+    overflow: "hidden",
+    alignSelf: "center",
+  },
 });

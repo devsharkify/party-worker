@@ -4,8 +4,24 @@
     {
       "name": "app-web",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@pw/app", "web"],
+      "runtimeArgs": [
+        "--filter",
+        "@pw/app",
+        "web"
+      ],
       "port": 8081
+    },
+    {
+      "name": "app-dist",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "serve",
+        "-s",
+        "-p",
+        "8090",
+        "/Users/ruthlessravan/party-worker/apps/app/dist"
+      ],
+      "port": 8090
     }
   ]
 }

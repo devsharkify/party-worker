@@ -32,6 +32,7 @@ export class CreativesService {
         languages: dto.languages,
         targetOrgUnitId: dto.targetOrgUnitId ?? null,
         videoDurationSec: dto.videoDurationSec ?? null,
+        thumbnailKey: dto.thumbnailKey ?? null,
         createdById: userId,
         aiLabeled: true, // personalized renders are synthetic — labelled by default
       },

@@ -84,6 +84,8 @@ export const createCreativeSchema = z.object({
   targetOrgUnitId: z.string().optional(),
   /** seconds; set for type=video */
   videoDurationSec: z.number().int().positive().optional(),
+  /** optional poster/thumbnail key (extracted frame for videos) */
+  thumbnailKey: z.string().optional(),
 });
 export type CreateCreativeDto = z.infer<typeof createCreativeSchema>;
 
