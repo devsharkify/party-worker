@@ -36,7 +36,7 @@ type Status = "idle" | "capturing" | "uploading" | "posting" | "done" | "error";
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const COMPOSITE_SIZE = 300; // dp — creative is a square this wide
-const STRIP_H = Math.round(COMPOSITE_SIZE * (140 / 1080)); // strip height ≈ 39 dp
+const STRIP_H = Math.round(COMPOSITE_SIZE * (240 / 1080)); // strip height ≈ 67 dp
 
 // ─── Component ────────────────────────────────────────────────────────────────
 

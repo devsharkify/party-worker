@@ -1,5 +1,5 @@
 /**
- * WorkerBanner — 1080×140 horizontal campaign strip for myTRS party workers.
+ * WorkerBanner — 1080×240 horizontal campaign strip for myTRS party workers.
  *
  * Modeled on the classic political poster bottom-strip: white background,
  * round party emblem on the left, "{Name} - {Area}" in one bold line, and the
@@ -16,7 +16,7 @@ import { TRSLogo } from "./TRSLogo";
 // ─── public constants ────────────────────────────────────────────────────────
 
 export const BANNER_W = 1080;
-export const BANNER_H = 140;
+export const BANNER_H = 240;
 
 // ─── public interfaces ───────────────────────────────────────────────────────
 
@@ -56,55 +56,69 @@ export function WorkerBanner({ user, prefs = {}, width = BANNER_W }: Props) {
   const nameColor = prefs.accentColor ?? colors.trsNavy;
   const area = user.boothName ?? user.orgUnitName ?? user.designation ?? "";
 
+  // Char-count-based auto-fit (adjustsFontSizeToFit is iOS-only; web/Android
+  // would silently truncate). Middle column at 1080 is ~600 units wide.
+  const fit = (base: number, text: string, avg = 0.58) =>
+    Math.min(base, Math.floor(600 / (avg * Math.max(1, text.length))));
+  const nameSize = fit(84, user.name);
+  const areaSize = fit(54, area);
+
   return (
     <View style={[styles.root, { width, height }]}>
       {/* gold accent line across the top */}
-      <View style={[styles.goldLine, { height: Math.max(1, s(6)) }]} />
+      <View style={[styles.goldLine, { height: Math.max(1, s(10)) }]} />
 
-      <View style={[styles.row, { paddingHorizontal: s(28), gap: s(24) }]}>
+      <View style={[styles.row, { paddingHorizontal: s(40), gap: s(32) }]}>
         {/* Left: round TRS emblem */}
         <View
           style={[
             styles.logoRing,
             {
-              width: s(100),
-              height: s(100),
-              borderRadius: s(50),
-              borderWidth: Math.max(1, s(3)),
+              width: s(170),
+              height: s(170),
+              borderRadius: s(85),
+              borderWidth: Math.max(1, s(5)),
             },
           ]}
         >
-          <TRSLogo size={s(94)} showBanner={false} borderRadius={s(47)} />
+          <TRSLogo size={s(160)} showBanner={false} borderRadius={s(80)} />
         </View>
 
-        {/* Middle: Name - Area, one line */}
-        <Text
-          style={[styles.line, { fontSize: s(52), lineHeight: s(64) }]}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.55}
-        >
-          <Text style={[styles.name, { color: nameColor }]}>{user.name}</Text>
-          {!!area && <Text style={styles.area}>{"  -  "}{area}</Text>}
-        </Text>
+        {/* Middle: name stacked over division — classic poster lockup */}
+        <View style={styles.centerCol}>
+          <Text
+            style={[styles.name, { color: nameColor, fontSize: s(nameSize), lineHeight: s(Math.round(nameSize * 1.22)) }]}
+            numberOfLines={1}
+          >
+            {user.name}
+          </Text>
+          {!!area && (
+            <Text
+              style={[styles.area, { fontSize: s(areaSize), lineHeight: s(Math.round(areaSize * 1.25)), marginTop: s(6) }]}
+              numberOfLines={1}
+            >
+              {area}
+            </Text>
+          )}
+        </View>
 
         {/* Right: worker photo */}
         <View
           style={[
             styles.photoRing,
             {
-              width: s(100),
-              height: s(100),
-              borderRadius: s(50),
-              borderWidth: Math.max(1, s(3)),
+              width: s(170),
+              height: s(170),
+              borderRadius: s(85),
+              borderWidth: Math.max(1, s(5)),
             },
           ]}
         >
           <RemoteImage
             uri={user.photoUrl}
-            width={s(94)}
-            height={s(94)}
-            radius={s(47)}
+            width={s(160)}
+            height={s(160)}
+            radius={s(80)}
             placeholderColor={colors.trsNavy}
           />
         </View>
@@ -137,19 +151,22 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: colors.trsGold,
   },
-  line: {
+  centerCol: {
     flex: 1,
-    textAlign: "center",
-    fontFamily,
+    alignItems: "center",
+    justifyContent: "center",
   },
   name: {
     fontWeight: fontWeight.heavy,
     fontFamily,
+    textAlign: "center",
   },
   area: {
     color: colors.goldDark,
     fontWeight: fontWeight.bold,
     fontFamily,
+    textAlign: "center",
+    letterSpacing: 1,
   },
   photoRing: {
     borderColor: colors.trsNavy,

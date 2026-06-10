@@ -420,7 +420,7 @@ export default function Profile() {
               />
             </View>
             <View style={st.bannerInfoCol}>
-              <Text style={st.bannerInfoTitle}>1080 × 140 px</Text>
+              <Text style={st.bannerInfoTitle}>1080 × 240 px</Text>
               <Text style={st.bannerInfoDesc}>Your personalized banner is automatically composited with creatives when you share to Instagram.</Text>
               <View style={st.bannerTagRow}>
                 <View style={st.bannerTag}>
