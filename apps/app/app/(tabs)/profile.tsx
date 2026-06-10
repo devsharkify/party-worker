@@ -157,6 +157,54 @@ export default function Profile() {
     }
   }
 
+  // Photo upload — web file picker → downscale to 512px → POST /users/me/photo
+  const [photoBusy, setPhotoBusy] = useState(false);
+  function pickAndUploadPhoto() {
+    if (Platform.OS !== "web" || photoBusy) return;
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      setPhotoBusy(true);
+      const img = new window.Image();
+      const url = URL.createObjectURL(file);
+      img.onload = async () => {
+        try {
+          const max = 512;
+          const ratio = Math.min(1, max / Math.max(img.width, img.height));
+          const w = Math.round(img.width * ratio);
+          const h = Math.round(img.height * ratio);
+          const canvas = document.createElement("canvas");
+          canvas.width = w;
+          canvas.height = h;
+          canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.88);
+          await api("/users/me/photo", {
+            method: "POST",
+            body: JSON.stringify({ dataUrl }),
+          });
+          await refreshUser();
+          await card.reload();
+          toast.success("Photo updated");
+        } catch (e) {
+          toast.error((e as Error).message ?? "Photo upload failed");
+        } finally {
+          URL.revokeObjectURL(url);
+          setPhotoBusy(false);
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        setPhotoBusy(false);
+        toast.error("Could not read that image");
+      };
+      img.src = url;
+    };
+    input.click();
+  }
+
   const ig = social.data?.find((s) => s.platform === "instagram");
 
   async function connectIg() {
@@ -254,7 +302,7 @@ export default function Profile() {
           <View style={st.cardTopBar}>
             <View style={st.cardTopLeft}>
               <Text style={st.cardBrand}>★ myTRS</Text>
-              <Text style={st.cardBrandSub}>Telangana Rashtra Samithi</Text>
+              <Text style={st.cardBrandSub}>Telangana Rakshana Sena</Text>
             </View>
             <View style={[st.tierBadge, { backgroundColor: accent }]}>
               <Text style={st.tierBadgeText}>
@@ -407,6 +455,28 @@ export default function Profile() {
               <Pressable onPress={() => setEditOpen(false)} hitSlop={8} style={({ pressed }) => pressed && { opacity: 0.75 }}>
                 <Feather name="x" size={22} color={colors.textMuted} />
               </Pressable>
+            </View>
+
+            {/* Photo — used on your banner and membership card */}
+            <View style={st.photoEditRow}>
+              <View style={st.photoEditRing}>
+                <RemoteImage uri={card.data?.photoUrl} width={56} height={56} radius={28} placeholderColor={colors.primarySoft} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={st.photoEditHint}>Shown on your banner when you share</Text>
+                {Platform.OS === "web" ? (
+                  <Pressable
+                    onPress={pickAndUploadPhoto}
+                    disabled={photoBusy}
+                    style={({ pressed }) => [st.photoEditBtn, (pressed || photoBusy) && { opacity: 0.7 }]}
+                  >
+                    <Feather name="camera" size={13} color={colors.primary} />
+                    <Text style={st.photoEditBtnText}>{photoBusy ? "Uploading…" : "Change Photo"}</Text>
+                  </Pressable>
+                ) : (
+                  <Text style={st.photoEditHint}>Change your photo from the web app</Text>
+                )}
+              </View>
             </View>
 
             <Text style={st.modalLabel}>Full Name</Text>
@@ -808,6 +878,21 @@ const st = StyleSheet.create({
     paddingBottom: 14,
   },
   photoRing: { borderRadius: 38, borderWidth: 2.5, padding: 2 },
+  photoEditRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 16 },
+  photoEditRing: { borderRadius: 31, borderWidth: 2, borderColor: colors.gold, padding: 1, overflow: "hidden" },
+  photoEditHint: { color: colors.textMuted, fontSize: 12, fontFamily, lineHeight: lh(12), marginBottom: 6 },
+  photoEditBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    alignSelf: "flex-start",
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+  },
+  photoEditBtnText: { color: colors.primary, fontSize: 13, fontWeight: "700", fontFamily, lineHeight: lh(13) },
   memName: { color: "#fff", fontSize: 20, fontWeight: "800", fontFamily: fontFamily, lineHeight: lh(20) },
   memSub: { color: colors.textMutedOnDark, fontSize: 13, marginTop: 1, fontFamily: fontFamily, lineHeight: lh(13) },
   boothRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 1 },
