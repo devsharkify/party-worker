@@ -777,7 +777,7 @@ function Stat({ label, value, accent }: { label: string; value: number; accent?:
 }
 
 const st = StyleSheet.create({
-  // Membership card — dark navy with pink accents
+  // Membership card — dark navy with gold accents
   memCard: {
     backgroundColor: colors.navy,
     borderRadius: radius.xl,

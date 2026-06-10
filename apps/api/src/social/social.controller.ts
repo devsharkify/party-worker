@@ -17,6 +17,8 @@ const connectSchema = z.object({
 const publishSchema = z.object({
   creativeId: z.string().min(1),
   kind: z.enum(["feed", "story", "reel"]).default("feed"),
+  /** Optional override: URL of a pre-composited image (e.g. creative + worker banner). */
+  mediaUrl: z.string().url().optional(),
 });
 
 @ApiTags("social")
@@ -71,9 +73,9 @@ export class SocialController {
   publish(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(publishSchema))
-    dto: { creativeId: string; kind: "feed" | "story" | "reel" },
+    dto: { creativeId: string; kind: "feed" | "story" | "reel"; mediaUrl?: string },
   ) {
-    return this.social.publishToInstagram(user.id, dto.creativeId, dto.kind);
+    return this.social.publishToInstagram(user.id, dto.creativeId, dto.kind, dto.mediaUrl);
   }
 
   @Post("instagram/sync")

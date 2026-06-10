@@ -147,7 +147,7 @@ const st = StyleSheet.create({
   langRow: { flexDirection: "row", gap: 8, justifyContent: "flex-end", marginBottom: 24 },
   lang: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 999, borderWidth: 1.5, borderColor: colors.border },
   langActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  langText: { color: colors.textMuted, fontWeight: "600", fontFamily: fontFamily },
+  langText: { color: colors.textMuted, fontWeight: "600", fontSize: 14, fontFamily: fontFamily, lineHeight: lh(14) },
   langTextActive: { color: "#fff", fontFamily: fontFamily },
   logoWrap: {
     alignSelf: "center",
@@ -207,7 +207,7 @@ const st = StyleSheet.create({
     fontFamily: fontFamily,
   },
   hint: { color: colors.textMuted, fontSize: 13, marginBottom: 12, fontFamily: fontFamily, lineHeight: lh(13) },
-  back: { color: colors.textMuted, textAlign: "center", fontWeight: "600", fontFamily: fontFamily },
+  back: { color: colors.textMuted, textAlign: "center", fontWeight: "600", fontSize: 14, fontFamily: fontFamily, lineHeight: lh(14) },
   otpSent: { color: colors.textMuted, fontSize: 13, textAlign: "center", marginTop: 14, fontFamily: fontFamily, lineHeight: lh(13) },
-  error: { color: colors.danger, marginTop: 14, textAlign: "center", fontWeight: "600", fontFamily: fontFamily },
+  error: { color: colors.danger, marginTop: 14, textAlign: "center", fontWeight: "600", fontSize: 14, fontFamily: fontFamily, lineHeight: lh(14) },
 });

@@ -255,6 +255,7 @@ export class SocialService {
     userId: string,
     creativeId: string,
     kind: "feed" | "story" | "reel" = "feed",
+    mediaUrlOverride?: string,
   ): Promise<{ published: boolean; remoteId: string }> {
     const acct = await this.prisma.socialAccount.findFirst({
       where: { userId, platform: "instagram" },
@@ -267,7 +268,7 @@ export class SocialService {
     const render = await this.prisma.personalizedRender.findUnique({
       where: { userId_creativeId: { userId, creativeId } },
     });
-    const mediaUrl = render?.cachedUrl ?? creative.sourceKey;
+    const mediaUrl = mediaUrlOverride ?? render?.cachedUrl ?? creative.sourceKey;
 
     const { remoteId } = await this.ig.publish({
       account: {

@@ -68,34 +68,42 @@ export function BannerShareModal({ item, visible, onClose, user }: Props) {
   async function handleShare() {
     if (!item) return;
     try {
-      // 1. Capture
-      setStatus("capturing");
-      const uri = await captureRef(compositeRef, {
-        format: "jpg",
-        quality: 0.92,
-      });
+      // 1–3. Capture the composite and upload it. If capture fails (e.g. a
+      // platform where view-shot can't snapshot), fall back to publishing the
+      // creative itself — the post still goes out, just without the banner.
+      let compositeUrl: string | undefined;
+      try {
+        setStatus("capturing");
+        const uri = await captureRef(compositeRef, {
+          format: "jpg",
+          quality: 0.92,
+        });
 
-      // 2. Blob
-      setStatus("uploading");
-      const res = await fetch(uri);
-      const blob = await res.blob();
-      const fd = new FormData();
-      fd.append("file", blob as unknown as Blob, "banner-share.jpg");
+        setStatus("uploading");
+        const res = await fetch(uri);
+        const blob = await res.blob();
+        const fd = new FormData();
+        fd.append("file", blob as unknown as Blob, "banner-share.jpg");
 
-      // 3. Upload to API
-      const { url } = await api<{ key: string; url: string }>(
-        "/creatives/upload",
-        { method: "POST", body: fd }
-      );
+        const { url } = await api<{ key: string; url: string }>(
+          "/creatives/upload",
+          { method: "POST", body: fd }
+        );
+        compositeUrl = url;
+      } catch {
+        compositeUrl = undefined;
+      }
 
-      // 4. Publish to Instagram
+      // 4. Publish to Instagram — creativeId drives caption + reach
+      // attribution server-side; mediaUrl overrides the posted image with
+      // the banner composite when capture succeeded.
       setStatus("posting");
       await api("/social/instagram/publish", {
         method: "POST",
         body: JSON.stringify({
-          mediaUrl: url,
-          caption: item.captionVariants?.["en"] ?? item.title,
-          type: "image",
+          creativeId: item.creativeId,
+          kind: "feed",
+          ...(compositeUrl ? { mediaUrl: compositeUrl } : {}),
         }),
       });
 

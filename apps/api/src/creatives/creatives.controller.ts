@@ -32,10 +32,38 @@ const certifySchema = z.object({ mcmcCertId: z.string().min(3) });
 export class CreativesController {
   constructor(private readonly creatives: CreativesService) {}
 
+  /** MIME types accepted by the media upload endpoint. */
+  private static readonly UPLOAD_MIME_WHITELIST = new Set([
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+    "video/mp4",
+    "video/quicktime",
+    "video/webm",
+  ]);
+
+  /**
+   * Open to all authenticated roles (method-level @Roles overrides the
+   * class-level admin restriction): workers upload their composited
+   * banner-share images here before publishing to Instagram.
+   */
   @Post("upload")
+  @Roles(
+    "worker",
+    "booth_leader",
+    "mandal_leader",
+    "constituency_leader",
+    "district_leader",
+    "state_admin",
+    "hq_admin",
+  )
   async upload(@Req() req: FastifyRequest) {
     const file = await (req as any).file();
     if (!file) throw new BadRequestException("No file uploaded");
+    if (!CreativesController.UPLOAD_MIME_WHITELIST.has(file.mimetype)) {
+      throw new BadRequestException(`Unsupported file type: ${file.mimetype}`);
+    }
     const buffer: Buffer = await file.toBuffer();
     return this.creatives.storeUpload(buffer, file.mimetype, file.filename);
   }

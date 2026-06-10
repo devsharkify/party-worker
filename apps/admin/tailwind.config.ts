@@ -5,8 +5,11 @@ export default {
   theme: {
     extend: {
       colors: {
-        navy: "#0b1f3a",
-        saffron: "#ff9933",
+        // TRS official brand palette (matches apps/app/src/theme.ts)
+        navy: "#1A3580",
+        navydark: "#0F1F4E",
+        saffron: "#E8A820", // legacy name — value is TRS gold
+        trsgreen: "#2B5216",
       },
     },
   },

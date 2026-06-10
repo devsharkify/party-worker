@@ -115,7 +115,7 @@ function Login() {
   }
 
   return (
-    <div className="grid min-h-screen place-items-center bg-gradient-to-b from-navy to-[#081628] p-6">
+    <div className="grid min-h-screen place-items-center bg-gradient-to-b from-navy to-navydark p-6">
       <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl">
         <div className="mx-auto mb-3 flex items-center justify-center" style={{filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.22))"}}>
           <TRSLogo size={72} showBanner borderRadius={8} />
@@ -598,11 +598,7 @@ function StudioSection() {
                   onPostInstagram={async () => {
                     await api("/social/instagram/publish", {
                       method: "POST",
-                      body: JSON.stringify({
-                        mediaUrl: c.sourceUrl ?? "",
-                        caption: c.title,
-                        type: c.type as "image" | "video",
-                      }),
+                      body: JSON.stringify({ creativeId: c.id, kind: "feed" }),
                     });
                   }}
                   onSchedule={async (scheduledAt) => {

@@ -62,7 +62,7 @@ export function AppHeader({ title }: { title?: string }) {
   if (Platform.OS !== "web") {
     return (
       <BlurView tint="dark" intensity={80} style={[st.bar, { overflow: "hidden" }]}>
-        <View style={st.pinkOverlay} pointerEvents="none" />
+        <View style={st.navyOverlay} pointerEvents="none" />
         <HeaderContent title={title} />
       </BlurView>
     );
@@ -87,7 +87,7 @@ const st = StyleSheet.create({
     ...shadow,
     gap: 10,
   },
-  pinkOverlay: {
+  navyOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: colors.primary,
     opacity: 0.92,
