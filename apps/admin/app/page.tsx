@@ -64,15 +64,11 @@ function NotAuthorized() {
   );
 }
 
-const ADMIN_PHONE = "9999999991";
-const ADMIN_OTP = "999999";
-
 function Login() {
   const { requestOtp, login } = useAdmin();
-  const [phone, setPhone] = useState(ADMIN_PHONE);
+  const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [step, setStep] = useState<"phone" | "otp">("phone");
-  const [hint, setHint] = useState<string>();
   const [err, setErr] = useState<string>();
   const [busy, setBusy] = useState(false);
 
@@ -80,10 +76,7 @@ function Login() {
     setErr(undefined);
     setBusy(true);
     try {
-      const r = await requestOtp(phone);
-      setHint(r.devHint);
-      // Auto-fill OTP for the hardcoded admin number
-      if (phone === ADMIN_PHONE) setCode(ADMIN_OTP);
+      await requestOtp(phone);
       setStep("otp");
     } catch (e) {
       setErr((e as Error).message);
@@ -102,19 +95,6 @@ function Login() {
       setBusy(false);
     }
   }
-  async function quickLogin() {
-    setErr(undefined);
-    setBusy(true);
-    try {
-      await requestOtp(ADMIN_PHONE);
-      await login(ADMIN_PHONE, ADMIN_OTP);
-    } catch (e) {
-      setErr((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
     <div className="grid min-h-screen place-items-center bg-gradient-to-b from-navy to-navydark p-6">
       <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl">
@@ -123,17 +103,6 @@ function Login() {
         </div>
         <h1 className="text-center text-2xl font-extrabold">myTRS — HQ</h1>
         <p className="mb-6 text-center text-sm text-slate-500">Content studio &amp; compliance</p>
-
-        <button
-          onClick={quickLogin}
-          disabled={busy}
-          className="mb-4 w-full rounded-lg bg-navy py-3 font-bold text-white transition hover:brightness-110 disabled:opacity-50"
-        >
-          {busy ? "Logging in…" : "⚡ Quick Login (Admin)"}
-        </button>
-        <div className="mb-4 flex items-center gap-2 text-xs text-slate-400">
-          <div className="h-px flex-1 bg-slate-200" />or use OTP<div className="h-px flex-1 bg-slate-200" />
-        </div>
 
         {step === "phone" ? (
           <>
@@ -163,7 +132,6 @@ function Login() {
               placeholder="6-digit code"
               onKeyDown={(e) => e.key === "Enter" && verify()}
             />
-            {hint ? <p className="mb-3 text-sm text-slate-500">Dev code: {hint}</p> : null}
             <button
               onClick={verify}
               disabled={busy}

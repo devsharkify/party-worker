@@ -29,18 +29,27 @@ export class AuthService {
     @Inject(APP_ENV) private readonly env: Env,
   ) {}
 
-  /** Hardcoded admin bypass — always accepts code 999999. */
+  /**
+   * Demo/QA conveniences — DISABLED in production.
+   * Active only when ALLOW_TEST_LOGINS=true (never set in prod). This guards
+   * both the hardcoded admin bypass and the +91900000… test-number range so a
+   * real deployment cannot be entered without a genuine SMS OTP.
+   */
+  private get testLoginsAllowed(): boolean {
+    return this.env.ALLOW_TEST_LOGINS === "true";
+  }
   private readonly ADMIN_BYPASS_PHONE = "+919999999991";
   private readonly ADMIN_BYPASS_OTP = "999999";
 
   private isAdminBypass(phone: string) {
+    if (!this.testLoginsAllowed) return false;
     // Match with or without +91 prefix
     const normalized = phone.startsWith("+91") ? phone : `+91${phone}`;
     return normalized === this.ADMIN_BYPASS_PHONE;
   }
 
   async requestOtp(phone: string): Promise<{ sent: true; devHint?: string }> {
-    // Hardcoded admin bypass
+    // Hardcoded admin bypass (demo only)
     if (this.isAdminBypass(phone)) {
       await this.prisma.otpChallenge.create({
         data: {
@@ -52,9 +61,12 @@ export class AuthService {
       return { sent: true, devHint: this.ADMIN_BYPASS_OTP };
     }
 
-    // Demo/test numbers (and fake mode) skip real SMS and accept the dev code.
+    // Demo/test numbers (and fake mode) skip real SMS and accept the dev code —
+    // ONLY when test logins are explicitly enabled. In production every number
+    // goes through the real OTP provider.
     const isTestNumber =
-      this.env.OTP_PROVIDER === "fake" || phone.startsWith(this.env.OTP_BYPASS_PREFIX);
+      this.env.OTP_PROVIDER === "fake" ||
+      (this.testLoginsAllowed && phone.startsWith(this.env.OTP_BYPASS_PREFIX));
 
     // Per-phone hourly throttle protects against targeting one real number with
     // SMS spam (cost + nuisance). Test numbers send no SMS, so they're exempt —

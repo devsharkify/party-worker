@@ -15,7 +15,10 @@ const EnvSchema = z.object({
   JWT_ACCESS_SECRET: z.string().default("dev-access-secret-change-me"),
   JWT_REFRESH_SECRET: z.string().default("dev-refresh-secret-change-me"),
   JWT_ACCESS_TTL: z.coerce.number().default(900),
-  JWT_REFRESH_TTL: z.coerce.number().default(5184000),
+  // 14 days. Web keeps the refresh token in an httpOnly cookie and rotates it
+  // on every use (reuse detection revokes the family), so a shorter window
+  // bounds the blast radius of a stolen token without hurting UX.
+  JWT_REFRESH_TTL: z.coerce.number().default(1209600),
   // Optional. Leave UNSET on Railway: *.up.railway.app is on the Public
   // Suffix List, so browsers reject Domain=railway.app cookies entirely —
   // host-only cookies (no Domain attribute) are the only kind that work there.
@@ -29,6 +32,10 @@ const EnvSchema = z.object({
   // Demo/test numbers (seeded accounts) bypass real SMS and accept DEV_OTP_CODE,
   // so the demo keeps working even when a real SMS provider is live.
   OTP_BYPASS_PREFIX: z.string().default("+91900000"),
+  // Master switch for ALL demo/test logins (admin bypass + OTP_BYPASS_PREFIX
+  // range). MUST be unset/"false" in production — when off, every login goes
+  // through the real SMS OTP provider with no backdoors.
+  ALLOW_TEST_LOGINS: z.string().default("false"),
   // Authkey.io SMS (https://authkey.io) — used when OTP_PROVIDER=authkey.
   AUTHKEY_API_KEY: z.string().default(""),
   AUTHKEY_SID: z.string().default("35306"),
@@ -86,8 +93,44 @@ const EnvSchema = z.object({
 
 export type Env = z.infer<typeof EnvSchema>;
 
+/** Dev-default secrets that must never survive into production. */
+const DEV_DEFAULT_SECRETS: Record<string, string> = {
+  JWT_ACCESS_SECRET: "dev-access-secret-change-me",
+  JWT_REFRESH_SECRET: "dev-refresh-secret-change-me",
+  SOCIAL_TOKEN_ENC_KEY: "dev-social-token-encryption-key-change-me!",
+  CF_WEBHOOK_SECRET: "dev-secret",
+};
+
 export function loadEnv(): Env {
-  return EnvSchema.parse(process.env);
+  const env = EnvSchema.parse(process.env);
+  // Fail fast on boot if a production deploy is still running on dev secrets,
+  // or if test-login backdoors are left enabled. Better a crash than a breach.
+  if (env.NODE_ENV === "production") {
+    const offenders: string[] = [];
+    for (const [key, devValue] of Object.entries(DEV_DEFAULT_SECRETS)) {
+      if ((env as Record<string, unknown>)[key] === devValue) offenders.push(key);
+    }
+    if (offenders.length) {
+      throw new Error(
+        `Refusing to boot in production with dev-default secrets: ${offenders.join(", ")}. Set real values.`,
+      );
+    }
+    if (env.ALLOW_TEST_LOGINS === "true") {
+      throw new Error(
+        "ALLOW_TEST_LOGINS must not be 'true' in production — it enables OTP backdoors.",
+      );
+    }
+  }
+  return env;
 }
 
 export const APP_ENV = "APP_ENV";
+
+/**
+ * "Prod-like" = production OR staging. Drives HTTPS-only cookies, SameSite=None
+ * (cross-site web↔API), and HSTS — anything deployed behind HTTPS needs these.
+ * Distinct from the strict `NODE_ENV === "production"` check that disables
+ * test-login backdoors: a staging/demo box is prod-like for transport security
+ * but may still allow test logins.
+ */
+export const isProdLike = (env: Env): boolean => env.NODE_ENV !== "development";

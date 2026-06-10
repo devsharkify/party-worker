@@ -9,7 +9,7 @@ import {
   type UserPublic,
 } from "@pw/shared";
 import { z } from "zod";
-import { APP_ENV, type Env } from "../config/env";
+import { APP_ENV, isProdLike, type Env } from "../config/env";
 import { Inject } from "@nestjs/common";
 import { ZodValidationPipe } from "../common/zod-validation.pipe";
 import { UsersService } from "../users/users.service";
@@ -37,7 +37,7 @@ export class AuthController {
     // cookies are never sent on cross-site XHR, so /auth/refresh always 401s
     // and every page reload logs the user out. Cross-site cookies require
     // SameSite=None + Secure. Local dev (localhost→localhost) stays Lax.
-    const prod = this.env.NODE_ENV === "production";
+    const prod = isProdLike(this.env); // HTTPS cookie attrs for prod + staging
     (reply as any).setCookie(REFRESH_COOKIE, token, {
       httpOnly: true,
       secure: prod,

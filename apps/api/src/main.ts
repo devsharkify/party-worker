@@ -9,7 +9,7 @@ import fastifyCookie from "@fastify/cookie";
 import fastifyMultipart from "@fastify/multipart";
 import fastifyStatic from "@fastify/static";
 import { AppModule } from "./app.module";
-import { loadEnv } from "./config/env";
+import { loadEnv , isProdLike} from "./config/env";
 
 async function bootstrap() {
   const env = loadEnv();
@@ -20,7 +20,7 @@ async function bootstrap() {
   );
 
   // Baseline security headers on every response. Hand-rolled (no helmet dep).
-  const isProd = env.NODE_ENV === "production";
+  const isProd = isProdLike(env); // HSTS + secure headers for prod + staging
   const fastify = app.getHttpAdapter().getInstance();
   fastify.addHook("onSend", (_req, reply, payload, done) => {
     reply.header("X-Content-Type-Options", "nosniff");
