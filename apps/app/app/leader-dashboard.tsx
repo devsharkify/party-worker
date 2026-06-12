@@ -1,9 +1,20 @@
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Linking,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as Clipboard from "expo-clipboard";
 
 import { useApi } from "../src/hooks";
 import { useAuth } from "../src/auth/auth-context";
@@ -62,6 +73,9 @@ const L = {
   noUnits: { te: "ఉప-యూనిట్లు లేవు.", en: "No sub-units." },
   inactiveBtn: { te: "నిష్క్రియ సభ్యులు (కాల్ లిస్ట్)", en: "Inactive Members (call list)" },
   onboard: { te: "కొత్త సభ్యుడిని చేర్చండి", en: "Onboard New Member" },
+  inviteLink: { te: "లింక్ ద్వారా ఆహ్వానించండి", en: "Invite via Link" },
+  shareReport: { te: "వార నివేదిక షేర్ చేయండి", en: "Share Weekly Report" },
+  reportCopied: { te: "నివేదిక కాపీ అయింది — గ్రూప్‌లో పేస్ట్ చేయండి", en: "Report copied — paste in your group" },
   fullTeam: { te: "పూర్తి టీమ్ చూడండి", en: "View Full Team" },
   review: { te: "సమర్పణల సమీక్ష", en: "Review Submissions" },
   justNow: { te: "ఇప్పుడే", en: "just now" },
@@ -150,6 +164,46 @@ function ActivityRow({ item, lang }: { item: ActivityItem; lang: "te" | "en" }) 
   );
 }
 
+// ─── report card text ────────────────────────────────────────────────────────
+
+/** WhatsApp-forwardable weekly report — the leader's trophy, his Monday forward. */
+function buildReportText(s: TeamStats, lang: "te" | "en"): string {
+  const pct = s.memberCount > 0 ? Math.round((s.activeMembers / s.memberCount) * 100) : 0;
+  const top = s.topPerformers
+    .slice(0, 3)
+    .map((p, i) => `${i + 1}. ${p.name} (${p.weeklyLeaguePoints})`)
+    .join("  ");
+  const deadUnits = s.childUnits.filter((u) => u.weeklyPoints === 0 && u.activeMembers === 0);
+  const bestUnit = s.childUnits[0];
+  const date = new Date().toLocaleDateString(lang === "te" ? "te-IN" : "en-IN", {
+    day: "numeric",
+    month: "short",
+  });
+
+  if (lang === "te") {
+    const lines = [
+      `📊 *myTRS వార నివేదిక — ${s.unitName}* (${date})`,
+      `👥 సభ్యులు: ${s.memberCount} | ఈ వారం యాక్టివ్: ${s.activeMembers} (${pct}%)`,
+      `📣 షేర్లు: ${s.totalShares} | రీచ్: ${s.totalReach}`,
+    ];
+    if (top) lines.push(`🏆 టాప్: ${top}`);
+    if (bestUnit) lines.push(`🥇 బెస్ట్ యూనిట్: ${bestUnit.unitName} (${bestUnit.weeklyPoints})`);
+    if (deadUnits.length > 0) lines.push(`⚠️ సున్నా యాక్టివిటీ యూనిట్లు: ${deadUnits.length}`);
+    lines.push(`— myTRS యాప్`);
+    return lines.join("\n");
+  }
+  const lines = [
+    `📊 *myTRS Weekly Report — ${s.unitName}* (${date})`,
+    `👥 Members: ${s.memberCount} | Active this week: ${s.activeMembers} (${pct}%)`,
+    `📣 Shares: ${s.totalShares} | Reach: ${s.totalReach}`,
+  ];
+  if (top) lines.push(`🏆 Top: ${top}`);
+  if (bestUnit) lines.push(`🥇 Best unit: ${bestUnit.unitName} (${bestUnit.weeklyPoints})`);
+  if (deadUnits.length > 0) lines.push(`⚠️ Zero-activity units: ${deadUnits.length}`);
+  lines.push(`— myTRS app`);
+  return lines.join("\n");
+}
+
 // ─── screen ──────────────────────────────────────────────────────────────────
 
 export default function LeaderDashboardScreen() {
@@ -162,6 +216,37 @@ export default function LeaderDashboardScreen() {
   // The rich subtree rollup the API always had — now actually used.
   const stats = useApi<TeamStats>("/team/stats");
   const activity = useApi<ActivityItem[]>("/me/activity");
+
+  const cardRef = useRef<View>(null);
+  const [sharingReport, setSharingReport] = useState(false);
+
+  /** Native: capture the stats card as an image + copy the text. Web: WhatsApp text. */
+  async function shareReport() {
+    if (!stats.data || sharingReport) return;
+    setSharingReport(true);
+    const text = buildReportText(stats.data, lang);
+    try {
+      if (Platform.OS !== "web") {
+        try {
+          const { captureRef } = await import("react-native-view-shot");
+          const Sharing = await import("expo-sharing");
+          const uri = await captureRef(cardRef, { format: "png", quality: 0.95 });
+          await Clipboard.setStringAsync(text);
+          await Sharing.shareAsync(uri, { mimeType: "image/png" });
+          return;
+        } catch {
+          /* capture unavailable — fall through to text */
+        }
+      }
+      const encoded = encodeURIComponent(text);
+      await Clipboard.setStringAsync(text);
+      await Linking.openURL(
+        Platform.OS === "web" ? `https://wa.me/?text=${encoded}` : `whatsapp://send?text=${encoded}`,
+      ).catch(() => undefined);
+    } finally {
+      setSharingReport(false);
+    }
+  }
 
   return (
     <SafeAreaView style={s.safe} edges={["top"]}>
@@ -176,7 +261,8 @@ export default function LeaderDashboardScreen() {
 
       <ScrollView style={s.fill} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
 
-        {/* My Team summary */}
+        {/* My Team summary — captured as the shareable report-card image */}
+        <View ref={cardRef} collapsable={false}>
         <LinearGradient
           colors={[colors.navy, "#2a1a3e"]}
           start={{ x: 0, y: 0 }}
@@ -218,6 +304,19 @@ export default function LeaderDashboardScreen() {
             </>
           )}
         </LinearGradient>
+        </View>
+
+        {/* Share the weekly report — the leader's trophy forward */}
+        {stats.data ? (
+          <Pressable
+            onPress={() => void shareReport()}
+            disabled={sharingReport}
+            style={({ pressed }) => [s.reportBtn, (pressed || sharingReport) && { opacity: 0.85 }]}
+          >
+            <Feather name="send" size={16} color={colors.primaryDark} />
+            <Text style={s.reportBtnText}>{ll("shareReport")}</Text>
+          </Pressable>
+        ) : null}
 
         {/* Unit-vs-unit ranking — the coverage-gap view */}
         {stats.data && stats.data.childUnits.length > 0 ? (
@@ -280,10 +379,17 @@ export default function LeaderDashboardScreen() {
           </Pressable>
           <Pressable
             style={({ pressed }) => [s.actionBtn, s.actionBtnPrimary, pressed && { opacity: 0.82 }]}
+            onPress={() => router.push("/invite")}
+          >
+            <Feather name="link" size={16} color="#fff" />
+            <Text style={s.actionBtnText}>{ll("inviteLink")}</Text>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [s.actionBtn, s.actionBtnSecondary, pressed && { opacity: 0.82 }]}
             onPress={() => router.push("/(tabs)/team")}
           >
-            <Feather name="user-plus" size={16} color="#fff" />
-            <Text style={s.actionBtnText}>{ll("onboard")}</Text>
+            <Feather name="user-plus" size={16} color={colors.primary} />
+            <Text style={[s.actionBtnText, { color: colors.primary }]}>{ll("onboard")}</Text>
           </Pressable>
           <Pressable
             style={({ pressed }) => [s.actionBtn, s.actionBtnSecondary, pressed && { opacity: 0.82 }]}
@@ -335,9 +441,21 @@ const s = StyleSheet.create({
   teamCard: {
     borderRadius: radius.lg,
     padding: 18,
+    ...shadow,
+  },
+  reportBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: colors.gold,
+    borderRadius: radius.md,
+    height: 48,
+    marginTop: 12,
     marginBottom: 20,
     ...shadow,
   },
+  reportBtnText: { fontSize: 15, fontWeight: "700", color: colors.primaryDark, fontFamily, lineHeight: lh(15) },
   teamCardHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
   teamCardTitle: { fontSize: 16, fontWeight: "700", color: colors.gold, letterSpacing: 0.3, fontFamily, lineHeight: lh(16) },
   teamUnitName: { fontSize: 13, color: colors.textMutedOnDark, fontWeight: "600", marginBottom: 14, fontFamily, lineHeight: lh(13) },
