@@ -249,25 +249,23 @@ async function main() {
     },
   });
 
-  // Published video creative — real 15s sample mp4 for demo/testing
+  // Published video creative — requires .storage/uploads/short_06.mp4 to exist locally
   await prisma.creative.create({
     data: {
-      title: "CM Address — Welfare Schemes",
+      title: "Campaign Short",
       type: "video",
-      // Publicly available 15s sample video (Big Buck Bunny excerpt, Google CDN).
-      // Replace with a real Party video URL in production.
-      sourceKey: "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-      thumbnailKey: "https://placehold.co/800x450/138808/ffffff/png?text=CM+Welfare%0AAddress",
+      sourceKey: "uploads/short_06.mp4",
+      thumbnailKey: "uploads/short_06_thumb.jpg",
       templateId: template.id,
       captionVariants: {
-        te: "ముఖ్యమంత్రి సందేశం: సంక్షేమ పథకాలు అందరికీ చేరాలి.",
-        en: "CM's message: welfare schemes must reach everyone.",
+        te: "మన ప్రచారం కొత్త శక్తితో ముందుకు సాగుతోంది. #తెలంగాణ",
+        en: "Our campaign moves forward with new energy. #Telangana",
       },
       languages: ["te", "en"],
       mcmcCertified: true,
-      mcmcCertId: "MCMC/TG/2026/00124",
+      mcmcCertId: "MCMC/TG/2026/00150",
       aiLabeled: true,
-      videoDurationSec: 15,
+      videoDurationSec: 59,
       createdById: hq.id,
       published: true,
       publishedAt: new Date(Date.now() - 3600_000),
@@ -331,28 +329,6 @@ async function main() {
       createdById: hq.id,
       published: true,
       publishedAt: new Date(Date.now() - 1800_000),
-    },
-  });
-
-  // Rally speech video (second video creative)
-  await prisma.creative.create({
-    data: {
-      title: "Grand Rally — Hyderabad",
-      type: "video",
-      sourceKey: "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-      thumbnailKey: "https://placehold.co/800x450/0b1f3a/ffd54a/png?text=Grand%0ARally",
-      captionVariants: {
-        te: "హైదరాబాద్ మహాసభ: ప్రజల హక్కుల కోసం పోరాటం. #జయహో",
-        en: "Grand rally, Hyderabad: fighting for people's rights. #JayaHo",
-      },
-      languages: ["te", "en"],
-      mcmcCertified: true,
-      mcmcCertId: "MCMC/TG/2026/00133",
-      aiLabeled: true,
-      videoDurationSec: 10,
-      createdById: hq.id,
-      published: true,
-      publishedAt: new Date(Date.now() - 900_000),
     },
   });
 
@@ -423,7 +399,7 @@ async function main() {
   }
   console.log(`Seeded ${newsItems.length} news items`);
 
-  console.log(`\nTotal users: ${await prisma.user.count()}  | creatives: ${await prisma.creative.count()} (4 published, 1 draft)`);
+  console.log(`\nTotal users: ${await prisma.user.count()}  | creatives: ${await prisma.creative.count()} (4 published, 1 draft, 1 video)`);
   console.log("Seed complete.");
 }
 
