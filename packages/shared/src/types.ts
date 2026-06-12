@@ -19,6 +19,8 @@ export interface UserPublic {
   phone: string;
   photoUrl: string | null;
   designation: string | null;
+  constituency: string | null;
+  area: string | null;
   role: Role;
   tier: Tier;
   orgUnitId: string;

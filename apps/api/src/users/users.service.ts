@@ -35,6 +35,8 @@ export class UsersService {
       phone: u.phone,
       photoUrl: u.photoUrl,
       designation: u.designation,
+      constituency: u.constituency,
+      area: u.area,
       role: u.role as Role,
       tier: u.tier,
       orgUnitId: u.orgUnitId,
@@ -58,6 +60,8 @@ export class UsersService {
           ? { preferredLanguage: dto.preferredLanguage }
           : {}),
         ...(dto.photoKey !== undefined ? { photoUrl: this.storage.publicUrl(dto.photoKey) } : {}),
+        ...(dto.constituency !== undefined ? { constituency: dto.constituency } : {}),
+        ...(dto.area !== undefined ? { area: dto.area } : {}),
       },
     });
     return this.toPublic(userId);

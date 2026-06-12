@@ -54,18 +54,14 @@ function OnboardingGuard() {
 
   useEffect(() => {
     if (loading || !user || redirectedRef.current) return;
-
-    // Small delay (1 s) to let the navigator finish rendering before replacing
-    const timer = setTimeout(async () => {
+    void (async () => {
       if (redirectedRef.current) return;
       const onboarded = await checkOnboarded();
       if (!onboarded) {
         redirectedRef.current = true;
         router.replace("/onboarding/welcome");
       }
-    }, 1000);
-
-    return () => clearTimeout(timer);
+    })();
   }, [user, loading, router]);
 
   return null;

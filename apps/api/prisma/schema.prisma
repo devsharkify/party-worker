@@ -165,6 +165,8 @@ model User {
   name               String
   photoUrl           String?
   designation        String?
+  constituency       String?
+  area               String?
   orgUnitId          String
   orgUnit            OrgUnit    @relation(fields: [orgUnitId], references: [id])
   role               Role       @default(worker)

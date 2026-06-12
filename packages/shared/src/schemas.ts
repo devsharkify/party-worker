@@ -102,6 +102,8 @@ export const updateProfileSchema = z.object({
   name: z.string().min(1).optional(),
   photoKey: z.string().optional(),
   preferredLanguage: Language.optional(),
+  constituency: z.string().min(1).optional(),
+  area: z.string().min(1).optional(),
 });
 export type UpdateProfileDto = z.infer<typeof updateProfileSchema>;
 

@@ -1,12 +1,14 @@
 import { useState } from "react";
 import {
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
@@ -15,7 +17,72 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../src/auth/auth-context";
 import { setLanguage } from "../../src/i18n";
 import { PrimaryButton } from "../../src/components/ui";
+import { CONSTITUENCY_NAMES, TELANGANA_CONSTITUENCIES } from "../../src/data/telangana";
 import { colors, fontFamily, fontWeight, lh, radius, shadow } from "../../src/theme";
+
+// ── Reusable picker sheet ────────────────────────────────────────────────────
+
+function PickerModal({
+  visible,
+  title,
+  items,
+  onSelect,
+  onClose,
+}: {
+  visible: boolean;
+  title: string;
+  items: string[];
+  onSelect: (v: string) => void;
+  onClose: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const filtered = query.trim()
+    ? items.filter((i) => i.toLowerCase().includes(query.toLowerCase()))
+    : items;
+
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose} transparent>
+      <View style={pm.backdrop}>
+        <View style={pm.sheet}>
+          <View style={pm.header}>
+            <Text style={pm.title}>{title}</Text>
+            <Pressable onPress={onClose} style={pm.closeBtn}>
+              <Text style={pm.closeText}>✕</Text>
+            </Pressable>
+          </View>
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search…"
+            placeholderTextColor="#94a3b8"
+            style={pm.search}
+            autoFocus
+          />
+          <ScrollView keyboardShouldPersistTaps="handled">
+            {filtered.map((item) => (
+              <TouchableOpacity
+                key={item}
+                style={pm.item}
+                onPress={() => {
+                  onSelect(item);
+                  setQuery("");
+                  onClose();
+                }}
+              >
+                <Text style={pm.itemText}>{item}</Text>
+              </TouchableOpacity>
+            ))}
+            {filtered.length === 0 && (
+              <Text style={pm.empty}>No results</Text>
+            )}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// ── Main screen ───────────────────────────────────────────────────────────────
 
 export default function SetupProfile() {
   const { t, i18n } = useTranslation();
@@ -23,25 +90,32 @@ export default function SetupProfile() {
   const router = useRouter();
 
   const [name, setName] = useState(user?.name ?? "");
-  const [designation, setDesignation] = useState("");
+  const [constituency, setConstituency] = useState(user?.constituency ?? "");
+  const [area, setArea] = useState(user?.area ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | undefined>();
+
+  const [showConstituencyPicker, setShowConstituencyPicker] = useState(false);
+  const [showAreaPicker, setShowAreaPicker] = useState(false);
+
+  const areas = constituency ? (TELANGANA_CONSTITUENCIES[constituency] ?? []) : [];
 
   async function onContinue() {
     setError(undefined);
     setBusy(true);
     try {
-      const updated = await api<{ name: string; designation: string; preferredLanguage: string }>(
+      const updated = await api<{ name: string; constituency: string | null; area: string | null; preferredLanguage: string }>(
         "/users/me",
         {
           method: "PATCH",
           body: JSON.stringify({
             name: name.trim(),
             preferredLanguage: i18n.language,
+            ...(constituency ? { constituency } : {}),
+            ...(area ? { area } : {}),
           }),
         },
       );
-      // Reflect the update locally so the profile tab shows fresh data
       if (user) {
         setUser({ ...user, ...updated } as typeof user);
       }
@@ -53,7 +127,7 @@ export default function SetupProfile() {
     }
   }
 
-  const canContinue = name.trim().length >= 2;
+  const canContinue = name.trim().length >= 2 && constituency.length > 0 && area.length > 0;
 
   return (
     <SafeAreaView style={st.safe}>
@@ -61,10 +135,7 @@ export default function SetupProfile() {
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <ScrollView
-          contentContainerStyle={st.scroll}
-          keyboardShouldPersistTaps="handled"
-        >
+        <ScrollView contentContainerStyle={st.scroll} keyboardShouldPersistTaps="handled">
           <Text style={st.titleTe}>{t("onboarding.setupProfileTitleTe")}</Text>
           <Text style={st.titleEn}>{t("onboarding.setupProfileTitle")}</Text>
 
@@ -76,7 +147,11 @@ export default function SetupProfile() {
                 <Pressable
                   key={l}
                   onPress={() => setLanguage(l)}
-                  style={({ pressed }) => [st.lang, i18n.language === l && st.langActive, pressed && { opacity: 0.75 }]}
+                  style={({ pressed }) => [
+                    st.lang,
+                    i18n.language === l && st.langActive,
+                    pressed && { opacity: 0.75 },
+                  ]}
                 >
                   <Text style={[st.langText, i18n.language === l && st.langTextActive]}>
                     {l === "te" ? "తెలుగు" : "English"}
@@ -97,6 +172,34 @@ export default function SetupProfile() {
               returnKeyType="next"
             />
 
+            {/* Constituency */}
+            <Text style={[st.label, { marginTop: 4 }]}>{t("onboarding.constituencyLabel")}</Text>
+            <Pressable
+              style={({ pressed }) => [st.select, pressed && { opacity: 0.75 }]}
+              onPress={() => setShowConstituencyPicker(true)}
+            >
+              <Text style={constituency ? st.selectValue : st.selectPlaceholder}>
+                {constituency || t("onboarding.constituencyPlaceholder")}
+              </Text>
+              <Text style={st.chevron}>▾</Text>
+            </Pressable>
+
+            {/* Area */}
+            <Text style={[st.label, { marginTop: 16 }]}>{t("onboarding.areaLabel")}</Text>
+            <Pressable
+              style={({ pressed }) => [
+                st.select,
+                !constituency && { opacity: 0.5 },
+                pressed && constituency && { opacity: 0.75 },
+              ]}
+              onPress={() => constituency && setShowAreaPicker(true)}
+            >
+              <Text style={area ? st.selectValue : st.selectPlaceholder}>
+                {area || t("onboarding.areaPlaceholder")}
+              </Text>
+              <Text style={st.chevron}>▾</Text>
+            </Pressable>
+
             {error ? <Text style={st.error}>{error}</Text> : null}
 
             <PrimaryButton
@@ -108,9 +211,30 @@ export default function SetupProfile() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <PickerModal
+        visible={showConstituencyPicker}
+        title={t("onboarding.constituencyLabel")}
+        items={CONSTITUENCY_NAMES}
+        onSelect={(v) => {
+          setConstituency(v);
+          setArea(""); // reset area when constituency changes
+        }}
+        onClose={() => setShowConstituencyPicker(false)}
+      />
+
+      <PickerModal
+        visible={showAreaPicker}
+        title={t("onboarding.areaLabel")}
+        items={areas}
+        onSelect={setArea}
+        onClose={() => setShowAreaPicker(false)}
+      />
     </SafeAreaView>
   );
 }
+
+// ── Styles ────────────────────────────────────────────────────────────────────
 
 const st = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
@@ -128,7 +252,7 @@ const st = StyleSheet.create({
     color: colors.primary,
     textAlign: "center",
     marginBottom: 4,
-    fontFamily: fontFamily,
+    fontFamily,
     lineHeight: lh(28),
   },
   titleEn: {
@@ -137,7 +261,7 @@ const st = StyleSheet.create({
     color: colors.textMuted,
     textAlign: "center",
     marginBottom: 28,
-    fontFamily: fontFamily,
+    fontFamily,
     lineHeight: lh(16),
   },
   card: {
@@ -153,7 +277,7 @@ const st = StyleSheet.create({
     fontWeight: fontWeight.bold,
     color: colors.text,
     marginBottom: 8,
-    fontFamily: fontFamily,
+    fontFamily,
     lineHeight: lh(14),
   },
   input: {
@@ -166,7 +290,36 @@ const st = StyleSheet.create({
     color: colors.text,
     marginBottom: 16,
     backgroundColor: "#fff",
-    fontFamily: fontFamily,
+    fontFamily,
+  },
+  select: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: 16,
+    height: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 4,
+    backgroundColor: "#fff",
+  },
+  selectValue: {
+    fontSize: 16,
+    color: colors.text,
+    flex: 1,
+    fontFamily,
+  },
+  selectPlaceholder: {
+    fontSize: 16,
+    color: "#94a3b8",
+    flex: 1,
+    fontFamily,
+  },
+  chevron: {
+    color: colors.textMuted,
+    fontSize: 18,
+    marginLeft: 8,
   },
   langRow: { flexDirection: "row", gap: 8, marginBottom: 4 },
   lang: {
@@ -177,13 +330,74 @@ const st = StyleSheet.create({
     borderColor: colors.textMuted,
   },
   langActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  langText: { color: colors.textMuted, fontWeight: fontWeight.semibold, fontFamily: fontFamily },
-  langTextActive: { color: "#fff", fontFamily: fontFamily },
+  langText: { color: colors.textMuted, fontWeight: fontWeight.semibold, fontFamily },
+  langTextActive: { color: "#fff", fontFamily },
   error: {
     color: colors.danger,
     marginBottom: 14,
     textAlign: "center",
     fontWeight: fontWeight.semibold,
-    fontFamily: fontFamily,
+    fontFamily,
+    marginTop: 12,
+  },
+});
+
+const pm = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  sheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    maxHeight: "80%",
+    paddingBottom: Platform.OS === "ios" ? 32 : 16,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+    fontFamily,
+  },
+  closeBtn: { padding: 6 },
+  closeText: { fontSize: 18, color: colors.textMuted },
+  search: {
+    margin: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: 14,
+    height: 44,
+    fontSize: 15,
+    color: colors.text,
+    fontFamily,
+  },
+  item: {
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  itemText: {
+    fontSize: 16,
+    color: colors.text,
+    fontFamily,
+  },
+  empty: {
+    textAlign: "center",
+    color: colors.textMuted,
+    padding: 24,
+    fontFamily,
   },
 });
