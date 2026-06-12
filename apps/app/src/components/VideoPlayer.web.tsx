@@ -95,7 +95,8 @@ const st = StyleSheet.create({
     right: 0,
     bottom: 0,
     height: "50%",
-    background: "linear-gradient(to bottom, transparent, rgba(0,0,0,0.68))",
+    // RN-web rejects the `background` shorthand — use the longhand property.
+    backgroundImage: "linear-gradient(to bottom, transparent, rgba(0,0,0,0.68))",
   } as object,
   identity: {
     position: "absolute",

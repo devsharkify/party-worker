@@ -4,7 +4,7 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
 import type { AuthUser } from "../auth/auth.types";
 import { TeamStatsService } from "./teamstats.service";
-import type { TeamStats } from "./teamstats.types";
+import type { InactiveMember, TeamStats } from "./teamstats.types";
 
 @ApiTags("team")
 @ApiBearerAuth()
@@ -23,5 +23,20 @@ export class TeamStatsController {
     @Query("unitId") unitId?: string,
   ): Promise<TeamStats> {
     return this.teamStats.getTeamStats(user, unitId);
+  }
+
+  /** Members idle `days`+ (default 7) in the subtree — the leader's call list. */
+  @Get("inactive")
+  inactive(
+    @CurrentUser() user: AuthUser,
+    @Query("unitId") unitId?: string,
+    @Query("days") days?: string,
+  ): Promise<InactiveMember[]> {
+    const parsed = Number(days);
+    return this.teamStats.getInactiveMembers(
+      user,
+      unitId,
+      Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 7,
+    );
   }
 }

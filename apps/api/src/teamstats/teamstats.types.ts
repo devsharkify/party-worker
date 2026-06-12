@@ -18,6 +18,15 @@ export interface TeamTopPerformer {
   weeklyLeaguePoints: number;
 }
 
+export interface ChildUnitStat {
+  unitId: string;
+  unitName: string;
+  unitType: string;
+  memberCount: number;
+  activeMembers: number;
+  weeklyPoints: number;
+}
+
 export interface TeamStats {
   unitId: string;
   unitName: string;
@@ -30,4 +39,17 @@ export interface TeamStats {
   totalShares: number;
   byTier: TeamTierCounts;
   topPerformers: TeamTopPerformer[];
+  /** Direct child units ranked by weekly activity — the coverage-gap view. */
+  childUnits: ChildUnitStat[];
+}
+
+export interface InactiveMember {
+  userId: string;
+  name: string;
+  phone: string;
+  designation: string | null;
+  unitName: string;
+  daysIdle: number;
+  /** null = never active (registered but never used the app) */
+  lastActiveAt: string | null;
 }

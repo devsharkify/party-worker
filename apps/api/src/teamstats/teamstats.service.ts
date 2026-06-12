@@ -4,6 +4,8 @@ import { PrismaService } from "../prisma/prisma.service";
 import { OrgService } from "../org/org.service";
 import type { AuthUser } from "../auth/auth.types";
 import type {
+  ChildUnitStat,
+  InactiveMember,
   TeamStats,
   TeamTier,
   TeamTierCounts,
@@ -78,6 +80,7 @@ export class TeamStatsService {
       tierGroups,
       topRows,
       memberIdRows,
+      childUnits,
     ] = await Promise.all([
       this.prisma.orgUnit.findUniqueOrThrow({
         where: { id: targetUnitId },
@@ -106,6 +109,7 @@ export class TeamStatsService {
         select: { id: true, name: true, tier: true, weeklyLeaguePoints: true },
       }),
       this.prisma.user.findMany({ where: memberWhere, select: { id: true } }),
+      this.childUnitStats(targetUnitId, sevenDaysAgo),
     ]);
 
     const memberIds = memberIdRows.map((u) => u.id);
@@ -155,6 +159,92 @@ export class TeamStatsService {
       totalShares,
       byTier,
       topPerformers,
+      childUnits,
     };
+  }
+
+  /** Direct child units of the target, each rolled up over its own subtree. */
+  private async childUnitStats(targetUnitId: string, activeSince: Date): Promise<ChildUnitStat[]> {
+    const children = await this.prisma.orgUnit.findMany({
+      where: { parentId: targetUnitId },
+      select: { id: true, name: true, type: true },
+    });
+    if (children.length === 0) return [];
+
+    // Attribute every member in the combined subtree to the child whose
+    // subtree contains their unit, then aggregate in one pass.
+    const unitToChild = new Map<string, string>();
+    await Promise.all(
+      children.map(async (c) => {
+        for (const id of await this.org.getDescendantIds(c.id)) unitToChild.set(id, c.id);
+      }),
+    );
+    const members = await this.prisma.user.findMany({
+      where: { orgUnitId: { in: [...unitToChild.keys()] } },
+      select: { orgUnitId: true, lastActiveAt: true, weeklyLeaguePoints: true },
+    });
+
+    const agg = new Map(children.map((c) => [c.id, { members: 0, active: 0, points: 0 }]));
+    for (const u of members) {
+      const childId = unitToChild.get(u.orgUnitId);
+      if (!childId) continue;
+      const a = agg.get(childId)!;
+      a.members += 1;
+      a.points += u.weeklyLeaguePoints;
+      if (u.lastActiveAt && u.lastActiveAt >= activeSince) a.active += 1;
+    }
+
+    return children
+      .map((c) => {
+        const a = agg.get(c.id)!;
+        return {
+          unitId: c.id,
+          unitName: c.name,
+          unitType: c.type,
+          memberCount: a.members,
+          activeMembers: a.active,
+          weeklyPoints: a.points,
+        };
+      })
+      .sort((x, y) => y.weeklyPoints - x.weeklyPoints || y.activeMembers - x.activeMembers);
+  }
+
+  /**
+   * Members in the subtree idle for `days`+ (or never active), most-idle first.
+   * The leader's Monday call list.
+   */
+  async getInactiveMembers(caller: AuthUser, unitId?: string, days = 7): Promise<InactiveMember[]> {
+    const targetUnitId = await this.resolveUnitId(caller, unitId);
+    const ids = await this.org.getDescendantIds(targetUnitId);
+    const DAY_MS = 24 * 3600_000;
+    const cutoff = new Date(Date.now() - Math.max(1, days) * DAY_MS);
+
+    const rows = await this.prisma.user.findMany({
+      where: {
+        orgUnitId: { in: ids },
+        OR: [{ lastActiveAt: { lt: cutoff } }, { lastActiveAt: null }],
+      },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        designation: true,
+        lastActiveAt: true,
+        createdAt: true,
+        orgUnit: { select: { name: true } },
+      },
+      orderBy: [{ lastActiveAt: { sort: "asc", nulls: "first" } }],
+      take: 200,
+    });
+
+    return rows.map((u) => ({
+      userId: u.id,
+      name: u.name,
+      phone: u.phone,
+      designation: u.designation,
+      unitName: u.orgUnit.name,
+      daysIdle: Math.floor((Date.now() - (u.lastActiveAt ?? u.createdAt).getTime()) / DAY_MS),
+      lastActiveAt: u.lastActiveAt ? u.lastActiveAt.toISOString() : null,
+    }));
   }
 }

@@ -5,7 +5,6 @@ import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import type { OrgMemberRow } from "@pw/shared";
 import { useApi } from "../src/hooks";
 import { useAuth } from "../src/auth/auth-context";
 import { colors, fontFamily, lh, radius, shadow, tierColor } from "../src/theme";
@@ -22,11 +21,67 @@ interface ActivityItem {
   label: ActivityLabel;
 }
 
+interface ChildUnitStat {
+  unitId: string;
+  unitName: string;
+  unitType: string;
+  memberCount: number;
+  activeMembers: number;
+  weeklyPoints: number;
+}
+
+interface TeamStats {
+  unitId: string;
+  unitName: string;
+  memberCount: number;
+  activeMembers: number;
+  membersWithMembership: number;
+  totalWeeklyPoints: number;
+  totalReach: number;
+  totalShares: number;
+  topPerformers: { userId: string; name: string; tier: string; weeklyLeaguePoints: number }[];
+  childUnits: ChildUnitStat[];
+}
+
+const L = {
+  title: { te: "నాయకుల డాష్‌బోర్డ్", en: "Leader Dashboard" },
+  myTeam: { te: "నా టీమ్", en: "My Team" },
+  members: { te: "మొత్తం సభ్యులు", en: "Total Members" },
+  active: { te: "ఈ వారం యాక్టివ్", en: "Active This Week" },
+  reach: { te: "మొత్తం రీచ్", en: "Total Reach" },
+  shares: { te: "షేర్లు", en: "Shares" },
+  topPerformers: { te: "టాప్ పెర్ఫార్మర్లు", en: "Top Performers" },
+  myUnits: { te: "నా యూనిట్లు (ర్యాంక్)", en: "My Units (ranked)" },
+  unitsHint: {
+    te: "సున్నా యాక్టివిటీ యూనిట్లు ఎరుపు రంగులో — అక్కడ దృష్టి పెట్టండి",
+    en: "Zero-activity units in red — coverage gaps to fix",
+  },
+  recentActivity: { te: "ఇటీవలి కార్యకలాపాలు", en: "Recent Activity" },
+  noMembers: { te: "మీ యూనిట్‌లో ఇంకా సభ్యులు లేరు.", en: "No members yet in your unit." },
+  noActivity: { te: "ఇటీవలి కార్యకలాపాలు లేవు.", en: "No recent activity." },
+  noUnits: { te: "ఉప-యూనిట్లు లేవు.", en: "No sub-units." },
+  inactiveBtn: { te: "నిష్క్రియ సభ్యులు (కాల్ లిస్ట్)", en: "Inactive Members (call list)" },
+  onboard: { te: "కొత్త సభ్యుడిని చేర్చండి", en: "Onboard New Member" },
+  fullTeam: { te: "పూర్తి టీమ్ చూడండి", en: "View Full Team" },
+  review: { te: "సమర్పణల సమీక్ష", en: "Review Submissions" },
+  justNow: { te: "ఇప్పుడే", en: "just now" },
+};
+
 // ─── sub-components ──────────────────────────────────────────────────────────
 
-function TopPerformerRow({ member, rank }: { member: OrgMemberRow; rank: number }) {
-  const tierC = tierColor[member.tier] ?? colors.textMuted;
-  const initial = member.name.trim().charAt(0).toUpperCase() || "?";
+function TopPerformerRow({
+  name,
+  tier,
+  points,
+  rank,
+}: {
+  name: string;
+  tier: string;
+  points: number;
+  rank: number;
+}) {
+  const tierC = (tierColor as Record<string, string>)[tier] ?? colors.textMuted;
+  const initial = name.trim().charAt(0).toUpperCase() || "?";
   const rankColors = ["#FFB300", "#94a3b8", "#fb923c"];
   const rankColor = rankColors[rank - 1] ?? colors.textMuted;
   return (
@@ -38,22 +93,35 @@ function TopPerformerRow({ member, rank }: { member: OrgMemberRow; rank: number 
         <Text style={[s.avatarInitial, { color: tierC }]}>{initial}</Text>
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={s.performerName} numberOfLines={1}>{member.name}</Text>
-        {member.designation ? (
-          <Text style={s.performerDesig} numberOfLines={1}>{member.designation}</Text>
-        ) : null}
+        <Text style={s.performerName} numberOfLines={1}>{name}</Text>
       </View>
       <View style={s.pointsWrap}>
-        <Text style={s.pointsVal}>{member.weeklyLeaguePoints}</Text>
+        <Text style={s.pointsVal}>{points}</Text>
         <Text style={s.pointsLabel}>pts</Text>
       </View>
     </View>
   );
 }
 
-function ActivityRow({ item }: { item: ActivityItem }) {
-  const { i18n } = useTranslation();
-  const lang = i18n.language as "te" | "en";
+function UnitRow({ unit, rank }: { unit: ChildUnitStat; rank: number }) {
+  const dead = unit.weeklyPoints === 0 && unit.activeMembers === 0;
+  return (
+    <View style={s.unitRow}>
+      <Text style={[s.unitRank, dead && s.deadText]}>{rank}</Text>
+      <View style={{ flex: 1 }}>
+        <Text style={[s.unitName, dead && s.deadText]} numberOfLines={1}>
+          {unit.unitName}
+        </Text>
+        <Text style={s.unitMeta}>
+          {unit.activeMembers}/{unit.memberCount} active
+        </Text>
+      </View>
+      <Text style={[s.unitPts, dead && s.deadText]}>{unit.weeklyPoints}</Text>
+    </View>
+  );
+}
+
+function ActivityRow({ item, lang }: { item: ActivityItem; lang: "te" | "en" }) {
   const iconMap: Record<string, React.ComponentProps<typeof Feather>["name"]> = {
     share: "share-2",
     grievance_file: "alert-circle",
@@ -68,7 +136,8 @@ function ActivityRow({ item }: { item: ActivityItem }) {
   const icon = iconMap[item.reason] ?? "activity";
   const labelText = typeof item.label === "object" ? (item.label[lang] ?? item.label.en) : item.label;
   const ago = Math.round((Date.now() - new Date(item.createdAt).getTime()) / 3600000);
-  const agoLabel = ago < 1 ? "just now" : ago < 24 ? `${ago}h ago` : `${Math.floor(ago / 24)}d ago`;
+  const agoLabel =
+    ago < 1 ? (L.justNow[lang] ?? L.justNow.en) : ago < 24 ? `${ago}h` : `${Math.floor(ago / 24)}d`;
   return (
     <View style={s.activityRow}>
       <View style={s.activityIcon}>
@@ -86,14 +155,13 @@ function ActivityRow({ item }: { item: ActivityItem }) {
 export default function LeaderDashboardScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const orgUnitId = user?.orgUnitId;
+  const { i18n } = useTranslation();
+  const lang = (i18n.language as "te" | "en") ?? "te";
+  const ll = (k: keyof typeof L) => L[k][lang] ?? L[k].en;
 
-  const members = useApi<OrgMemberRow[]>(orgUnitId ? `/org/units/${orgUnitId}/members` : null);
+  // The rich subtree rollup the API always had — now actually used.
+  const stats = useApi<TeamStats>("/team/stats");
   const activity = useApi<ActivityItem[]>("/me/activity");
-
-  const totalMembers = members.data?.length ?? 0;
-  const activeThisWeek = members.data?.filter((m) => m.weeklyLeaguePoints > 0).length ?? 0;
-  const topThree = [...(members.data ?? [])].sort((a, b) => b.weeklyLeaguePoints - a.weeklyLeaguePoints).slice(0, 3);
 
   return (
     <SafeAreaView style={s.safe} edges={["top"]}>
@@ -102,7 +170,7 @@ export default function LeaderDashboardScreen() {
         <Pressable onPress={() => router.back()} style={({ pressed }) => [s.backBtn, pressed && { opacity: 0.6 }]} hitSlop={8}>
           <Feather name="arrow-left" size={20} color="#fff" />
         </Pressable>
-        <Text style={s.headerTitle}>Leader Dashboard</Text>
+        <Text style={s.headerTitle}>{ll("title")}</Text>
         <View style={{ width: 36 }} />
       </View>
 
@@ -117,72 +185,119 @@ export default function LeaderDashboardScreen() {
         >
           <View style={s.teamCardHeader}>
             <Feather name="users" size={18} color={colors.gold} />
-            <Text style={s.teamCardTitle}>My Team</Text>
+            <Text style={s.teamCardTitle}>{ll("myTeam")}</Text>
           </View>
-          <Text style={s.teamUnitName} numberOfLines={1}>{user?.orgUnitName}</Text>
+          <Text style={s.teamUnitName} numberOfLines={1}>{stats.data?.unitName ?? user?.orgUnitName}</Text>
 
-          {members.loading && !members.data ? (
+          {stats.loading && !stats.data ? (
             <ActivityIndicator color={colors.primary} style={{ marginTop: 12 }} />
           ) : (
-            <View style={s.teamStats}>
-              <View style={s.teamStat}>
-                <Text style={s.teamStatValue}>{totalMembers}</Text>
-                <Text style={s.teamStatLabel}>Total Members</Text>
+            <>
+              <View style={s.teamStats}>
+                <View style={s.teamStat}>
+                  <Text style={s.teamStatValue}>{stats.data?.memberCount ?? 0}</Text>
+                  <Text style={s.teamStatLabel}>{ll("members")}</Text>
+                </View>
+                <View style={s.teamStatDivider} />
+                <View style={s.teamStat}>
+                  <Text style={s.teamStatValue}>{stats.data?.activeMembers ?? 0}</Text>
+                  <Text style={s.teamStatLabel}>{ll("active")}</Text>
+                </View>
               </View>
-              <View style={s.teamStatDivider} />
-              <View style={s.teamStat}>
-                <Text style={s.teamStatValue}>{activeThisWeek}</Text>
-                <Text style={s.teamStatLabel}>Active This Week</Text>
+              <View style={[s.teamStats, { marginTop: 12 }]}>
+                <View style={s.teamStat}>
+                  <Text style={s.teamStatValue}>{stats.data?.totalReach ?? 0}</Text>
+                  <Text style={s.teamStatLabel}>{ll("reach")}</Text>
+                </View>
+                <View style={s.teamStatDivider} />
+                <View style={s.teamStat}>
+                  <Text style={s.teamStatValue}>{stats.data?.totalShares ?? 0}</Text>
+                  <Text style={s.teamStatLabel}>{ll("shares")}</Text>
+                </View>
               </View>
-            </View>
+            </>
           )}
         </LinearGradient>
+
+        {/* Unit-vs-unit ranking — the coverage-gap view */}
+        {stats.data && stats.data.childUnits.length > 0 ? (
+          <>
+            <View style={s.sectionHeader}>
+              <Feather name="bar-chart-2" size={15} color={colors.gold} />
+              <Text style={s.sectionTitle}>{ll("myUnits")}</Text>
+            </View>
+            <View style={s.card}>
+              <Text style={s.unitsHint}>{ll("unitsHint")}</Text>
+              {stats.data.childUnits.map((u, i) => (
+                <UnitRow key={u.unitId} unit={u} rank={i + 1} />
+              ))}
+            </View>
+          </>
+        ) : null}
 
         {/* Top performers */}
         <View style={s.sectionHeader}>
           <Feather name="trending-up" size={15} color={colors.gold} />
-          <Text style={s.sectionTitle}>Top Performers</Text>
+          <Text style={s.sectionTitle}>{ll("topPerformers")}</Text>
         </View>
         <View style={s.card}>
-          {members.loading && !members.data ? (
+          {stats.loading && !stats.data ? (
             <ActivityIndicator color={colors.primary} />
-          ) : topThree.length === 0 ? (
-            <Text style={s.emptyMsg}>No members yet in your unit.</Text>
+          ) : !stats.data || stats.data.topPerformers.length === 0 ? (
+            <Text style={s.emptyMsg}>{ll("noMembers")}</Text>
           ) : (
-            topThree.map((m, i) => <TopPerformerRow key={m.id} member={m} rank={i + 1} />)
+            stats.data.topPerformers
+              .slice(0, 5)
+              .map((m, i) => (
+                <TopPerformerRow key={m.userId} name={m.name} tier={m.tier} points={m.weeklyLeaguePoints} rank={i + 1} />
+              ))
           )}
         </View>
 
         {/* Recent activity */}
         <View style={s.sectionHeader}>
           <Feather name="activity" size={15} color={colors.primary} />
-          <Text style={s.sectionTitle}>Recent Activity</Text>
+          <Text style={s.sectionTitle}>{ll("recentActivity")}</Text>
         </View>
         <View style={s.card}>
           {activity.loading && !activity.data ? (
             <ActivityIndicator color={colors.primary} />
           ) : (activity.data ?? []).length === 0 ? (
-            <Text style={s.emptyMsg}>No recent activity.</Text>
+            <Text style={s.emptyMsg}>{ll("noActivity")}</Text>
           ) : (
-            (activity.data ?? []).slice(0, 5).map((item) => <ActivityRow key={item.id} item={item} />)
+            (activity.data ?? []).slice(0, 5).map((item) => <ActivityRow key={item.id} item={item} lang={lang} />)
           )}
         </View>
 
         {/* Action buttons */}
         <View style={s.actionRow}>
           <Pressable
+            style={({ pressed }) => [s.actionBtn, s.actionBtnAlert, pressed && { opacity: 0.82 }]}
+            onPress={() => router.push("/inactive-members")}
+          >
+            <Feather name="phone-call" size={16} color="#991B1B" />
+            <Text style={[s.actionBtnText, { color: "#991B1B" }]}>{ll("inactiveBtn")}</Text>
+          </Pressable>
+          <Pressable
             style={({ pressed }) => [s.actionBtn, s.actionBtnPrimary, pressed && { opacity: 0.82 }]}
             onPress={() => router.push("/(tabs)/team")}
           >
             <Feather name="user-plus" size={16} color="#fff" />
-            <Text style={s.actionBtnText}>Onboard New Member</Text>
+            <Text style={s.actionBtnText}>{ll("onboard")}</Text>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [s.actionBtn, s.actionBtnSecondary, pressed && { opacity: 0.82 }]}
+            onPress={() => router.push("/review-submissions")}
+          >
+            <Feather name="check-square" size={16} color={colors.primary} />
+            <Text style={[s.actionBtnText, { color: colors.primary }]}>{ll("review")}</Text>
           </Pressable>
           <Pressable
             style={({ pressed }) => [s.actionBtn, s.actionBtnSecondary, pressed && { opacity: 0.82 }]}
             onPress={() => router.push("/(tabs)/team")}
           >
             <Feather name="users" size={16} color={colors.primary} />
-            <Text style={[s.actionBtnText, { color: colors.primary }]}>View Full Team</Text>
+            <Text style={[s.actionBtnText, { color: colors.primary }]}>{ll("fullTeam")}</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -228,8 +343,8 @@ const s = StyleSheet.create({
   teamUnitName: { fontSize: 13, color: colors.textMutedOnDark, fontWeight: "600", marginBottom: 14, fontFamily, lineHeight: lh(13) },
   teamStats: { flexDirection: "row", alignItems: "center" },
   teamStat: { flex: 1, alignItems: "center" },
-  teamStatValue: { fontSize: 28, fontWeight: "900", color: "#fff", fontFamily, lineHeight: lh(28) },
-  teamStatLabel: { fontSize: 12, color: colors.textMutedOnDark, fontWeight: "600", marginTop: 2, fontFamily, lineHeight: lh(12) },
+  teamStatValue: { fontSize: 26, fontWeight: "700", color: "#fff", fontFamily, lineHeight: lh(26) },
+  teamStatLabel: { fontSize: 12, color: colors.textMutedOnDark, fontWeight: "600", marginTop: 2, fontFamily, lineHeight: lh(12), textAlign: "center" },
   teamStatDivider: { width: 1, height: 40, backgroundColor: "rgba(255,255,255,0.2)" },
 
   sectionHeader: { flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 8 },
@@ -245,6 +360,21 @@ const s = StyleSheet.create({
     ...shadow,
   },
   emptyMsg: { color: colors.textMuted, fontSize: 14, textAlign: "center", paddingVertical: 8, fontFamily, lineHeight: lh(14) },
+
+  unitsHint: { color: colors.textMuted, fontSize: 12, marginBottom: 8, fontFamily, lineHeight: lh(12) },
+  unitRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  unitRank: { width: 22, fontWeight: "700", color: colors.textMuted, fontSize: 13, fontFamily, lineHeight: lh(13) },
+  unitName: { fontWeight: "700", color: colors.text, fontSize: 14, fontFamily, lineHeight: lh(14) },
+  unitMeta: { fontSize: 11, color: colors.textMuted, fontWeight: "600", marginTop: 1, fontFamily, lineHeight: lh(11) },
+  unitPts: { fontWeight: "700", color: colors.primaryDark, fontSize: 15, fontFamily, lineHeight: lh(15) },
+  deadText: { color: "#DC2626" },
 
   performerRow: {
     flexDirection: "row",
@@ -262,13 +392,12 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  rankText: { fontSize: 12, fontWeight: "900", fontFamily, lineHeight: lh(12) },
+  rankText: { fontSize: 12, fontWeight: "700", fontFamily, lineHeight: lh(12) },
   avatarFallback: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
   avatarInitial: { fontSize: 15, fontWeight: "700", fontFamily, lineHeight: lh(15) },
   performerName: { fontWeight: "700", color: colors.text, fontSize: 14, fontFamily, lineHeight: lh(14) },
-  performerDesig: { fontSize: 11, color: colors.textMuted, fontWeight: "600", fontFamily, lineHeight: lh(11) },
   pointsWrap: { alignItems: "flex-end" },
-  pointsVal: { fontWeight: "900", color: colors.primaryDark, fontSize: 16, fontFamily, lineHeight: lh(16) },
+  pointsVal: { fontWeight: "700", color: colors.primaryDark, fontSize: 16, fontFamily, lineHeight: lh(16) },
   pointsLabel: { fontSize: 10, color: colors.textMuted, fontWeight: "600", fontFamily, lineHeight: lh(10) },
 
   activityRow: {
@@ -306,6 +435,11 @@ const s = StyleSheet.create({
     backgroundColor: "#fff",
     borderWidth: 2,
     borderColor: colors.primary,
+  },
+  actionBtnAlert: {
+    backgroundColor: "#FEF2F2",
+    borderWidth: 2,
+    borderColor: "#FCA5A5",
   },
   actionBtnText: { fontSize: 15, fontWeight: "700", color: "#fff", fontFamily, lineHeight: lh(15) },
 });
