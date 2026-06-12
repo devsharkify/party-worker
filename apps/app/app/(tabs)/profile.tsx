@@ -324,11 +324,13 @@ export default function Profile() {
                   {c.designation}
                 </Text>
               ) : null}
-              {c.boothName ? (
+              {(user?.constituency || user?.area || c.boothName) ? (
                 <View style={st.boothRow}>
                   <Feather name="map-pin" size={12} color={colors.textMutedOnDark} />
                   <Text style={st.memSub} numberOfLines={1}>
-                    {c.boothName}
+                    {user?.area
+                      ? `${user.area}${user.constituency ? ` · ${user.constituency}` : ""}`
+                      : c.boothName}
                   </Text>
                 </View>
               ) : null}
@@ -411,6 +413,7 @@ export default function Profile() {
                   designation: c.designation,
                   photoUrl: c.photoUrl,
                   tier: c.tier,
+                  area: user?.area,
                   boothName: c.boothName,
                   orgUnitName: user.orgUnitName,
                   weeklyLeaguePoints: sum?.weeklyLeaguePoints,

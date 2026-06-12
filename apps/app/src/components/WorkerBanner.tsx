@@ -25,6 +25,8 @@ export interface BannerUser {
   designation?: string | null;
   photoUrl?: string | null;
   tier: string;
+  /** constituency-based area selected during onboarding (preferred) */
+  area?: string | null;
   boothName?: string | null;
   orgUnitName?: string | null;
   id: string;
@@ -54,7 +56,7 @@ export function WorkerBanner({ user, prefs = {}, width = BANNER_W }: Props) {
   const s = (dp: number) => dp * scale;
 
   const nameColor = prefs.accentColor ?? colors.trsNavy;
-  const area = user.boothName ?? user.orgUnitName ?? user.designation ?? "";
+  const area = user.area ?? user.boothName ?? user.orgUnitName ?? user.designation ?? "";
 
   // Char-count-based auto-fit (adjustsFontSizeToFit is iOS-only; web/Android
   // would silently truncate). Middle column at 1080 is ~600 units wide.

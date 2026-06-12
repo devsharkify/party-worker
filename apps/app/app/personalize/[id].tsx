@@ -80,7 +80,7 @@ export default function Personalize() {
     if (user && !bannerReady) {
       setBannerName(user.name ?? "");
       setBannerDesignation(user.designation ?? "");
-      setBannerArea(user.boothName ?? user.orgUnitName ?? "");
+      setBannerArea(user.area ?? user.boothName ?? user.orgUnitName ?? "");
       setBannerReady(true);
     }
   }, [user, bannerReady]);

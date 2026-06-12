@@ -23,7 +23,7 @@
     },
     "android": {
       "package": "com.devsharkify.mytrs",
-      "versionCode": 2,
+      "versionCode": 3,
       "adaptiveIcon": {
         "foregroundImage": "./assets/trs-logo-square.png",
         "backgroundColor": "#E8A820"
