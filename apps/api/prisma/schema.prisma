@@ -64,6 +64,14 @@ enum CreativeType {
   carousel
 }
 
+// Worker-submitted creatives need approval before they reach the feed.
+// null submissionStatus = created directly by admin/HQ (no review needed).
+enum SubmissionStatus {
+  pending
+  approved
+  rejected
+}
+
 enum ShareChannel {
   whatsapp_status
   whatsapp
@@ -186,6 +194,7 @@ model User {
   grievancesFiled  Grievance[]          @relation("GrievanceFiledBy")
   grievancesRouted Grievance[]          @relation("GrievanceRoutedTo")
   creativesCreated Creative[]           @relation("CreativeCreatedBy")
+  creativesSubmitted Creative[]         @relation("CreativeSubmittedBy")
   templatesCreated Template[]           @relation("TemplateCreatedBy")
   deviceTokens     DeviceToken[]
 
@@ -277,11 +286,20 @@ model Creative {
   scheduledAt     DateTime?
   createdAt       DateTime     @default(now())
 
+  // Worker submission + approval. submissionStatus null = admin-created.
+  submissionStatus SubmissionStatus?
+  submittedById    String?
+  submittedBy      User?        @relation("CreativeSubmittedBy", fields: [submittedById], references: [id])
+  reviewedById     String?
+  reviewedAt       DateTime?
+  reviewNote       String?
+
   renders     PersonalizedRender[]
   shareEvents ShareEvent[]
 
   @@index([published])
   @@index([targetOrgUnitId])
+  @@index([submissionStatus])
 }
 
 model PersonalizedRender {

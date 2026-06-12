@@ -24,6 +24,32 @@ import { CreativesService } from "./creatives.service";
 
 const certifySchema = z.object({ mcmcCertId: z.string().min(3) });
 
+const submitSchema = z.object({
+  title: z.string().min(1),
+  sourceKey: z.string().min(1),
+  thumbnailKey: z.string().optional(),
+  captionVariants: z.object({ te: z.string().default(""), en: z.string().default("") }),
+  videoDurationSec: z.number().int().positive().optional(),
+});
+const rejectSchema = z.object({ note: z.string().max(300).optional() });
+const ALL_ROLES = [
+  "worker",
+  "booth_leader",
+  "mandal_leader",
+  "constituency_leader",
+  "district_leader",
+  "state_admin",
+  "hq_admin",
+] as const;
+const REVIEWER_ROLES = [
+  "booth_leader",
+  "mandal_leader",
+  "constituency_leader",
+  "district_leader",
+  "state_admin",
+  "hq_admin",
+] as const;
+
 @ApiTags("creatives")
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -31,6 +57,48 @@ const certifySchema = z.object({ mcmcCertId: z.string().min(3) });
 @Controller("creatives")
 export class CreativesController {
   constructor(private readonly creatives: CreativesService) {}
+
+  // ─── Worker submissions + leader/admin approval ─────────────────────────────
+
+  /** Worker submits a video for review (all roles). */
+  @Post("submit")
+  @Roles(...ALL_ROLES)
+  submit(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(submitSchema)) dto: z.infer<typeof submitSchema>,
+  ) {
+    return this.creatives.submit(user, dto);
+  }
+
+  /** The caller's own submissions + status (all roles). */
+  @Get("submissions/mine")
+  @Roles(...ALL_ROLES)
+  mySubmissions(@CurrentUser() user: AuthUser) {
+    return this.creatives.mySubmissions(user.id);
+  }
+
+  /** Pending submissions to review (leaders: own area; HQ/state: all). */
+  @Get("submissions")
+  @Roles(...REVIEWER_ROLES)
+  submissions(@CurrentUser() user: AuthUser) {
+    return this.creatives.listSubmissions(user);
+  }
+
+  @Post("submissions/:id/approve")
+  @Roles(...REVIEWER_ROLES)
+  approve(@CurrentUser() user: AuthUser, @Param("id") id: string) {
+    return this.creatives.approveSubmission(user, id);
+  }
+
+  @Post("submissions/:id/reject")
+  @Roles(...REVIEWER_ROLES)
+  reject(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(rejectSchema)) dto: z.infer<typeof rejectSchema>,
+  ) {
+    return this.creatives.rejectSubmission(user, id, dto.note);
+  }
 
   /** MIME types accepted by the media upload endpoint. */
   private static readonly UPLOAD_MIME_WHITELIST = new Set([

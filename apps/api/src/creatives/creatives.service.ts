@@ -1,19 +1,157 @@
-import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import type { CaptionVariants, CreateCreativeDto } from "@pw/shared";
+import { LEADER_ROLES, type Role } from "@pw/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { ComplianceService } from "../compliance/compliance.service";
+import { OrgService } from "../org/org.service";
 import { STORAGE_PROVIDER, type StorageProvider } from "../providers/storage.provider";
 import { PUSH_PROVIDER, type PushProvider } from "../providers/push.provider";
 import { newId } from "../auth/crypto.util";
+import type { AuthUser } from "../auth/auth.types";
 
 @Injectable()
 export class CreativesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly compliance: ComplianceService,
+    private readonly org: OrgService,
     @Inject(STORAGE_PROVIDER) private readonly storage: StorageProvider,
     @Inject(PUSH_PROVIDER) private readonly push: PushProvider,
   ) {}
+
+  // ─── Worker submissions + approval ──────────────────────────────────────────
+
+  private isGlobal(role: Role): boolean {
+    return role === "hq_admin" || role === "state_admin";
+  }
+
+  /** A worker submits a video for review. Lands as pending (not in the feed). */
+  async submit(
+    user: AuthUser,
+    dto: { title: string; sourceKey: string; thumbnailKey?: string; captionVariants: CaptionVariants; videoDurationSec?: number },
+  ) {
+    const submitter = await this.prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+    return this.prisma.creative.create({
+      data: {
+        title: dto.title,
+        type: "video",
+        sourceKey: dto.sourceKey,
+        thumbnailKey: dto.thumbnailKey ?? null,
+        captionVariants: dto.captionVariants as unknown as object,
+        languages: ["te", "en"],
+        videoDurationSec: dto.videoDurationSec ?? null,
+        createdById: user.id,
+        submittedById: user.id,
+        submissionStatus: "pending",
+        // route review to the submitter's own org unit (leaders see their area)
+        targetOrgUnitId: submitter.orgUnitId,
+        published: false,
+        aiLabeled: true,
+      },
+    });
+  }
+
+  /** Pending submissions a reviewer may act on (their subtree; all for HQ/state). */
+  async listSubmissions(user: AuthUser) {
+    if (!this.isGlobal(user.role) && !LEADER_ROLES.includes(user.role)) {
+      throw new ForbiddenException("Only leaders or admins can review submissions.");
+    }
+    let where: Record<string, unknown> = { submissionStatus: "pending" };
+    if (!this.isGlobal(user.role)) {
+      const me = await this.prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+      const subtree = await this.org.getDescendantIds(me.orgUnitId);
+      where = { ...where, submittedBy: { orgUnitId: { in: subtree } } };
+    }
+    const rows = await this.prisma.creative.findMany({
+      where,
+      include: { submittedBy: { select: { name: true, orgUnit: { select: { name: true } } } } },
+      orderBy: { createdAt: "desc" },
+    });
+    return rows.map((c) => ({
+      id: c.id,
+      title: c.title,
+      type: c.type,
+      sourceUrl: this.storage.publicUrl(c.sourceKey),
+      thumbnailUrl: c.thumbnailKey ? this.storage.publicUrl(c.thumbnailKey) : null,
+      videoDurationSec: c.videoDurationSec,
+      captionVariants: c.captionVariants,
+      submittedByName: c.submittedBy?.name ?? "Unknown",
+      submittedByUnit: c.submittedBy?.orgUnit?.name ?? null,
+      createdAt: c.createdAt.toISOString(),
+    }));
+  }
+
+  private async assertCanReview(user: AuthUser, creativeId: string) {
+    const c = await this.prisma.creative.findUnique({
+      where: { id: creativeId },
+      include: { submittedBy: true },
+    });
+    if (!c) throw new NotFoundException("Submission not found.");
+    if (c.submissionStatus !== "pending") throw new ForbiddenException("This submission was already reviewed.");
+    if (this.isGlobal(user.role)) return c;
+    if (!LEADER_ROLES.includes(user.role)) throw new ForbiddenException("Not allowed to review.");
+    const me = await this.prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+    const subtree = await this.org.getDescendantIds(me.orgUnitId);
+    if (!c.submittedBy || !subtree.includes(c.submittedBy.orgUnitId)) {
+      throw new ForbiddenException("You can only review submissions from your own area.");
+    }
+    return c;
+  }
+
+  /** Approve a submission — publishes it to the feed for everyone. */
+  async approveSubmission(user: AuthUser, creativeId: string) {
+    await this.assertCanReview(user, creativeId);
+    const updated = await this.prisma.creative.update({
+      where: { id: creativeId },
+      data: {
+        submissionStatus: "approved",
+        reviewedById: user.id,
+        reviewedAt: new Date(),
+        published: true,
+        publishedAt: new Date(),
+      },
+    });
+    const topic = updated.targetOrgUnitId ? `org_${updated.targetOrgUnitId}` : "org_all";
+    await this.push.sendToTopic(topic, { title: "New video", body: updated.title }).catch(() => undefined);
+    return { id: updated.id, status: "approved" };
+  }
+
+  /** Reject a submission with an optional note. */
+  async rejectSubmission(user: AuthUser, creativeId: string, note?: string) {
+    await this.assertCanReview(user, creativeId);
+    await this.prisma.creative.update({
+      where: { id: creativeId },
+      data: {
+        submissionStatus: "rejected",
+        reviewedById: user.id,
+        reviewedAt: new Date(),
+        reviewNote: note ?? null,
+        published: false,
+      },
+    });
+    return { id: creativeId, status: "rejected" };
+  }
+
+  /** A worker's own submissions with their current review status. */
+  async mySubmissions(userId: string) {
+    const rows = await this.prisma.creative.findMany({
+      where: { submittedById: userId },
+      orderBy: { createdAt: "desc" },
+    });
+    return rows.map((c) => ({
+      id: c.id,
+      title: c.title,
+      status: c.submissionStatus,
+      reviewNote: c.reviewNote,
+      thumbnailUrl: c.thumbnailKey ? this.storage.publicUrl(c.thumbnailKey) : null,
+      createdAt: c.createdAt.toISOString(),
+    }));
+  }
 
   async storeUpload(buffer: Buffer, contentType: string, filename: string) {
     const ext = filename.includes(".") ? filename.split(".").pop() : "bin";
