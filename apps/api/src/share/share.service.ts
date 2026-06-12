@@ -1,9 +1,10 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { ForbiddenException, Inject, Injectable } from "@nestjs/common";
 import { nanoid } from "nanoid";
 import {
   SCORING,
   type CaptionVariants,
   type ShareChannel,
+  type ShareConfirmResult,
   type ShareResult,
 } from "@pw/shared";
 import { PrismaService } from "../prisma/prisma.service";
@@ -34,39 +35,76 @@ export class ShareService {
   }
 
   /**
-   * Record a share intent. One tracked "post" per (worker, creative): the base
-   * point is awarded once; reach taps then drive it up to the cap.
+   * Prepare a share: one tracked "post" per (worker, creative). Creates the
+   * ShareEvent + tracked link but awards NO points — points are credited only
+   * when the worker actually shares (confirm below).
    */
-  async share(userId: string, creativeId: string, channel: ShareChannel): Promise<ShareResponse> {
+  async share(userId: string, creativeId: string, channel?: ShareChannel): Promise<ShareResponse> {
     const creative = await this.prisma.creative.findUniqueOrThrow({ where: { id: creativeId } });
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
 
     let share = await this.prisma.shareEvent.findFirst({ where: { userId, creativeId } });
-    let basePointsAwarded = 0;
 
     if (!share) {
       const trackedLinkId = `${userId.slice(-6)}-${creativeId.slice(-6)}-${nanoid(6)}`;
       share = await this.prisma.shareEvent.create({
-        data: { userId, creativeId, channel, trackedLinkId, basePointsAwarded: SCORING.SHARE_BASE },
-      });
-      await this.scoring.award(userId, "share", SCORING.SHARE_BASE, { shareEventId: share.id, channel });
-      basePointsAwarded = SCORING.SHARE_BASE;
-    } else {
-      await this.prisma.shareEvent.update({
-        where: { id: share.id },
-        data: { channel, shareIntentAt: new Date() },
+        data: {
+          userId,
+          creativeId,
+          channel: channel ?? "whatsapp_status",
+          trackedLinkId,
+          basePointsAwarded: 0,
+        },
       });
     }
+
+    const render = await this.prisma.personalizedRender.findFirst({
+      where: { userId, creativeId },
+    });
 
     const trackedLink = `${this.env.PUBLIC_LINK_BASE}/r/${share.trackedLinkId}`;
     const baseCaption = this.captionFor(creative.captionVariants, user.preferredLanguage);
     const caption = `${baseCaption}\n\n${trackedLink}`;
+    const mediaUrl = this.mediaUrl(creative.sourceKey);
     const deepLinks = this.assisted.buildDeepLinks({
       caption,
-      mediaUrl: this.mediaUrl(creative.sourceKey),
-      channel,
+      mediaUrl: render?.cachedUrl ?? mediaUrl,
+      channel: channel ?? "whatsapp_status",
     });
 
-    return { shareEventId: share.id, trackedLink, caption, basePointsAwarded, deepLinks };
+    return {
+      shareEventId: share.id,
+      trackedLink,
+      caption,
+      basePointsAwarded: share.basePointsAwarded,
+      personalizedUrl: render?.cachedUrl ?? null,
+      mediaUrl,
+      deepLinks,
+    };
+  }
+
+  /**
+   * The worker actually shared (share sheet completed / channel opened).
+   * Records the real channel and credits the base point exactly once per
+   * (worker, creative) — repeat shares update the channel but award 0.
+   */
+  async confirm(userId: string, shareEventId: string, channel: ShareChannel): Promise<ShareConfirmResult> {
+    const share = await this.prisma.shareEvent.findUniqueOrThrow({ where: { id: shareEventId } });
+    if (share.userId !== userId) throw new ForbiddenException("Not your share");
+
+    if (share.basePointsAwarded > 0) {
+      await this.prisma.shareEvent.update({
+        where: { id: share.id },
+        data: { channel, shareIntentAt: new Date() },
+      });
+      return { pointsAwarded: 0 };
+    }
+
+    await this.prisma.shareEvent.update({
+      where: { id: share.id },
+      data: { channel, shareIntentAt: new Date(), basePointsAwarded: SCORING.SHARE_BASE },
+    });
+    await this.scoring.award(userId, "share", SCORING.SHARE_BASE, { shareEventId: share.id, channel });
+    return { pointsAwarded: SCORING.SHARE_BASE };
   }
 }

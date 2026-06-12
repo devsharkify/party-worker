@@ -120,9 +120,16 @@ export type ReportRenderDto = z.infer<typeof reportRenderSchema>;
 // --- Sharing ---
 export const shareIntentSchema = z.object({
   creativeId: z.string(),
-  channel: ShareChannel,
+  /** optional at prepare time; the real channel is reported on confirm */
+  channel: ShareChannel.optional(),
 });
 export type ShareIntentDto = z.infer<typeof shareIntentSchema>;
+
+export const shareConfirmSchema = z.object({
+  shareEventId: z.string(),
+  channel: ShareChannel,
+});
+export type ShareConfirmDto = z.infer<typeof shareConfirmSchema>;
 
 // --- Social accounts ---
 export const connectSocialSchema = z.object({

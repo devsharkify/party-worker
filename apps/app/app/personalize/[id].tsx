@@ -103,13 +103,14 @@ export default function Personalize() {
 
   const isVideo = item?.type === "video";
 
-  // On open: composite personalized image (images) or report preview (video)
+  // On open: composite the personalized image locally for the PREVIEW only.
+  // The (multi-MB) render upload is deferred until the worker heads to share —
+  // no silent mobile-data burn for someone who just opened the screen.
   useEffect(() => {
     if (!item || reported || !bannerReady) return;
     setReported(true);
     void (async () => {
       if (item.type === "image") {
-        let dataUrl: string | undefined;
         try {
           const out = await captureComposite(
             {
@@ -122,14 +123,10 @@ export default function Personalize() {
             },
             canvasRef,
           );
-          dataUrl = out ?? undefined;
-          if (dataUrl) setPersonalizedDataUrl(dataUrl);
+          if (out) setPersonalizedDataUrl(out);
         } catch { /* ignore */ }
-        await api(`/feed/${id}/render`, {
-          method: "POST",
-          body: JSON.stringify({ deviceTier: detectTier(), usedServerFallback: !dataUrl, dataUrl }),
-        }).catch(() => undefined);
       } else {
+        // Video preview report carries no payload — fine to send on open.
         await api(`/feed/${id}/render`, {
           method: "POST",
           body: JSON.stringify({ deviceTier: detectTier(), usedServerFallback: true }),
@@ -137,6 +134,30 @@ export default function Personalize() {
       }
     })();
   }, [item, reported, bannerReady, api, id, user, bannerName, bannerDesignation, bannerArea, t]);
+
+  // Upload the captured render right before sharing, exactly once.
+  const renderUploadedRef = useRef(false);
+  const [sharePrepBusy, setSharePrepBusy] = useState(false);
+  async function goToShare() {
+    if (sharePrepBusy) return;
+    setSharePrepBusy(true);
+    try {
+      if (item?.type === "image" && !renderUploadedRef.current) {
+        renderUploadedRef.current = true;
+        await api(`/feed/${id}/render`, {
+          method: "POST",
+          body: JSON.stringify({
+            deviceTier: detectTier(),
+            usedServerFallback: !personalizedDataUrl,
+            dataUrl: personalizedDataUrl ?? undefined,
+          }),
+        }).catch(() => undefined);
+      }
+    } finally {
+      setSharePrepBusy(false);
+      router.push(`/share/${id}`);
+    }
+  }
 
   async function handleCaptureVideo() {
     if (!item || videoCapturing) return;
@@ -355,7 +376,10 @@ export default function Personalize() {
       </View>
 
       <View style={st.btnWrap}>
-        <PrimaryButton title={t("common.share")} onPress={() => router.push(`/share/${id}`)} />
+        <PrimaryButton
+          title={sharePrepBusy ? "…" : t("common.share")}
+          onPress={() => void goToShare()}
+        />
         {(personalizedDataUrl || personalizedVideoUrl) && Platform.OS === "web" && (
           <Pressable
             onPress={handleDownload}

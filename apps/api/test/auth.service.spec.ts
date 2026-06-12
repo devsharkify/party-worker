@@ -12,6 +12,7 @@ import { sha256 } from "../src/auth/crypto.util";
 
 const baseEnv = {
   OTP_PROVIDER: "authkey", // not 'fake' so only the prefix bypass applies
+  ALLOW_TEST_LOGINS: "true", // bypass numbers are gated behind this flag
   OTP_BYPASS_PREFIX: "+91900000",
   DEV_OTP_CODE: "000000",
   JWT_ACCESS_SECRET: "acc",

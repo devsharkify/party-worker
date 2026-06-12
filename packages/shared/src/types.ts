@@ -130,8 +130,17 @@ export interface ShareResult {
   /** the unique tracked link to place in the caption */
   trackedLink: string;
   caption: string;
-  /** points credited immediately for the share intent (base) */
+  /** base points already credited for this creative (0 until a share is confirmed) */
   basePointsAwarded: number;
+  /** the worker's personalized render of this creative, when one exists */
+  personalizedUrl: string | null;
+  /** original creative media — the share fallback when no render exists */
+  mediaUrl: string;
+}
+
+export interface ShareConfirmResult {
+  /** base points credited by this confirmation (0 on repeat shares) */
+  pointsAwarded: number;
 }
 
 export interface LeaderboardEntry {

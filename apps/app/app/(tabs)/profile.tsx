@@ -158,10 +158,61 @@ export default function Profile() {
     }
   }
 
-  // Photo upload — web file picker → downscale to 512px → POST /users/me/photo
+  // Photo upload — picker → downscale to 512px → POST /users/me/photo.
+  // Web uses a file input + canvas; native uses expo-image-picker + manipulator.
   const [photoBusy, setPhotoBusy] = useState(false);
+  const LP = {
+    updated: { te: "ఫోటో అప్‌డేట్ అయింది", en: "Photo updated" },
+    failed: { te: "ఫోటో అప్‌లోడ్ విఫలమైంది", en: "Photo upload failed" },
+    permission: { te: "గ్యాలరీ అనుమతి ఇవ్వండి", en: "Allow photo library access" },
+    unreadable: { te: "ఆ ఫోటో చదవలేకపోయాం", en: "Could not read that image" },
+  } as const;
+  const lp = (k: keyof typeof LP) => LP[k][lang as "te" | "en"] ?? LP[k].en;
+
+  async function pickAndUploadPhotoNative() {
+    if (photoBusy) return;
+    try {
+      const ImagePicker = await import("expo-image-picker");
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        toast.error(lp("permission"));
+        return;
+      }
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.9,
+      });
+      const asset = res.assets?.[0];
+      if (res.canceled || !asset) return;
+      setPhotoBusy(true);
+      const { manipulateAsync, SaveFormat } = await import("expo-image-manipulator");
+      const out = await manipulateAsync(asset.uri, [{ resize: { width: 512 } }], {
+        compress: 0.88,
+        format: SaveFormat.JPEG,
+        base64: true,
+      });
+      await api("/users/me/photo", {
+        method: "POST",
+        body: JSON.stringify({ dataUrl: `data:image/jpeg;base64,${out.base64}` }),
+      });
+      await refreshUser();
+      await card.reload();
+      toast.success(lp("updated"));
+    } catch (e) {
+      toast.error((e as Error).message ?? lp("failed"));
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+
   function pickAndUploadPhoto() {
-    if (Platform.OS !== "web" || photoBusy) return;
+    if (photoBusy) return;
+    if (Platform.OS !== "web") {
+      void pickAndUploadPhotoNative();
+      return;
+    }
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "image/*";
@@ -188,9 +239,9 @@ export default function Profile() {
           });
           await refreshUser();
           await card.reload();
-          toast.success("Photo updated");
+          toast.success(lp("updated"));
         } catch (e) {
-          toast.error((e as Error).message ?? "Photo upload failed");
+          toast.error((e as Error).message ?? lp("failed"));
         } finally {
           URL.revokeObjectURL(url);
           setPhotoBusy(false);
@@ -199,7 +250,7 @@ export default function Profile() {
       img.onerror = () => {
         URL.revokeObjectURL(url);
         setPhotoBusy(false);
-        toast.error("Could not read that image");
+        toast.error(lp("unreadable"));
       };
       img.src = url;
     };
@@ -486,19 +537,21 @@ export default function Profile() {
                 <RemoteImage uri={card.data?.photoUrl} width={56} height={56} radius={28} placeholderColor={colors.primarySoft} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={st.photoEditHint}>Shown on your banner when you share</Text>
-                {Platform.OS === "web" ? (
-                  <Pressable
-                    onPress={pickAndUploadPhoto}
-                    disabled={photoBusy}
-                    style={({ pressed }) => [st.photoEditBtn, (pressed || photoBusy) && { opacity: 0.7 }]}
-                  >
-                    <Feather name="camera" size={13} color={colors.primary} />
-                    <Text style={st.photoEditBtnText}>{photoBusy ? "Uploading…" : "Change Photo"}</Text>
-                  </Pressable>
-                ) : (
-                  <Text style={st.photoEditHint}>Change your photo from the web app</Text>
-                )}
+                <Text style={st.photoEditHint}>
+                  {lang === "te" ? "మీరు షేర్ చేసే బ్యానర్‌పై కనిపిస్తుంది" : "Shown on your banner when you share"}
+                </Text>
+                <Pressable
+                  onPress={pickAndUploadPhoto}
+                  disabled={photoBusy}
+                  style={({ pressed }) => [st.photoEditBtn, (pressed || photoBusy) && { opacity: 0.7 }]}
+                >
+                  <Feather name="camera" size={13} color={colors.primary} />
+                  <Text style={st.photoEditBtnText}>
+                    {photoBusy
+                      ? lang === "te" ? "అప్‌లోడ్ అవుతోంది…" : "Uploading…"
+                      : lang === "te" ? "ఫోటో మార్చండి" : "Change Photo"}
+                  </Text>
+                </Pressable>
               </View>
             </View>
 
@@ -556,10 +609,21 @@ export default function Profile() {
             <Stat label={t("profile.lifetimePoints")} value={sum.lifetimeReputation} />
             <Stat label={t("profile.weeklyPoints")} value={sum.weeklyLeaguePoints} accent />
           </View>
+          {sum.streakDays > 0 ? (
+            <View style={st.recruitRow}>
+              <Text style={st.recruitText}>
+                {lang === "te"
+                  ? `🔥 ${sum.streakDays} రోజుల స్ట్రీక్ — రోజూ షేర్ చేసి +5 బోనస్ పొందండి`
+                  : `🔥 ${sum.streakDays}-day streak — stay active daily for +5 bonus`}
+              </Text>
+            </View>
+          ) : null}
           {recruits.data != null ? (
             <View style={st.recruitRow}>
               <Text style={st.recruitText}>
-                {"👥 Recruits brought in: " + recruits.data.length}
+                {lang === "te"
+                  ? `👥 చేర్చిన కార్యకర్తలు: ${recruits.data.length}`
+                  : `👥 Recruits brought in: ${recruits.data.length}`}
               </Text>
             </View>
           ) : null}
