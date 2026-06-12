@@ -26,6 +26,7 @@ import { useAdmin } from "../src/admin-auth";
 import { EmptyState, SectionHeader, SkeletonRow, StatCard, useToast } from "../src/ui";
 import { TemplateDesigner } from "../src/template-designer";
 import { AnalyticsSection } from "../src/analytics-section";
+import { SubmissionsSection } from "../src/submissions-section";
 import { TRSLogo } from "../src/TRSLogo";
 import { BulkImport } from "../src/bulk-import";
 
@@ -161,6 +162,7 @@ type Section =
   | "overview"
   | "people"
   | "studio"
+  | "submissions"
   | "templates"
   | "organization"
   | "news"
@@ -173,6 +175,7 @@ const NAV: { id: Section; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "people", label: "People" },
   { id: "studio", label: "Studio" },
+  { id: "submissions", label: "Submissions" },
   { id: "templates", label: "Templates" },
   { id: "organization", label: "Organization" },
   { id: "news", label: "News" },
@@ -239,6 +242,7 @@ function Dashboard() {
         {section === "overview" ? <OverviewSection /> : null}
         {section === "people" ? <PeopleSection /> : null}
         {section === "studio" ? <StudioSection /> : null}
+        {section === "submissions" ? <SubmissionsSection /> : null}
         {section === "templates" ? <TemplateDesigner /> : null}
         {section === "organization" ? <OrganizationSection /> : null}
         {section === "news" ? <NewsSection /> : null}

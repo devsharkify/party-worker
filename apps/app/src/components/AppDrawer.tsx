@@ -30,8 +30,24 @@ const ITEMS: DrawerItem[] = [
   { label: "Updates", labelTe: "అప్‌డేట్లు", icon: "bell", href: "/(tabs)/updates" },
   { label: "Grievances", labelTe: "ఫిర్యాదులు", icon: "alert-circle", href: "/(tabs)/grievances" },
   { label: "My Videos", labelTe: "నా వీడియోలు", icon: "film", href: "/my-videos" },
+  { label: "Submit Content", labelTe: "కంటెంట్ పంపండి", icon: "upload", href: "/submit-content" },
+  { label: "My Submissions", labelTe: "నా సమర్పణలు", icon: "inbox", href: "/my-submissions" },
   { label: "Profile", labelTe: "ప్రొఫైల్", icon: "user", href: "/(tabs)/profile" },
 ];
+
+/** Leader-only drawer entries (shown when the role can review). */
+const LEADER_ITEMS: DrawerItem[] = [
+  { label: "Review Submissions", labelTe: "సమర్పణల సమీక్ష", icon: "check-square", href: "/review-submissions" },
+];
+
+const REVIEWER_ROLES = new Set([
+  "booth_leader",
+  "mandal_leader",
+  "constituency_leader",
+  "district_leader",
+  "state_admin",
+  "hq_admin",
+]);
 
 export function AppDrawer() {
   const { isOpen, close } = useDrawer();
@@ -86,7 +102,7 @@ export function AppDrawer() {
         <View style={st.divider} />
 
         {/* Nav items */}
-        {ITEMS.map((item) => (
+        {[...ITEMS, ...(user && REVIEWER_ROLES.has(user.role) ? LEADER_ITEMS : [])].map((item) => (
           <Pressable
             key={item.href}
             onPress={() => navigate(item.href)}

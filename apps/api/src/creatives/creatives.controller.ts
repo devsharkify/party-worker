@@ -26,12 +26,17 @@ const certifySchema = z.object({ mcmcCertId: z.string().min(3) });
 
 const submitSchema = z.object({
   title: z.string().min(1),
+  type: z.enum(["image", "video"]).default("video"),
   sourceKey: z.string().min(1),
   thumbnailKey: z.string().optional(),
   captionVariants: z.object({ te: z.string().default(""), en: z.string().default("") }),
   videoDurationSec: z.number().int().positive().optional(),
 });
 const rejectSchema = z.object({ note: z.string().max(300).optional() });
+const approveSchema = z.object({
+  /** Reviewer may polish the caption before it goes live. */
+  captionVariants: z.object({ te: z.string().default(""), en: z.string().default("") }).optional(),
+});
 const ALL_ROLES = [
   "worker",
   "booth_leader",
@@ -86,8 +91,12 @@ export class CreativesController {
 
   @Post("submissions/:id/approve")
   @Roles(...REVIEWER_ROLES)
-  approve(@CurrentUser() user: AuthUser, @Param("id") id: string) {
-    return this.creatives.approveSubmission(user, id);
+  approve(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(approveSchema)) dto: z.infer<typeof approveSchema>,
+  ) {
+    return this.creatives.approveSubmission(user, id, dto.captionVariants);
   }
 
   @Post("submissions/:id/reject")

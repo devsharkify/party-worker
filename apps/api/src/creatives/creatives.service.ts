@@ -9,8 +9,8 @@ import { LEADER_ROLES, type Role } from "@pw/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { ComplianceService } from "../compliance/compliance.service";
 import { OrgService } from "../org/org.service";
+import { PushService } from "../push/push.service";
 import { STORAGE_PROVIDER, type StorageProvider } from "../providers/storage.provider";
-import { PUSH_PROVIDER, type PushProvider } from "../providers/push.provider";
 import { newId } from "../auth/crypto.util";
 import type { AuthUser } from "../auth/auth.types";
 
@@ -20,9 +20,24 @@ export class CreativesService {
     private readonly prisma: PrismaService,
     private readonly compliance: ComplianceService,
     private readonly org: OrgService,
+    private readonly push: PushService,
     @Inject(STORAGE_PROVIDER) private readonly storage: StorageProvider,
-    @Inject(PUSH_PROVIDER) private readonly push: PushProvider,
   ) {}
+
+  /**
+   * Notify the target audience (subtree, or everyone) that a creative went
+   * live — fires for ALL creative types, the heartbeat of the daily loop.
+   * Best-effort: a push failure must never block the publish.
+   */
+  private async notifyPublished(targetOrgUnitId: string | null, title: string, creativeId: string) {
+    const pushTitle = "కొత్త పోస్టర్ వచ్చింది — షేర్ చేయండి!";
+    const data = { type: "creative_published", creativeId };
+    if (targetOrgUnitId) {
+      await this.push.pushToOrgUnit(targetOrgUnitId, pushTitle, title, data).catch(() => undefined);
+    } else {
+      await this.push.pushToAllUsers(pushTitle, title, data).catch(() => undefined);
+    }
+  }
 
   // ─── Worker submissions + approval ──────────────────────────────────────────
 
@@ -30,16 +45,16 @@ export class CreativesService {
     return role === "hq_admin" || role === "state_admin";
   }
 
-  /** A worker submits a video for review. Lands as pending (not in the feed). */
+  /** A worker submits content (video or poster) for review. Lands as pending. */
   async submit(
     user: AuthUser,
-    dto: { title: string; sourceKey: string; thumbnailKey?: string; captionVariants: CaptionVariants; videoDurationSec?: number },
+    dto: { title: string; type?: "image" | "video"; sourceKey: string; thumbnailKey?: string; captionVariants: CaptionVariants; videoDurationSec?: number },
   ) {
     const submitter = await this.prisma.user.findUniqueOrThrow({ where: { id: user.id } });
     return this.prisma.creative.create({
       data: {
         title: dto.title,
-        type: "video",
+        type: dto.type ?? "video",
         sourceKey: dto.sourceKey,
         thumbnailKey: dto.thumbnailKey ?? null,
         captionVariants: dto.captionVariants as unknown as object,
@@ -104,7 +119,7 @@ export class CreativesService {
   }
 
   /** Approve a submission — publishes it to the feed for everyone. */
-  async approveSubmission(user: AuthUser, creativeId: string) {
+  async approveSubmission(user: AuthUser, creativeId: string, captionVariants?: CaptionVariants) {
     await this.assertCanReview(user, creativeId);
     const updated = await this.prisma.creative.update({
       where: { id: creativeId },
@@ -114,10 +129,11 @@ export class CreativesService {
         reviewedAt: new Date(),
         published: true,
         publishedAt: new Date(),
+        // Reviewer-polished caption wins over the submitter's draft.
+        ...(captionVariants ? { captionVariants: captionVariants as unknown as object } : {}),
       },
     });
-    const topic = updated.targetOrgUnitId ? `org_${updated.targetOrgUnitId}` : "org_all";
-    await this.push.sendToTopic(topic, { title: "New video", body: updated.title }).catch(() => undefined);
+    await this.notifyPublished(updated.targetOrgUnitId, updated.title, updated.id);
     return { id: updated.id, status: "approved" };
   }
 
@@ -207,12 +223,7 @@ export class CreativesService {
       where: { id },
       data: { published: true, publishedAt: new Date() },
     });
-    const topic = c.targetOrgUnitId ? `org_${c.targetOrgUnitId}` : "org_all";
-    await this.push.sendToTopic(topic, {
-      title: "New content to share",
-      body: c.title,
-      data: { creativeId: c.id },
-    });
+    await this.notifyPublished(c.targetOrgUnitId, c.title, c.id);
     return updated;
   }
 
