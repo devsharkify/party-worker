@@ -51,9 +51,12 @@ const EnvSchema = z.object({
   STORAGE_LOCAL_DIR: z.string().default(".storage"),
   STORAGE_PUBLIC_BASE: z.string().default("http://localhost:4000/media"),
 
-  PUSH_PROVIDER: z.enum(["mock", "fcm"]).default("mock"),
-  // Firebase Cloud Messaging — used when PUSH_PROVIDER=fcm.
+  // Push: mock (default) | expo (Expo Push API — the app registers Expo tokens,
+  // zero server creds needed) | firebase (raw FCM tokens; "fcm" = legacy alias).
+  PUSH_PROVIDER: z.enum(["mock", "expo", "firebase", "fcm"]).default("mock"),
+  // Legacy alias: FCM_PROVIDER=firebase used to select the Firebase provider.
   FCM_PROVIDER: z.string().optional(),
+  // Service-account JSON — only needed when PUSH_PROVIDER=firebase.
   FCM_SERVICE_ACCOUNT_JSON: z.string().optional(),
   INSTAGRAM_PROVIDER: z.enum(["mock", "graph"]).default("mock"),
   META_OAUTH_REDIRECT: z.string().default("http://localhost:4000/social/instagram/callback"),

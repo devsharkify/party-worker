@@ -141,7 +141,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         if (finalStatus !== "granted") return;
 
-        const tokenData = await Notifications.getExpoPushTokenAsync();
+        // The EAS projectId is required for a valid token in release builds.
+        const Constants = (await import("expo-constants")).default;
+        const projectId = Constants.expoConfig?.extra?.eas?.projectId as string | undefined;
+        const tokenData = await Notifications.getExpoPushTokenAsync(
+          projectId ? { projectId } : undefined,
+        );
         const platform = Platform.OS === "ios" ? "ios" : "android";
 
         await api("/push/token", {

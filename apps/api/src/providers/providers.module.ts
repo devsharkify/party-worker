@@ -4,6 +4,7 @@ import { AuthkeyOtpProvider, FakeOtpProvider, OTP_PROVIDER } from "./otp.provide
 import { WhatsAppOtpProvider } from "./whatsapp-otp.provider";
 import { LocalStorageProvider, STORAGE_PROVIDER } from "./storage.provider";
 import { MockPushProvider, PUSH_PROVIDER } from "./push.provider";
+import { ExpoPushProvider } from "./expo-push.provider";
 import { FirebasePushProvider } from "./firebase-push.provider";
 import {
   ASSISTED_SHARE,
@@ -23,17 +24,25 @@ function selectOtpProvider() {
   return FakeOtpProvider;
 }
 
+function selectPushProvider() {
+  if (env.PUSH_PROVIDER === "expo") return ExpoPushProvider;
+  if (env.PUSH_PROVIDER === "firebase" || env.PUSH_PROVIDER === "fcm" || env.FCM_PROVIDER === "firebase") {
+    return FirebasePushProvider;
+  }
+  return MockPushProvider;
+}
+
 /**
  * Wire each integration to its implementation based on env.
  * OTP:     fake (default) | authkey | whatsapp
- * Push:    mock (default) | firebase   [FCM_PROVIDER=firebase]
+ * Push:    mock (default) | expo | firebase   [PUSH_PROVIDER]
  * Payment: mock (default) | razorpay   [PAYMENT_PROVIDER=razorpay]
  * IG:      mock (default) | graph      [INSTAGRAM_PROVIDER=graph]
  */
 const providers: Provider[] = [
   { provide: OTP_PROVIDER, useClass: selectOtpProvider() },
   { provide: STORAGE_PROVIDER, useClass: LocalStorageProvider },
-  { provide: PUSH_PROVIDER, useClass: env.FCM_PROVIDER === "firebase" ? FirebasePushProvider : MockPushProvider },
+  { provide: PUSH_PROVIDER, useClass: selectPushProvider() },
   { provide: ASSISTED_SHARE, useClass: DefaultAssistedShareProvider },
   {
     provide: INSTAGRAM_PROVIDER,

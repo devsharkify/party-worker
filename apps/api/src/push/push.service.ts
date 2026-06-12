@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
-import { PUSH_PROVIDER, type PushProvider } from "../providers/push.provider";
-import { FirebasePushProvider } from "../providers/firebase-push.provider";
+import { OrgService } from "../org/org.service";
+import { PUSH_PROVIDER, type PushMessage, type PushProvider } from "../providers/push.provider";
 
 @Injectable()
 export class PushService {
@@ -9,6 +9,7 @@ export class PushService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly org: OrgService,
     @Inject(PUSH_PROVIDER) private readonly push: PushProvider,
   ) {}
 
@@ -28,6 +29,17 @@ export class PushService {
     });
   }
 
+  /** Send to explicit tokens and prune the ones the provider reports dead. */
+  private async dispatch(tokens: string[], msg: PushMessage): Promise<void> {
+    if (tokens.length === 0) return;
+    const invalid = await this.push.sendToTokens(tokens, msg);
+    if (invalid.length > 0) {
+      await this.prisma.deviceToken
+        .deleteMany({ where: { token: { in: invalid } } })
+        .catch(() => undefined);
+    }
+  }
+
   /** Push a notification to all registered devices of a specific user. */
   async pushToUser(
     userId: string,
@@ -36,22 +48,26 @@ export class PushService {
     data?: Record<string, string>,
   ): Promise<void> {
     const records = await this.prisma.deviceToken.findMany({ where: { userId } });
-    const tokens = records.map((r) => r.token);
-    if (tokens.length === 0) {
+    if (records.length === 0) {
       this.log.debug(`pushToUser(userId=${userId}): no registered tokens`);
       return;
     }
-    if (this.push instanceof FirebasePushProvider) {
-      await this.push.sendMulticast(tokens, title, body, data);
-    } else {
-      await this.push.sendToUser(userId, { title, body, data });
-    }
+    await this.dispatch(records.map((r) => r.token), { title, body, data });
   }
 
-  /** Push a notification to all users in a specific org unit. */
-  async pushToOrgUnit(orgUnitId: string, title: string, body: string): Promise<void> {
+  /**
+   * Push to every user in the org unit's SUBTREE (a creative targeted at a
+   * constituency must reach the workers sitting in its booth-level units).
+   */
+  async pushToOrgUnit(
+    orgUnitId: string,
+    title: string,
+    body: string,
+    data?: Record<string, string>,
+  ): Promise<void> {
+    const unitIds = await this.org.getDescendantIds(orgUnitId);
     const users = await this.prisma.user.findMany({
-      where: { orgUnitId },
+      where: { orgUnitId: { in: unitIds } },
       select: { id: true },
     });
     if (users.length === 0) return;
@@ -59,43 +75,28 @@ export class PushService {
     const records = await this.prisma.deviceToken.findMany({
       where: { userId: { in: users.map((u) => u.id) } },
     });
-    const tokens = records.map((r) => r.token);
-    if (tokens.length === 0) {
+    if (records.length === 0) {
       this.log.debug(`pushToOrgUnit(orgUnitId=${orgUnitId}): no registered tokens`);
       return;
     }
-
-    if (this.push instanceof FirebasePushProvider) {
-      // FCM allows max 500 tokens per sendEachForMulticast call
-      const CHUNK = 500;
-      for (let i = 0; i < tokens.length; i += CHUNK) {
-        await this.push.sendMulticast(tokens.slice(i, i + CHUNK), title, body);
-      }
-    } else {
-      await this.push.sendToTopic(orgUnitId, { title, body });
-    }
+    await this.dispatch(records.map((r) => r.token), { title, body, data });
   }
 
   /** Push a notification to every registered device (broadcast). */
   async pushToAllUsers(title: string, body: string, data?: Record<string, string>): Promise<void> {
-    if (this.push instanceof FirebasePushProvider) {
-      const CHUNK = 500;
-      let cursor: string | undefined;
-      while (true) {
-        const records = await this.prisma.deviceToken.findMany({
-          take: CHUNK,
-          ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
-          select: { id: true, token: true },
-          orderBy: { id: "asc" },
-        });
-        if (records.length === 0) break;
-        await this.push.sendMulticast(records.map((r) => r.token), title, body, data);
-        cursor = records[records.length - 1].id;
-        if (records.length < CHUNK) break;
-      }
-    } else {
-      // Mock / non-FCM provider: use the "org_all" topic convention
-      await this.push.sendToTopic("org_all", { title, body, data });
+    const PAGE = 500;
+    let cursor: string | undefined;
+    while (true) {
+      const records = await this.prisma.deviceToken.findMany({
+        take: PAGE,
+        ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+        select: { id: true, token: true },
+        orderBy: { id: "asc" },
+      });
+      if (records.length === 0) break;
+      await this.dispatch(records.map((r) => r.token), { title, body, data });
+      cursor = records[records.length - 1]!.id;
+      if (records.length < PAGE) break;
     }
   }
 }

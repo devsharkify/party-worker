@@ -263,8 +263,8 @@ export class AdminService {
       try {
         await this.push.pushToUser(
           id,
-          "You've been appointed!",
-          `You are now a ${roleName} in the party. Open the app to manage your team.`,
+          "మీరు నియమితులయ్యారు! (You've been appointed!)",
+          `మీరు ఇప్పుడు పార్టీలో ${roleName}. మీ టీమ్‌ను నిర్వహించడానికి యాప్ తెరవండి.`,
           { type: "role_change", role: dto.role },
         );
       } catch {

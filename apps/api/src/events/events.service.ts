@@ -82,10 +82,11 @@ export class EventsService {
     };
 
     // Notify workers about the new event (fire-and-forget)
+    const evTitle = "కొత్త కార్యక్రమం (New event)";
     if (event.orgUnitId) {
-      void this.push.pushToOrgUnit(event.orgUnitId, "New event", event.title).catch(() => undefined);
+      void this.push.pushToOrgUnit(event.orgUnitId, evTitle, event.title).catch(() => undefined);
     } else {
-      void this.push.pushToAllUsers("New event", event.title).catch(() => undefined);
+      void this.push.pushToAllUsers(evTitle, event.title).catch(() => undefined);
     }
 
     return item;
