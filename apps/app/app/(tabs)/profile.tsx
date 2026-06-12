@@ -66,26 +66,12 @@ const L = {
   social: { te: "సోషల్ ఖాతాలు", en: "Social accounts" },
 };
 
-const CONSENT_META: Record<
-  ConsentPurpose,
-  { label: string; description: string }
-> = {
-  data_processing: {
-    label: "Data Processing",
-    description: "Allow us to process your activity data",
-  },
-  social_linking: {
-    label: "Social Account Linking",
-    description: "Connect your Instagram/Facebook accounts",
-  },
-  content_resharing: {
-    label: "Content Resharing",
-    description: "Allow app to reshare your content",
-  },
-  location: {
-    label: "Location Access",
-    description: "Use location for events and grievances",
-  },
+/** Same Telugu-first catalog keys as the onboarding consent screen (DPDP). */
+const CONSENT_KEY: Record<ConsentPurpose, string> = {
+  data_processing: "consent.dataProcessing",
+  social_linking: "consent.socialLinking",
+  content_resharing: "consent.contentResharing",
+  location: "consent.location",
 };
 
 export default function Profile() {
@@ -851,18 +837,18 @@ function PrivacyConsentSection({
   onToggle: (purpose: ConsentPurpose, granted: boolean) => void;
 }) {
   const purposes = ConsentPurpose.options;
+  const { t, i18n } = useTranslation();
+  const clang = (i18n.language as "te" | "en") ?? "te";
 
   return (
     <View style={st.section}>
       <View style={st.consentHeader}>
         <Feather name="shield" size={16} color={colors.primary} />
         <Text style={[st.sectionTitle, { marginBottom: 0, marginLeft: 6 }]}>
-          Privacy &amp; Consent
+          {t("consent.title")}
         </Text>
       </View>
-      <Text style={[st.note, { marginTop: 8 }]}>
-        Manage how your data is used under India&apos;s DPDP Act.
-      </Text>
+      <Text style={[st.note, { marginTop: 8 }]}>{t("consent.legalNote")}</Text>
 
       {loading ? (
         <View style={{ gap: 12, marginTop: 4 }}>
@@ -874,7 +860,6 @@ function PrivacyConsentSection({
       ) : (
         <View style={{ gap: 0 }}>
           {purposes.map((purpose, idx) => {
-            const meta = CONSENT_META[purpose];
             const state = consents?.find((c) => c.purpose === purpose);
             const granted = state?.granted ?? false;
             const grantedAt = state?.grantedAt;
@@ -887,12 +872,11 @@ function PrivacyConsentSection({
                 style={[st.consentRow, !isLast && st.consentRowBorder]}
               >
                 <View style={st.consentText}>
-                  <Text style={st.consentLabel}>{meta.label}</Text>
-                  <Text style={st.consentDesc}>{meta.description}</Text>
+                  <Text style={st.consentLabel}>{t(CONSENT_KEY[purpose])}</Text>
                   {grantedAt ? (
                     <Text style={st.consentUpdated}>
-                      Last updated:{" "}
-                      {new Date(grantedAt).toLocaleDateString("en-IN", {
+                      {clang === "te" ? "చివరి మార్పు: " : "Last updated: "}
+                      {new Date(grantedAt).toLocaleDateString(clang === "te" ? "te-IN" : "en-IN", {
                         day: "numeric",
                         month: "short",
                         year: "numeric",

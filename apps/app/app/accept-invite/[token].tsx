@@ -36,6 +36,29 @@ interface InviteStatus {
   valid: boolean;
 }
 
+// Telugu-first copy — this is a recruit's FIRST contact with the party.
+const L = {
+  checking: "ఆహ్వానం తనిఖీ అవుతోంది… (Checking invite…)",
+  invalidLink: "ఆహ్వాన లింక్ చెల్లదు. (Invalid invite link.)",
+  notFound: "ఆహ్వానం దొరకలేదు లేదా గడువు ముగిసింది.",
+  unavailable: "ఆహ్వానం అందుబాటులో లేదు",
+  unavailableBody: "ఈ ఆహ్వాన లింక్ చెల్లదు లేదా గడువు ముగిసింది.",
+  backToLogin: "← లాగిన్‌కు వెళ్లండి",
+  invited: "మీకు ఆహ్వానం వచ్చింది!",
+  joinAs: (unit: string, role: string) => `${unit}లో ${role}గా చేరండి`,
+  invitedBy: (name: string) => `ఆహ్వానించినవారు: ${name}`,
+  nameLabel: "మీ పూర్తి పేరు",
+  namePh: "మీ పేరు రాయండి",
+  phoneLabel: "ఫోన్ నంబర్",
+  nameErr: "దయచేసి మీ పూర్తి పేరు రాయండి.",
+  phoneErr: "సరైన 10 అంకెల ఫోన్ నంబర్ ఇవ్వండి.",
+  acceptFail: "ఆహ్వానం స్వీకరించడం విఫలమైంది.",
+  accept: "అంగీకరించి చేరండి",
+  otpHint: "అంగీకరించిన తర్వాత మీ ఫోన్‌కు OTP వస్తుంది.",
+  welcome: "స్వాగతం!",
+  welcomeBody: "మీ ఖాతా సృష్టించబడింది. లాగిన్ పూర్తి చేయడానికి మీ ఫోన్‌లో OTP చూడండి.",
+};
+
 type ScreenState = "loading" | "ready" | "error" | "submitting" | "done";
 
 export default function AcceptInvite() {
@@ -53,7 +76,7 @@ export default function AcceptInvite() {
 
   useEffect(() => {
     if (!token) {
-      setErrorMsg("Invalid invite link.");
+      setErrorMsg(L.invalidLink);
       setState("error");
       return;
     }
@@ -61,7 +84,7 @@ export default function AcceptInvite() {
       .then(async (res) => {
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
-          throw new Error(body?.message ?? "Invite not found or expired.");
+          throw new Error(body?.message ?? L.notFound);
         }
         return res.json() as Promise<InviteStatus>;
       })
@@ -83,11 +106,11 @@ export default function AcceptInvite() {
   async function onAccept() {
     setFieldError(undefined);
     if (!name.trim()) {
-      setFieldError("Please enter your full name.");
+      setFieldError(L.nameErr);
       return;
     }
     if (phone.replace(/\D/g, "").length < 10) {
-      setFieldError("Please enter a valid 10-digit phone number.");
+      setFieldError(L.phoneErr);
       return;
     }
     setState("submitting");
@@ -98,7 +121,7 @@ export default function AcceptInvite() {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body?.message ?? "Failed to accept invite.");
+        throw new Error(body?.message ?? L.acceptFail);
       }
       setState("done");
       // Small delay so the user sees the success state, then navigate to login
@@ -125,50 +148,47 @@ export default function AcceptInvite() {
         {state === "loading" && (
           <View style={st.center}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={st.loadingText}>Checking invite…</Text>
+            <Text style={st.loadingText}>{L.checking}</Text>
           </View>
         )}
 
         {state === "error" && (
           <View style={st.card}>
             <Feather name="alert-triangle" size={40} color={colors.danger} />
-            <Text style={st.errorHeading}>Invite Unavailable</Text>
+            <Text style={st.errorHeading}>{L.unavailable}</Text>
             <Text style={st.errorBody}>
-              {errorMsg ?? "This invite link is invalid or has expired."}
+              {errorMsg ?? L.unavailableBody}
             </Text>
             <Pressable onPress={() => router.replace("/login")} style={st.backLink}>
-              <Text style={st.backLinkText}>← Back to Login</Text>
+              <Text style={st.backLinkText}>{L.backToLogin}</Text>
             </Pressable>
           </View>
         )}
 
         {(state === "ready" || state === "submitting") && invite && (
           <View style={st.card}>
-            <Text style={st.inviteHeading}>You've been invited!</Text>
+            <Text style={st.inviteHeading}>{L.invited}</Text>
             <Text style={st.inviteBody}>
-              Join{" "}
-              <Text style={st.highlight}>{invite.orgUnitName}</Text>
-              {" "}as{" "}
-              <Text style={st.highlight}>{invite.role}</Text>
+              <Text style={st.highlight}>{L.joinAs(invite.orgUnitName, invite.role)}</Text>
             </Text>
             {invite.inviterName ? (
-              <Text style={st.inviter}>Invited by {invite.inviterName}</Text>
+              <Text style={st.inviter}>{L.invitedBy(invite.inviterName)}</Text>
             ) : null}
 
             <View style={st.divider} />
 
-            <Text style={st.label}>Your Full Name</Text>
+            <Text style={st.label}>{L.nameLabel}</Text>
             <TextInput
               value={name}
               onChangeText={setName}
-              placeholder="Enter your name"
+              placeholder={L.namePh}
               placeholderTextColor="#94a3b8"
               style={st.input}
               returnKeyType="next"
               editable={state !== "submitting"}
             />
 
-            <Text style={st.label}>Phone Number</Text>
+            <Text style={st.label}>{L.phoneLabel}</Text>
             <TextInput
               value={phone}
               onChangeText={setPhone}
@@ -184,14 +204,14 @@ export default function AcceptInvite() {
             {fieldError ? <Text style={st.fieldError}>{fieldError}</Text> : null}
 
             <PrimaryButton
-              title="Accept & Join"
+              title={L.accept}
               onPress={onAccept}
               loading={state === "submitting"}
               disabled={!name.trim() || phone.replace(/\D/g, "").length < 10}
             />
 
             <Text style={st.hint}>
-              You'll receive an OTP to verify your phone number after accepting.
+              {L.otpHint}
             </Text>
           </View>
         )}
@@ -199,9 +219,9 @@ export default function AcceptInvite() {
         {state === "done" && (
           <View style={st.card}>
             <Feather name="check-circle" size={40} color={colors.success} />
-            <Text style={st.successHeading}>Welcome aboard!</Text>
+            <Text style={st.successHeading}>{L.welcome}</Text>
             <Text style={st.successBody}>
-              Your account has been created. Check your phone for an OTP to complete login.
+              {L.welcomeBody}
             </Text>
           </View>
         )}

@@ -100,13 +100,13 @@ function SkeletonGrid() {
   );
 }
 
-function DashboardHeader({ name, items }: { name: string; items: number }) {
+function DashboardHeader({ name, items, lang }: { name: string; items: number; lang: "te" | "en" }) {
   return (
     <View style={st.dashHeader}>
       {/* Welcome row — name on left, TRS emblem on right */}
       <View style={st.welcomeRow}>
         <View style={{ flex: 1 }}>
-          <Text style={st.welcomeGreeting}>WELCOME BACK</Text>
+          <Text style={st.welcomeGreeting}>{lang === "te" ? "తిరిగి స్వాగతం" : "WELCOME BACK"}</Text>
           <Text style={st.welcomeName} numberOfLines={1}>{name}</Text>
         </View>
         <TRSLogo size={42} showBanner={false} borderRadius={6} />
@@ -122,19 +122,19 @@ function DashboardHeader({ name, items }: { name: string; items: number }) {
         <View style={st.statsGoldLine} />
         <View style={st.statsItem}>
           <Text style={st.statsValue}>{items}</Text>
-          <Text style={st.statsLabel}>{items === 1 ? "CREATIVE" : "CREATIVES"}</Text>
+          <Text style={st.statsLabel}>{lang === "te" ? "పోస్టర్లు" : items === 1 ? "CREATIVE" : "CREATIVES"}</Text>
         </View>
         <View style={st.statsDivider} />
         <View style={st.statsItem}>
           <Feather name="share-2" size={18} color={colors.gold} />
-          <Text style={[st.statsLabel, { marginTop: 6 }]}>READY TO SHARE</Text>
+          <Text style={[st.statsLabel, { marginTop: 6 }]}>{lang === "te" ? "షేర్ చేయడానికి సిద్ధం" : "READY TO SHARE"}</Text>
         </View>
       </LinearGradient>
 
       {/* Section label */}
       <View style={st.sectionLabelRow}>
         <View style={st.sectionAccent} />
-        <Text style={st.sectionLabel}>Campaign Creatives</Text>
+        <Text style={st.sectionLabel}>{lang === "te" ? "ప్రచార పోస్టర్లు" : "Campaign Creatives"}</Text>
       </View>
     </View>
   );
@@ -158,7 +158,7 @@ export default function Feed() {
   if (loading && !data) {
     return (
       <View style={st.fill}>
-        <DashboardHeader name={firstName} items={0} />
+        <DashboardHeader name={firstName} items={0} lang={lang} />
         <SkeletonGrid />
       </View>
     );
@@ -203,7 +203,7 @@ export default function Feed() {
       {!isOnline && (
         <View style={st.offlineBanner}>
           <Feather name="wifi-off" size={13} color="#92400e" />
-          <Text style={st.offlineBannerText}>Offline — Cached content</Text>
+          <Text style={st.offlineBannerText}>{lang === "te" ? "ఆఫ్‌లైన్ — సేవ్ చేసిన కంటెంట్" : "Offline — Cached content"}</Text>
         </View>
       )}
       <FlatList
@@ -221,12 +221,12 @@ export default function Feed() {
           />
         }
         ListHeaderComponent={
-          <DashboardHeader name={firstName} items={items.length} />
+          <DashboardHeader name={firstName} items={items.length} lang={lang} />
         }
         ListEmptyComponent={
           <View style={st.emptyWrap}>
             <Feather name="image" size={40} color={colors.primary} style={{ opacity: 0.5 }} />
-            <Text style={st.emptyTitle}>Nothing here yet</Text>
+            <Text style={st.emptyTitle}>{lang === "te" ? "ఇంకా ఏమీ లేదు" : "Nothing here yet"}</Text>
             <Text style={st.emptySub}>{t("feed.empty")}</Text>
           </View>
         }

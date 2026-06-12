@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { captureRef } from "react-native-view-shot";
+import { useTranslation } from "react-i18next";
 import type { FeedItem } from "@pw/shared";
 import { useAuth } from "../auth/auth-context";
 import { WorkerBanner, BannerUser } from "./WorkerBanner";
@@ -46,6 +47,7 @@ const PORTRAIT_H = Math.round(COMPOSITE_W * (1920 / 1080));
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function BannerShareModal({ item, visible, onClose, user }: Props) {
+  const { i18n } = useTranslation();
   const { api } = useAuth();
   const compositeRef = useRef<View>(null);
   const [status, setStatus] = useState<Status>("idle");
@@ -59,13 +61,14 @@ export function BannerShareModal({ item, visible, onClose, user }: Props) {
     status === "uploading" ||
     status === "posting";
 
+  const te = i18n.language !== "en";
   const statusLabel: Record<Status, string> = {
-    idle: "Share to Instagram",
-    capturing: "Capturing…",
-    uploading: "Uploading…",
-    posting: "Publishing…",
-    done: "Posted!",
-    error: "Share to Instagram",
+    idle: te ? "ఇన్‌స్టాగ్రామ్‌లో షేర్ చేయండి" : "Share to Instagram",
+    capturing: te ? "క్యాప్చర్ అవుతోంది…" : "Capturing…",
+    uploading: te ? "అప్‌లోడ్ అవుతోంది…" : "Uploading…",
+    posting: te ? "పబ్లిష్ అవుతోంది…" : "Publishing…",
+    done: te ? "పోస్ట్ అయింది!" : "Posted!",
+    error: te ? "ఇన్‌స్టాగ్రామ్‌లో షేర్ చేయండి" : "Share to Instagram",
   };
 
   async function handleShare() {
@@ -134,9 +137,9 @@ export function BannerShareModal({ item, visible, onClose, user }: Props) {
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <View style={s.header}>
         <Pressable onPress={handleClose} style={s.closeBtn} hitSlop={12}>
-          <Text style={s.closeText}>← Close</Text>
+          <Text style={s.closeText}>{te ? "← మూసివేయి" : "← Close"}</Text>
         </Pressable>
-        <Text style={s.headerTitle}>Share with Banner</Text>
+        <Text style={s.headerTitle}>{te ? "బ్యానర్‌తో షేర్ చేయండి" : "Share with Banner"}</Text>
         {/* spacer to center the title */}
         <View style={s.headerSpacer} />
       </View>

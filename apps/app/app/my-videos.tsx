@@ -2,6 +2,7 @@ import { Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View
 import { Image } from "expo-image";
 import { Stack, useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
 import { useApi } from "../src/hooks";
 import { StateView } from "../src/components/StateView";
 import { SkeletonBlock } from "../src/components/Skeleton";
@@ -19,14 +20,28 @@ interface MyRender {
   createdAt: string;
 }
 
-function timeAgo(iso: string) {
+function timeAgo(iso: string, lang: "te" | "en") {
   const diff = Date.now() - new Date(iso).getTime();
   const d = Math.floor(diff / 86400000);
-  if (d > 0) return `${d}d ago`;
+  if (d > 0) return lang === "te" ? `${d} రోజుల క్రితం` : `${d}d ago`;
   const h = Math.floor(diff / 3600000);
-  if (h > 0) return `${h}h ago`;
-  return "Just now";
+  if (h > 0) return lang === "te" ? `${h} గం. క్రితం` : `${h}h ago`;
+  return lang === "te" ? "ఇప్పుడే" : "Just now";
 }
+
+const L = {
+  title: { te: "నా వీడియోలు", en: "My Videos" },
+  personalised: { te: "వ్యక్తిగతీకరించబడింది", en: "Personalised" },
+  download: { te: "డౌన్‌లోడ్", en: "Download" },
+  share: { te: "షేర్", en: "Share" },
+  loadFail: { te: "మీ వీడియోలు లోడ్ కాలేదు", en: "Couldn\u2019t load your videos" },
+  retry: { te: "మళ్లీ ప్రయత్నించండి", en: "Retry" },
+  emptyTitle: { te: "ఇంకా వ్యక్తిగత కంటెంట్ లేదు", en: "No personalised content yet" },
+  emptyMsg: {
+    te: "ఫీడ్‌లో ఏదైనా పోస్టర్ నొక్కి వ్యక్తిగతీకరించండి — అది ఇక్కడ కనిపిస్తుంది.",
+    en: "Tap any creative in your feed and personalise it — it will appear here.",
+  },
+};
 
 function downloadUrl(url: string, filename: string) {
   if (Platform.OS !== "web") return;
@@ -39,7 +54,7 @@ function downloadUrl(url: string, filename: string) {
   document.body.removeChild(a);
 }
 
-function RenderCard({ item, onShare }: { item: MyRender; onShare: () => void }) {
+function RenderCard({ item, onShare, lang }: { item: MyRender; onShare: () => void; lang: "te" | "en" }) {
   const thumb = item.cachedUrl ?? item.thumbnailUrl ?? item.sourceUrl;
   const hasPersonalized = !!(item.cachedUrl || item.cachedVideoUrl);
   const downloadSrc = item.cachedVideoUrl ?? item.cachedUrl ?? item.sourceUrl;
@@ -62,14 +77,14 @@ function RenderCard({ item, onShare }: { item: MyRender; onShare: () => void }) 
         {hasPersonalized && (
           <View style={st.personalizedBadge}>
             <Feather name="user-check" size={10} color="#fff" />
-            <Text style={st.personalizedBadgeText}>Personalised</Text>
+            <Text style={st.personalizedBadgeText}>{L.personalised[lang]}</Text>
           </View>
         )}
       </View>
 
       <View style={st.info}>
         <Text style={st.cardTitle} numberOfLines={2}>{item.title}</Text>
-        <Text style={st.cardTime}>{timeAgo(item.createdAt)}</Text>
+        <Text style={st.cardTime}>{timeAgo(item.createdAt, lang)}</Text>
 
         <View style={st.actions}>
           <Pressable
@@ -77,14 +92,14 @@ function RenderCard({ item, onShare }: { item: MyRender; onShare: () => void }) 
             style={({ pressed }) => [st.actionBtn, st.downloadBtn, pressed && { opacity: 0.75 }]}
           >
             <Feather name="download" size={14} color="#fff" />
-            <Text style={st.actionBtnText}>Download</Text>
+            <Text style={st.actionBtnText}>{L.download[lang]}</Text>
           </Pressable>
           <Pressable
             onPress={onShare}
             style={({ pressed }) => [st.actionBtn, st.shareBtn, pressed && { opacity: 0.75 }]}
           >
             <Feather name="share-2" size={14} color={colors.primary} />
-            <Text style={[st.actionBtnText, { color: colors.primary }]}>Share</Text>
+            <Text style={[st.actionBtnText, { color: colors.primary }]}>{L.share[lang]}</Text>
           </Pressable>
         </View>
       </View>
@@ -94,6 +109,8 @@ function RenderCard({ item, onShare }: { item: MyRender; onShare: () => void }) 
 
 export default function MyVideos() {
   const router = useRouter();
+  const { i18n } = useTranslation();
+  const lang = (i18n.language as "te" | "en") ?? "te";
   const { data, loading, refreshing, error, reload, refresh } = useApi<MyRender[]>("/feed/renders/mine");
 
   const items = data ?? [];
@@ -103,7 +120,7 @@ export default function MyVideos() {
       <Stack.Screen
         options={{
           headerShown: true,
-          title: "My Videos",
+          title: L.title[lang],
           headerStyle: { backgroundColor: colors.bg },
           headerTintColor: "#fff",
           headerTitleStyle: { fontWeight: fontWeight.bold, fontFamily: fontFamily, fontSize: 17 },
@@ -123,16 +140,13 @@ export default function MyVideos() {
         ) : error && !data ? (
           <StateView
             tone="error"
-            title="Couldn't load your videos"
+            title={L.loadFail[lang]}
             message={error}
-            retryLabel="Retry"
+            retryLabel={L.retry[lang]}
             onRetry={reload}
           />
         ) : items.length === 0 ? (
-          <StateView
-            title="No personalised content yet"
-            message="Tap any creative in your feed and personalise it — it will appear here."
-          />
+          <StateView title={L.emptyTitle[lang]} message={L.emptyMsg[lang]} />
         ) : (
           <ScrollView
             contentContainerStyle={st.content}
@@ -141,11 +155,12 @@ export default function MyVideos() {
               <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary} colors={[colors.primary]} />
             }
           >
-            <Text style={st.heading}>{items.length} personalised {items.length === 1 ? "item" : "items"}</Text>
+            <Text style={st.heading}>{lang === "te" ? `${items.length} వ్యక్తిగత ఐటెమ్‌లు` : `${items.length} personalised ${items.length === 1 ? "item" : "items"}`}</Text>
             {items.map((item) => (
               <RenderCard
                 key={item.id}
                 item={item}
+                lang={lang}
                 onShare={() => router.push(`/share/${item.creativeId}`)}
               />
             ))}

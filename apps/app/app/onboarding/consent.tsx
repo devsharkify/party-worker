@@ -3,34 +3,25 @@ import { ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
 import type { ConsentState } from "@pw/shared";
 import { ConsentPurpose } from "@pw/shared";
 import { useAuth } from "../../src/auth/auth-context";
 import { PrimaryButton } from "../../src/components/ui";
 import { colors, fontFamily, fontWeight, lh, radius, shadow } from "../../src/theme";
 
-const CONSENT_META: Record<ConsentPurpose, { label: string; description: string }> = {
-  data_processing: {
-    label: "Data Processing",
-    description: "Allow us to process your activity data to personalise your experience and measure your impact.",
-  },
-  social_linking: {
-    label: "Social Account Linking",
-    description: "Connect your Instagram or Facebook accounts to unlock reach-based scoring.",
-  },
-  content_resharing: {
-    label: "Content Resharing",
-    description: "Allow the app to reshare content on your behalf via connected social accounts.",
-  },
-  location: {
-    label: "Location Access",
-    description: "Use your location to show nearby events and to tag grievances accurately.",
-  },
+/** Catalog key per purpose — DPDP rules require the notice in Telugu. */
+const CONSENT_KEY: Record<ConsentPurpose, string> = {
+  data_processing: "consent.dataProcessing",
+  social_linking: "consent.socialLinking",
+  content_resharing: "consent.contentResharing",
+  location: "consent.location",
 };
 
 export default function ConsentScreen() {
   const router = useRouter();
   const { api } = useAuth();
+  const { t } = useTranslation();
 
   // Default all toggles to false — user must explicitly grant
   const purposes = ConsentPurpose.options;
@@ -71,22 +62,18 @@ export default function ConsentScreen() {
         <View style={st.iconRing}>
           <Feather name="shield" size={40} color={colors.primary} />
         </View>
-        <Text style={st.titleEn}>Privacy &amp; Data Consent</Text>
-        <Text style={st.subtitle}>
-          Under India&apos;s Digital Personal Data Protection Act (DPDP), you have the right to
-          control how your data is used. You can change these at any time from your profile.
-        </Text>
+        <Text style={st.titleEn}>{t("consent.title")}</Text>
+        <Text style={st.subtitle}>{t("consent.legalNote")}</Text>
+        <Text style={[st.subtitle, st.subtitleSecondary]}>{t("consent.intro")}</Text>
 
         {/* Consent toggles */}
         <View style={st.card}>
           {purposes.map((purpose, idx) => {
-            const meta = CONSENT_META[purpose];
             const isLast = idx === purposes.length - 1;
             return (
               <View key={purpose} style={[st.row, !isLast && st.rowBorder]}>
                 <View style={st.rowText}>
-                  <Text style={st.rowLabel}>{meta.label}</Text>
-                  <Text style={st.rowDesc}>{meta.description}</Text>
+                  <Text style={st.rowLabel}>{t(CONSENT_KEY[purpose])}</Text>
                 </View>
                 <Switch
                   value={granted[purpose]}
@@ -100,15 +87,12 @@ export default function ConsentScreen() {
           })}
         </View>
 
-        <Text style={st.legalNote}>
-          You can continue without granting any consents. Certain features may be limited until
-          consent is given.
-        </Text>
+        <Text style={st.legalNote}>{t("consent.skipNote")}</Text>
 
         {/* CTA */}
         <View style={st.bottom}>
           <PrimaryButton
-            title={saving ? "Saving..." : "Continue"}
+            title={saving ? "…" : t("consent.agree")}
             onPress={onContinue}
             loading={saving}
           />
@@ -156,9 +140,10 @@ const st = StyleSheet.create({
     color: colors.textMuted,
     textAlign: "center",
     lineHeight: 21,
-    marginBottom: 24,
+    marginBottom: 12,
     fontFamily: fontFamily,
   },
+  subtitleSecondary: { fontSize: 13, marginBottom: 24 },
   card: {
     width: "100%",
     backgroundColor: "#fff",

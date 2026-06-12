@@ -94,6 +94,9 @@ export const en = {
     ageGate: "I confirm I am 18 years or older",
     agree: "Agree & continue",
     mandatory: "Required to use the app",
+    legalNote:
+      "Under the Digital Personal Data Protection Act (DPDP), you control your data. You can change these anytime from your profile.",
+    skipNote: "You can continue without granting consents. Certain features may be limited.",
   },
   membership: {
     title: "Membership",
