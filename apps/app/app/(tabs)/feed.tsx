@@ -226,13 +226,24 @@ function TopPerformerRow({ member, rank }: { member: OrgMemberRow; rank: number 
   );
 }
 
-function ActivityRow({ item }: { item: { id: string; type: string; points: number; createdAt: string; label: string } }) {
+type ActivityLabel = { te: string; en: string } | string;
+
+function ActivityRow({ item }: { item: { id: string; reason: string; points: number; createdAt: string; label: ActivityLabel } }) {
+  const { i18n } = useTranslation();
+  const lang = i18n.language as "te" | "en";
   const iconMap: Record<string, React.ComponentProps<typeof Feather>["name"]> = {
     share: "share-2",
-    grievance: "alert-circle",
-    checkin: "check-square",
+    grievance_file: "alert-circle",
+    grievance_resolve: "check-circle",
+    event_checkin: "check-square",
+    recruit_initial: "user-plus",
+    recruit_bonus: "users",
+    streak: "zap",
+    decay: "trending-down",
+    fraud_reversal: "x-circle",
   };
-  const icon = iconMap[item.type] ?? "activity";
+  const icon = iconMap[item.reason] ?? "activity";
+  const labelText = typeof item.label === "object" ? (item.label[lang] ?? item.label.en) : item.label;
   const ago = Math.round((Date.now() - new Date(item.createdAt).getTime()) / 3600000);
   const agoLabel = ago < 1 ? "just now" : ago < 24 ? `${ago}h ago` : `${Math.floor(ago / 24)}d ago`;
   return (
@@ -240,7 +251,7 @@ function ActivityRow({ item }: { item: { id: string; type: string; points: numbe
       <View style={ld.activityIcon}>
         <Feather name={icon} size={14} color={colors.primary} />
       </View>
-      <Text style={ld.activityLabel} numberOfLines={1}>{item.label}</Text>
+      <Text style={ld.activityLabel} numberOfLines={1}>{labelText}</Text>
       <Text style={ld.activityMeta}>{agoLabel}</Text>
       <Text style={ld.activityPts}>+{item.points}</Text>
     </View>
@@ -256,7 +267,7 @@ function LeaderDashboard({
 }) {
   const orgUnitId = user.orgUnitId;
   const members = useApi<OrgMemberRow[]>(orgUnitId ? `/org/units/${orgUnitId}/members` : null);
-  const activity = useApi<{ id: string; type: string; points: number; createdAt: string; label: string }[]>(
+  const activity = useApi<{ id: string; reason: string; points: number; createdAt: string; label: ActivityLabel }[]>(
     "/me/activity",
   );
 
