@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   KeyboardAvoidingView,
   Modal,
@@ -36,13 +36,24 @@ function PickerModal({
   onClose: () => void;
 }) {
   const [query, setQuery] = useState("");
+
+  // Reset search each time the modal is dismissed
+  useEffect(() => {
+    if (!visible) setQuery("");
+  }, [visible]);
+
   const filtered = query.trim()
     ? items.filter((i) => i.toLowerCase().includes(query.toLowerCase()))
     : items;
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose} transparent>
-      <View style={pm.backdrop}>
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose} transparent statusBarTranslucent>
+      <KeyboardAvoidingView
+        style={pm.kav}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        {/* Tap outside the sheet to dismiss */}
+        <Pressable style={pm.backdropDismiss} onPress={onClose} />
         <View style={pm.sheet}>
           <View style={pm.header}>
             <Text style={pm.title}>{title}</Text>
@@ -65,7 +76,6 @@ function PickerModal({
                 style={pm.item}
                 onPress={() => {
                   onSelect(item);
-                  setQuery("");
                   onClose();
                 }}
               >
@@ -77,7 +87,7 @@ function PickerModal({
             )}
           </ScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -343,10 +353,13 @@ const st = StyleSheet.create({
 });
 
 const pm = StyleSheet.create({
-  backdrop: {
+  kav: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "flex-end",
+  },
+  backdropDismiss: {
+    flex: 1,
   },
   sheet: {
     backgroundColor: "#fff",
