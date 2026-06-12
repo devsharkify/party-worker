@@ -3,6 +3,7 @@ import { loadEnv } from "../config/env";
 import { AuthkeyOtpProvider, FakeOtpProvider, OTP_PROVIDER } from "./otp.provider";
 import { WhatsAppOtpProvider } from "./whatsapp-otp.provider";
 import { LocalStorageProvider, STORAGE_PROVIDER } from "./storage.provider";
+import { R2StorageProvider } from "./r2-storage.provider";
 import { MockPushProvider, PUSH_PROVIDER } from "./push.provider";
 import { ExpoPushProvider } from "./expo-push.provider";
 import { FirebasePushProvider } from "./firebase-push.provider";
@@ -41,7 +42,7 @@ function selectPushProvider() {
  */
 const providers: Provider[] = [
   { provide: OTP_PROVIDER, useClass: selectOtpProvider() },
-  { provide: STORAGE_PROVIDER, useClass: LocalStorageProvider },
+  { provide: STORAGE_PROVIDER, useClass: env.STORAGE_PROVIDER === "r2" ? R2StorageProvider : LocalStorageProvider },
   { provide: PUSH_PROVIDER, useClass: selectPushProvider() },
   { provide: ASSISTED_SHARE, useClass: DefaultAssistedShareProvider },
   {

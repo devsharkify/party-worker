@@ -50,6 +50,12 @@ const EnvSchema = z.object({
   STORAGE_PROVIDER: z.enum(["local", "r2", "b2"]).default("local"),
   STORAGE_LOCAL_DIR: z.string().default(".storage"),
   STORAGE_PUBLIC_BASE: z.string().default("http://localhost:4000/media"),
+  // Cloudflare R2 (S3-compatible) — required when STORAGE_PROVIDER=r2.
+  R2_ACCOUNT_ID: z.string().optional(),
+  R2_ACCESS_KEY_ID: z.string().optional(),
+  R2_SECRET_ACCESS_KEY: z.string().optional(),
+  R2_BUCKET: z.string().optional(),
+  R2_PUBLIC_BASE: z.string().optional(),
 
   // Push: mock (default) | expo (Expo Push API — the app registers Expo tokens,
   // zero server creds needed) | firebase (raw FCM tokens; "fcm" = legacy alias).
