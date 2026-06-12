@@ -13,6 +13,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useRouter } from "expo-router";
 import { toast } from "sonner-native";
 import { useTranslation } from "react-i18next";
 import type { ConsentState, MembershipCard, OrgMemberRow, ScoreSummary, SocialAccountInfo } from "@pw/shared";
@@ -90,6 +91,7 @@ const CONSENT_META: Record<
 export default function Profile() {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
+  const router = useRouter();
   const { logout, api, refreshUser, user } = useAuth();
   const card = useApi<MembershipCard>("/users/me/card");
   const summary = useApi<ScoreSummary>("/scoring/summary");
@@ -394,6 +396,25 @@ export default function Profile() {
         <Feather name="edit-2" size={14} color={colors.primary} />
         <Text style={st.editProfileBtnText}>Edit Profile</Text>
       </Pressable>
+
+      {/* ===== Leader Dashboard entry (leaders only) ===== */}
+      {user?.isLeader && (
+        <Pressable
+          onPress={() => router.push("/leader-dashboard")}
+          style={({ pressed }) => [st.leaderEntry, pressed && { opacity: 0.82 }]}
+        >
+          <View style={st.leaderEntryLeft}>
+            <View style={st.leaderEntryIcon}>
+              <Feather name="bar-chart-2" size={16} color={colors.gold} />
+            </View>
+            <View>
+              <Text style={st.leaderEntryTitle}>Leader Dashboard</Text>
+              <Text style={st.leaderEntrySub}>Team stats, top performers &amp; activity</Text>
+            </View>
+          </View>
+          <Feather name="chevron-right" size={18} color={colors.textMuted} />
+        </Pressable>
+      )}
 
       {/* ===== My Campaign Banner ===== */}
       {c && user && (
@@ -1120,6 +1141,33 @@ const st = StyleSheet.create({
     paddingVertical: 10,
   },
   editProfileBtnText: { color: colors.primary, fontWeight: "700", fontSize: 14, fontFamily: fontFamily, lineHeight: lh(14) },
+
+  // Leader Dashboard entry
+  leaderEntry: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: colors.navy,
+    borderRadius: radius.lg,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginTop: 10,
+    borderWidth: 1.5,
+    borderColor: colors.gold + "55",
+  },
+  leaderEntryLeft: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
+  leaderEntryIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: colors.gold + "22",
+    borderWidth: 1,
+    borderColor: colors.gold + "55",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  leaderEntryTitle: { fontSize: 15, fontWeight: "700", color: "#fff", fontFamily: fontFamily, lineHeight: lh(15) },
+  leaderEntrySub: { fontSize: 12, color: colors.textMutedOnDark, fontFamily: fontFamily, lineHeight: lh(12), marginTop: 1 },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.45)",

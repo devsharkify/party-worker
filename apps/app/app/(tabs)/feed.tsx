@@ -1,4 +1,4 @@
-import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, Dimensions, ActivityIndicator } from "react-native";
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View, Dimensions } from "react-native";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -6,16 +6,15 @@ import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
 import { Skeleton as MotiSkeleton } from "moti/skeleton";
-import type { FeedItem, OrgMemberRow } from "@pw/shared";
+import type { FeedItem } from "@pw/shared";
 import { useApi } from "../../src/hooks";
 import { useAuth } from "../../src/auth/auth-context";
 import { StateView } from "../../src/components/StateView";
 import { RemoteImage } from "../../src/components/RemoteImage";
 import { BannerShareModal } from "../../src/components/BannerShareModal";
 import { TRSLogo } from "../../src/components/TRSLogo";
-import { colors, fontFamily, lh, radius, shadow, shadowLg, tierColor } from "../../src/theme";
+import { colors, fontFamily, lh, radius, shadow, shadowLg } from "../../src/theme";
 import { useIsOnline } from "../../src/lib/offline";
-import { useLeaderMode } from "../../src/hooks/useLeaderMode";
 
 const SCREEN_W = Math.min(Dimensions.get("window").width, 480);
 const GAP = 3;
@@ -142,321 +141,6 @@ function DashboardHeader({ name, items }: { name: string; items: number }) {
 }
 
 // ---------------------------------------------------------------------------
-// Leader mode toggle pill
-// ---------------------------------------------------------------------------
-function LeaderModeToggle({
-  mode,
-  onToggle,
-}: {
-  mode: "worker" | "leader";
-  onToggle: (next: "worker" | "leader") => void;
-}) {
-  return (
-    <View style={lt.wrap}>
-      <Pressable
-        style={({ pressed }) => [lt.pill, mode === "worker" && lt.pillActive, pressed && { opacity: 0.75 }]}
-        onPress={() => onToggle("worker")}
-      >
-        <Feather name="user" size={13} color={mode === "worker" ? "#fff" : colors.textMuted} />
-        <Text style={[lt.pillText, mode === "worker" && lt.pillTextActive]}>Worker Mode</Text>
-      </Pressable>
-      <Pressable
-        style={({ pressed }) => [lt.pill, mode === "leader" && lt.pillLeaderActive, pressed && { opacity: 0.75 }]}
-        onPress={() => onToggle("leader")}
-      >
-        <Feather name="star" size={13} color={mode === "leader" ? "#fff" : colors.textMuted} />
-        <Text style={[lt.pillText, mode === "leader" && lt.pillTextActive]}>Leader Mode</Text>
-      </Pressable>
-    </View>
-  );
-}
-
-const lt = StyleSheet.create({
-  wrap: {
-    flexDirection: "row",
-    alignSelf: "center",
-    backgroundColor: "#eee",
-    borderRadius: radius.pill,
-    padding: 3,
-    marginBottom: 12,
-    marginTop: 4,
-    gap: 2,
-  },
-  pill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: radius.pill,
-  },
-  pillActive: { backgroundColor: colors.primary },
-  pillLeaderActive: { backgroundColor: colors.gold },
-  pillText: { fontSize: 13, fontWeight: "700", color: colors.textMuted, fontFamily, lineHeight: lh(13) },
-  pillTextActive: { color: "#fff", fontFamily },
-});
-
-// ---------------------------------------------------------------------------
-// Leader dashboard
-// ---------------------------------------------------------------------------
-function TopPerformerRow({ member, rank }: { member: OrgMemberRow; rank: number }) {
-  const tierC = tierColor[member.tier] ?? colors.textMuted;
-  const initial = member.name.trim().charAt(0).toUpperCase() || "?";
-  const rankColors = ["#FFB300", "#94a3b8", "#fb923c"];
-  const rankColor = rankColors[rank - 1] ?? colors.textMuted;
-  return (
-    <View style={ld.performerRow}>
-      <View style={[ld.rankBadge, { backgroundColor: rankColor + "22", borderColor: rankColor }]}>
-        <Text style={[ld.rankText, { color: rankColor }]}>{rank}</Text>
-      </View>
-      <View style={[ld.avatarFallback, { backgroundColor: tierC + "22" }]}>
-        <Text style={[ld.avatarInitial, { color: tierC }]}>{initial}</Text>
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={ld.performerName} numberOfLines={1}>{member.name}</Text>
-        {member.designation ? (
-          <Text style={ld.performerDesig} numberOfLines={1}>{member.designation}</Text>
-        ) : null}
-      </View>
-      <View style={ld.pointsWrap}>
-        <Text style={ld.pointsVal}>{member.weeklyLeaguePoints}</Text>
-        <Text style={ld.pointsLabel}>pts</Text>
-      </View>
-    </View>
-  );
-}
-
-type ActivityLabel = { te: string; en: string } | string;
-
-function ActivityRow({ item }: { item: { id: string; reason: string; points: number; createdAt: string; label: ActivityLabel } }) {
-  const { i18n } = useTranslation();
-  const lang = i18n.language as "te" | "en";
-  const iconMap: Record<string, React.ComponentProps<typeof Feather>["name"]> = {
-    share: "share-2",
-    grievance_file: "alert-circle",
-    grievance_resolve: "check-circle",
-    event_checkin: "check-square",
-    recruit_initial: "user-plus",
-    recruit_bonus: "users",
-    streak: "zap",
-    decay: "trending-down",
-    fraud_reversal: "x-circle",
-  };
-  const icon = iconMap[item.reason] ?? "activity";
-  const labelText = typeof item.label === "object" ? (item.label[lang] ?? item.label.en) : item.label;
-  const ago = Math.round((Date.now() - new Date(item.createdAt).getTime()) / 3600000);
-  const agoLabel = ago < 1 ? "just now" : ago < 24 ? `${ago}h ago` : `${Math.floor(ago / 24)}d ago`;
-  return (
-    <View style={ld.activityRow}>
-      <View style={ld.activityIcon}>
-        <Feather name={icon} size={14} color={colors.primary} />
-      </View>
-      <Text style={ld.activityLabel} numberOfLines={1}>{labelText}</Text>
-      <Text style={ld.activityMeta}>{agoLabel}</Text>
-      <Text style={ld.activityPts}>+{item.points}</Text>
-    </View>
-  );
-}
-
-function LeaderDashboard({
-  user,
-  router,
-}: {
-  user: NonNullable<ReturnType<typeof useAuth>["user"]>;
-  router: ReturnType<typeof useRouter>;
-}) {
-  const orgUnitId = user.orgUnitId;
-  const members = useApi<OrgMemberRow[]>(orgUnitId ? `/org/units/${orgUnitId}/members` : null);
-  const activity = useApi<{ id: string; reason: string; points: number; createdAt: string; label: ActivityLabel }[]>(
-    "/me/activity",
-  );
-
-  const totalMembers = members.data?.length ?? 0;
-  const activeThisWeek = members.data?.filter((m) => m.weeklyLeaguePoints > 0).length ?? 0;
-  const topThree = [...(members.data ?? [])].sort((a, b) => b.weeklyLeaguePoints - a.weeklyLeaguePoints).slice(0, 3);
-
-  return (
-    <ScrollView style={ld.fill} contentContainerStyle={ld.content} showsVerticalScrollIndicator={false}>
-
-      {/* My Team summary */}
-      <LinearGradient
-        colors={[colors.navy, "#2a1a3e"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={ld.teamCard}
-      >
-        <View style={ld.teamCardHeader}>
-          <Feather name="users" size={18} color={colors.gold} />
-          <Text style={ld.teamCardTitle}>My Team</Text>
-        </View>
-        <Text style={ld.teamUnitName} numberOfLines={1}>{user.orgUnitName}</Text>
-
-        {members.loading && !members.data ? (
-          <ActivityIndicator color={colors.primary} style={{ marginTop: 12 }} />
-        ) : (
-          <View style={ld.teamStats}>
-            <View style={ld.teamStat}>
-              <Text style={ld.teamStatValue}>{totalMembers}</Text>
-              <Text style={ld.teamStatLabel}>Total Members</Text>
-            </View>
-            <View style={ld.teamStatDivider} />
-            <View style={ld.teamStat}>
-              <Text style={ld.teamStatValue}>{activeThisWeek}</Text>
-              <Text style={ld.teamStatLabel}>Active This Week</Text>
-            </View>
-          </View>
-        )}
-      </LinearGradient>
-
-      {/* Top performers */}
-      <View style={ld.sectionHeader}>
-        <Feather name="trending-up" size={15} color={colors.gold} />
-        <Text style={ld.sectionTitle}>Top Performers</Text>
-      </View>
-      <View style={ld.card}>
-        {members.loading && !members.data ? (
-          <ActivityIndicator color={colors.primary} />
-        ) : topThree.length === 0 ? (
-          <Text style={ld.emptyMsg}>No members yet in your unit.</Text>
-        ) : (
-          topThree.map((m, i) => <TopPerformerRow key={m.id} member={m} rank={i + 1} />)
-        )}
-      </View>
-
-      {/* Recent activity feed */}
-      <View style={ld.sectionHeader}>
-        <Feather name="activity" size={15} color={colors.primary} />
-        <Text style={ld.sectionTitle}>Recent Activity</Text>
-      </View>
-      <View style={ld.card}>
-        {activity.loading && !activity.data ? (
-          <ActivityIndicator color={colors.primary} />
-        ) : (activity.data ?? []).length === 0 ? (
-          <Text style={ld.emptyMsg}>No recent activity.</Text>
-        ) : (
-          (activity.data ?? []).slice(0, 5).map((item) => <ActivityRow key={item.id} item={item} />)
-        )}
-      </View>
-
-      {/* Action buttons */}
-      <View style={ld.actionRow}>
-        <Pressable
-          style={({ pressed }) => [ld.actionBtn, ld.actionBtnPrimary, pressed && { opacity: 0.82 }]}
-          onPress={() => router.push("/(tabs)/team")}
-        >
-          <Feather name="user-plus" size={16} color="#fff" />
-          <Text style={ld.actionBtnText}>Onboard New Member</Text>
-        </Pressable>
-        <Pressable
-          style={({ pressed }) => [ld.actionBtn, ld.actionBtnSecondary, pressed && { opacity: 0.82 }]}
-          onPress={() => router.push("/(tabs)/team")}
-        >
-          <Feather name="users" size={16} color={colors.primary} />
-          <Text style={[ld.actionBtnText, { color: colors.primary }]}>View Full Team</Text>
-        </Pressable>
-      </View>
-    </ScrollView>
-  );
-}
-
-const ld = StyleSheet.create({
-  fill: { flex: 1, backgroundColor: colors.cardMuted },
-  content: { padding: 16, paddingBottom: 40 },
-
-  teamCard: {
-    borderRadius: radius.lg,
-    padding: 18,
-    marginBottom: 20,
-    ...shadow,
-  },
-  teamCardHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
-  teamCardTitle: { fontSize: 16, fontWeight: "700", color: colors.gold, letterSpacing: 0.3, fontFamily, lineHeight: lh(16) },
-  teamUnitName: { fontSize: 13, color: colors.textMutedOnDark, fontWeight: "600", marginBottom: 14, fontFamily, lineHeight: lh(13) },
-  teamStats: { flexDirection: "row", alignItems: "center" },
-  teamStat: { flex: 1, alignItems: "center" },
-  teamStatValue: { fontSize: 28, fontWeight: "900", color: "#fff", fontFamily, lineHeight: lh(28) },
-  teamStatLabel: { fontSize: 12, color: colors.textMutedOnDark, fontWeight: "600", marginTop: 2, fontFamily, lineHeight: lh(12) },
-  teamStatDivider: { width: 1, height: 40, backgroundColor: "rgba(255,255,255,0.2)" },
-
-  sectionHeader: { flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 8 },
-  sectionTitle: { fontSize: 14, fontWeight: "700", color: colors.text, textTransform: "uppercase", letterSpacing: 0.5, fontFamily, lineHeight: lh(14) },
-
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: radius.lg,
-    padding: 14,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadow,
-  },
-  emptyMsg: { color: colors.textMuted, fontSize: 14, textAlign: "center", paddingVertical: 8, fontFamily, lineHeight: lh(14) },
-
-  performerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  rankBadge: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    borderWidth: 1.5,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  rankText: { fontSize: 12, fontWeight: "900", fontFamily, lineHeight: lh(12) },
-  avatarFallback: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
-  avatarInitial: { fontSize: 15, fontWeight: "700", fontFamily, lineHeight: lh(15) },
-  performerName: { fontWeight: "700", color: colors.text, fontSize: 14, fontFamily, lineHeight: lh(14) },
-  performerDesig: { fontSize: 11, color: colors.textMuted, fontWeight: "600", fontFamily, lineHeight: lh(11) },
-  pointsWrap: { alignItems: "flex-end" },
-  pointsVal: { fontWeight: "900", color: colors.primaryDark, fontSize: 16, fontFamily, lineHeight: lh(16) },
-  pointsLabel: { fontSize: 10, color: colors.textMuted, fontWeight: "600", fontFamily, lineHeight: lh(10) },
-
-  activityRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  activityIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.primarySoft,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  activityLabel: { flex: 1, fontSize: 13, color: colors.text, fontWeight: "600", fontFamily, lineHeight: lh(13) },
-  activityMeta: { fontSize: 11, color: colors.textMuted, fontWeight: "600", fontFamily, lineHeight: lh(11) },
-  activityPts: { fontSize: 13, fontWeight: "700", color: colors.success, minWidth: 30, textAlign: "right", fontFamily, lineHeight: lh(13) },
-
-  actionRow: { gap: 10 },
-  actionBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    height: 50,
-    borderRadius: radius.md,
-    paddingHorizontal: 20,
-  },
-  actionBtnPrimary: { backgroundColor: colors.primary },
-  actionBtnSecondary: {
-    backgroundColor: "#fff",
-    borderWidth: 2,
-    borderColor: colors.primary,
-  },
-  actionBtnText: { fontSize: 15, fontWeight: "700", color: "#fff", fontFamily, lineHeight: lh(15) },
-});
-
-// ---------------------------------------------------------------------------
 // Feed (worker view)
 // ---------------------------------------------------------------------------
 
@@ -467,39 +151,13 @@ export default function Feed() {
   const { user } = useAuth();
   const { data, loading, refreshing, error, reload, refresh } = useApi<FeedItem[]>("/feed");
   const isOnline = useIsOnline();
-  const { mode, setMode, ready } = useLeaderMode();
 
   const firstName = user?.name?.split(" ")[0] ?? "Worker";
   const [shareItem, setShareItem] = useState<FeedItem | null>(null);
 
-  // Leader mode — show leader dashboard instead of worker feed
-  if (user?.isLeader && ready && mode === "leader") {
-    return (
-      <View style={st.fill}>
-        {!isOnline && (
-          <View style={st.offlineBanner}>
-            <Feather name="wifi-off" size={13} color="#92400e" />
-            <Text style={st.offlineBannerText}>Offline — Cached content</Text>
-          </View>
-        )}
-        <View style={st.leaderToggleBar}>
-          <Text style={st.leaderHello}>Leader Dashboard</Text>
-          <LeaderModeToggle mode={mode} onToggle={setMode} />
-        </View>
-        <LeaderDashboard user={user} router={router} />
-      </View>
-    );
-  }
-
   if (loading && !data) {
     return (
       <View style={st.fill}>
-        {user?.isLeader && ready && (
-          <View style={st.leaderToggleBar}>
-            <Text style={st.leaderHello}>Worker Mode</Text>
-            <LeaderModeToggle mode={mode} onToggle={setMode} />
-          </View>
-        )}
         <DashboardHeader name={firstName} items={0} />
         <SkeletonGrid />
       </View>
@@ -509,12 +167,6 @@ export default function Feed() {
   if (error && !data) {
     return (
       <View style={st.fill}>
-        {user?.isLeader && ready && (
-          <View style={st.leaderToggleBar}>
-            <Text style={st.leaderHello}>Worker Mode</Text>
-            <LeaderModeToggle mode={mode} onToggle={setMode} />
-          </View>
-        )}
         <StateView
           tone="error"
           title="Couldn't load feed"
@@ -552,11 +204,6 @@ export default function Feed() {
         <View style={st.offlineBanner}>
           <Feather name="wifi-off" size={13} color="#92400e" />
           <Text style={st.offlineBannerText}>Offline — Cached content</Text>
-        </View>
-      )}
-      {user?.isLeader && ready && (
-        <View style={st.leaderToggleBar}>
-          <LeaderModeToggle mode={mode} onToggle={setMode} />
         </View>
       )}
       <FlatList
@@ -612,25 +259,6 @@ export default function Feed() {
 const st = StyleSheet.create({
   fill: { flex: 1, backgroundColor: colors.primaryDark },
   list: { flex: 1, backgroundColor: colors.primaryDark },
-  leaderToggleBar: {
-    backgroundColor: colors.primaryDark,
-    paddingTop: 10,
-    paddingBottom: 4,
-    paddingHorizontal: 16,
-    alignItems: "center",
-    borderBottomWidth: 2,
-    borderBottomColor: colors.gold,
-  },
-  leaderHello: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: colors.textMutedOnDark,
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
-    marginBottom: 4,
-    fontFamily,
-    lineHeight: lh(11),
-  },
   offlineBanner: {
     flexDirection: "row",
     alignItems: "center",
