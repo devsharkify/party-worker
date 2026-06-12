@@ -38,6 +38,7 @@ const ITEMS: DrawerItem[] = [
 /** Leader-only drawer entries (shown when the role can review). */
 const LEADER_ITEMS: DrawerItem[] = [
   { label: "Review Submissions", labelTe: "సమర్పణల సమీక్ష", icon: "check-square", href: "/review-submissions" },
+  { label: "Invite via Link", labelTe: "లింక్ ద్వారా ఆహ్వానం", icon: "user-plus", href: "/invite" },
 ];
 
 const REVIEWER_ROLES = new Set([
