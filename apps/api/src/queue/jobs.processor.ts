@@ -3,6 +3,7 @@ import { Logger } from "@nestjs/common";
 import type { Job } from "bullmq";
 import { SchedulingService } from "../scheduling/scheduling.service";
 import { ScoringService } from "../scoring/scoring.service";
+import { RecruitsService } from "../recruits/recruits.service";
 
 /** Logical name of the single shared queue all background jobs run on. */
 export const JOBS_QUEUE = "jobs";
@@ -13,6 +14,10 @@ export const JOB_NAMES = {
   scheduledPublish: "scheduled-publish",
   /** Apply inactivity reputation decay (every 6h). */
   decay: "decay",
+  /** Zero the weekly league every Monday 00:00 IST (was a manual admin button). */
+  weeklyReset: "weekly-reset",
+  /** Pay the delayed second-half recruit bonus daily (idempotent in service). */
+  recruitBonus: "recruit-bonus",
 } as const;
 
 /**
@@ -33,6 +38,7 @@ export class JobsProcessor extends WorkerHost {
   constructor(
     private readonly scheduling: SchedulingService,
     private readonly scoring: ScoringService,
+    private readonly recruits: RecruitsService,
   ) {
     super();
   }
@@ -52,6 +58,16 @@ export class JobsProcessor extends WorkerHost {
           this.logger.log(`decay: adjusted ${affected} user(s)`);
         }
         return { affected };
+      }
+      case JOB_NAMES.weeklyReset: {
+        const { affected } = await this.scoring.resetWeekly();
+        this.logger.log(`weekly-reset: zeroed weekly league for ${affected} user(s)`);
+        return { affected };
+      }
+      case JOB_NAMES.recruitBonus: {
+        const result = await this.recruits.processBonus();
+        this.logger.log(`recruit-bonus: ${JSON.stringify(result)}`);
+        return result;
       }
       default:
         this.logger.warn(`Ignoring unknown job "${job.name}" (id=${job.id})`);

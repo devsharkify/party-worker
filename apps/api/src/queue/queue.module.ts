@@ -3,6 +3,7 @@ import { Global, Module } from "@nestjs/common";
 import { APP_ENV, type Env } from "../config/env";
 import { ScoringModule } from "../scoring/scoring.module";
 import { SchedulingModule } from "../scheduling/scheduling.module";
+import { RecruitsModule } from "../recruits/recruits.module";
 import { JOBS_QUEUE, JobsProcessor } from "./jobs.processor";
 import { QueueScheduler } from "./queue.scheduler";
 
@@ -32,6 +33,7 @@ import { QueueScheduler } from "./queue.scheduler";
     BullModule.registerQueue({ name: JOBS_QUEUE }),
     SchedulingModule,
     ScoringModule,
+    RecruitsModule,
   ],
   providers: [JobsProcessor, QueueScheduler],
   exports: [BullModule],

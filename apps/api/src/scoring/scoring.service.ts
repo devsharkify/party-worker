@@ -3,6 +3,7 @@ import {
   applyDecay,
   nextTierProgress,
   POOL,
+  SCORING,
   tierForReputation,
   type LeaderboardEntry,
   type LeaderboardView,
@@ -20,6 +21,11 @@ function mondayOf(date = new Date()): Date {
   d.setUTCDate(d.getUTCDate() - day);
   d.setUTCHours(0, 0, 0, 0);
   return d;
+}
+
+/** IST (UTC+5:30, no DST) calendar-day key — streaks follow the worker's day. */
+function istDayKey(d: Date): string {
+  return new Date(d.getTime() + 5.5 * 3600_000).toISOString().slice(0, 10);
 }
 
 export interface AwardResult {
@@ -47,13 +53,30 @@ export class ScoringService {
     meta?: Record<string, unknown>,
   ): Promise<AwardResult> {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+
+    // Streak maintenance: the first POSITIVE activity of each IST day extends
+    // (or restarts) the streak. The bonus rewards CONTINUING a streak (day 2+).
+    // Decay/streak/fraud entries are bookkeeping, not worker activity.
+    let streakDays = user.streakDays ?? 0;
+    let streakBonus = 0;
+    if (reason !== "decay" && reason !== "streak" && reason !== "fraud_reversal" && points > 0) {
+      const now = new Date();
+      const today = istDayKey(now);
+      const prevKey = user.lastActiveAt ? istDayKey(user.lastActiveAt) : null;
+      if (prevKey !== today) {
+        const yesterday = istDayKey(new Date(now.getTime() - 24 * 3600_000));
+        streakDays = prevKey === yesterday ? streakDays + 1 : 1;
+        if (streakDays >= 2) streakBonus = SCORING.STREAK_PER_DAY;
+      }
+    }
+
     const weeklyDelta = reason === "decay" ? 0 : points;
     const lifetimeDelta = points;
-    const newLifetime = Math.max(0, user.lifetimeReputation + lifetimeDelta);
-    const newWeekly = Math.max(0, user.weeklyLeaguePoints + weeklyDelta);
+    const newLifetime = Math.max(0, user.lifetimeReputation + lifetimeDelta + streakBonus);
+    const newWeekly = Math.max(0, user.weeklyLeaguePoints + weeklyDelta + streakBonus);
     const tier = tierForReputation(newLifetime);
 
-    await this.prisma.$transaction([
+    const ops = [
       this.prisma.user.update({
         where: { id: userId },
         data: {
@@ -61,6 +84,7 @@ export class ScoringService {
           weeklyLeaguePoints: newWeekly,
           tier,
           lastActiveAt: new Date(),
+          streakDays,
         },
       }),
       this.prisma.scoreEntry.create({
@@ -73,7 +97,22 @@ export class ScoringService {
           meta: (meta ?? undefined) as any,
         },
       }),
-    ]);
+    ];
+    if (streakBonus > 0) {
+      ops.push(
+        this.prisma.scoreEntry.create({
+          data: {
+            userId,
+            reason: "streak",
+            points: streakBonus,
+            weeklyDelta: streakBonus,
+            lifetimeDelta: streakBonus,
+            meta: { streakDays } as any,
+          },
+        }),
+      );
+    }
+    await this.prisma.$transaction(ops);
 
     return { pointsAwarded: points, lifetimeReputation: newLifetime, weeklyLeaguePoints: newWeekly, tier };
   }

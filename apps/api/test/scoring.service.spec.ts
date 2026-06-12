@@ -123,6 +123,95 @@ describe("ScoringService.award — weekly + lifetime + tier recompute", () => {
   });
 });
 
+describe("ScoringService.award — streak maintenance (IST days)", () => {
+  const DAY = 24 * 3600_000;
+
+  it("first activity ever: streakDays=1, no bonus entry", async () => {
+    const prisma = makePrisma({ id: "u1", lifetimeReputation: 0, weeklyLeaguePoints: 0 });
+    const svc = new ScoringService(prisma as any, makeOrg() as any);
+
+    await svc.award("u1", "share", 2);
+
+    const updateArg = prisma.user.update.mock.calls[0][0];
+    expect(updateArg.data.streakDays).toBe(1);
+    expect(prisma.scoreEntry.create).toHaveBeenCalledTimes(1); // no streak bonus on day 1
+  });
+
+  it("active yesterday: streak increments and the +5 bonus entry is written", async () => {
+    const prisma = makePrisma({
+      id: "u1",
+      lifetimeReputation: 100,
+      weeklyLeaguePoints: 10,
+      streakDays: 3,
+      lastActiveAt: new Date(Date.now() - DAY),
+    } as any);
+    const svc = new ScoringService(prisma as any, makeOrg() as any);
+
+    const res = await svc.award("u1", "share", 2);
+
+    const updateArg = prisma.user.update.mock.calls[0][0];
+    expect(updateArg.data.streakDays).toBe(4);
+    // totals include the +5 streak bonus on top of the +2 share
+    expect(res.lifetimeReputation).toBe(107);
+    expect(res.weeklyLeaguePoints).toBe(17);
+    expect(prisma.scoreEntry.create).toHaveBeenCalledTimes(2);
+    const bonusArg = prisma.scoreEntry.create.mock.calls[1][0];
+    expect(bonusArg.data).toMatchObject({ reason: "streak", points: 5, weeklyDelta: 5, lifetimeDelta: 5 });
+  });
+
+  it("second activity the same day: streak unchanged, no bonus", async () => {
+    const prisma = makePrisma({
+      id: "u1",
+      lifetimeReputation: 100,
+      weeklyLeaguePoints: 10,
+      streakDays: 4,
+      lastActiveAt: new Date(),
+    } as any);
+    const svc = new ScoringService(prisma as any, makeOrg() as any);
+
+    const res = await svc.award("u1", "share", 2);
+
+    const updateArg = prisma.user.update.mock.calls[0][0];
+    expect(updateArg.data.streakDays).toBe(4);
+    expect(res.weeklyLeaguePoints).toBe(12); // just the share, no bonus
+    expect(prisma.scoreEntry.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("a 3-day gap resets the streak to 1 with no bonus", async () => {
+    const prisma = makePrisma({
+      id: "u1",
+      lifetimeReputation: 100,
+      weeklyLeaguePoints: 10,
+      streakDays: 9,
+      lastActiveAt: new Date(Date.now() - 3 * DAY),
+    } as any);
+    const svc = new ScoringService(prisma as any, makeOrg() as any);
+
+    await svc.award("u1", "share", 2);
+
+    const updateArg = prisma.user.update.mock.calls[0][0];
+    expect(updateArg.data.streakDays).toBe(1);
+    expect(prisma.scoreEntry.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("decay never touches the streak and never earns a bonus", async () => {
+    const prisma = makePrisma({
+      id: "u1",
+      lifetimeReputation: 100,
+      weeklyLeaguePoints: 10,
+      streakDays: 6,
+      lastActiveAt: new Date(Date.now() - DAY),
+    } as any);
+    const svc = new ScoringService(prisma as any, makeOrg() as any);
+
+    await svc.award("u1", "decay", -10);
+
+    const updateArg = prisma.user.update.mock.calls[0][0];
+    expect(updateArg.data.streakDays).toBe(6);
+    expect(prisma.scoreEntry.create).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("ScoringService.getLeaderboard — shaping", () => {
   let prisma: ReturnType<typeof makePrisma>;
   let org: ReturnType<typeof makeOrg>;
