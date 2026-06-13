@@ -131,6 +131,9 @@ enum ScoreReason {
   streak
   decay
   fraud_reversal
+  league_promote
+  league_demote
+  mission_bonus
 }
 
 // ---------------------------------------------------------------------------
@@ -171,6 +174,9 @@ model User {
   orgUnit            OrgUnit    @relation(fields: [orgUnitId], references: [id])
   role               Role       @default(worker)
   tier               Tier       @default(karyakarta)
+  // Weekly-league competition tier — moved by Monday promote/demote, NOT
+  // derived from reputation (unlike `tier`, which stays the badge/honor tier).
+  leagueTier         Tier       @default(karyakarta)
   preferredLanguage  Language   @default(te)
   lifetimeReputation Int        @default(0)
   weeklyLeaguePoints Int        @default(0)
@@ -193,6 +199,7 @@ model User {
   poolMemberships  PoolMembership[]
   rsvps            Rsvp[]
   checkIns         CheckIn[]
+  missionCompletions MissionCompletion[]
   grievancesFiled  Grievance[]          @relation("GrievanceFiledBy")
   grievancesRouted Grievance[]          @relation("GrievanceRoutedTo")
   creativesCreated Creative[]           @relation("CreativeCreatedBy")
@@ -275,6 +282,9 @@ model Creative {
   template        Template?    @relation(fields: [templateId], references: [id])
   captionVariants Json
   languages       Language[]
+  // Rapid-response flag: pushes to ALL workers on publish, pinned in the feed.
+  isBreaking      Boolean      @default(false)
+  missions        Mission[]
   mcmcCertified   Boolean      @default(false)
   mcmcCertId      String?
   aiLabeled       Boolean      @default(true)
@@ -468,6 +478,7 @@ model CheckIn {
   lat       Float?
   lng       Float?
   verified  Boolean  @default(false)
+  photoKey  String?
   createdAt DateTime @default(now())
 
   @@unique([eventId, userId])
@@ -585,4 +596,34 @@ model NewsItem {
 
   @@index([publishedAt])
   @@index([handle])
+}
+
+/// Timed "Trend Alert" mission: share within the window for bonus points.
+model Mission {
+  id          String   @id @default(cuid())
+  title       String
+  caption     String?
+  hashtag     String?
+  creativeId  String?
+  creative    Creative? @relation(fields: [creativeId], references: [id], onDelete: SetNull)
+  bonusPoints Int      @default(10)
+  startsAt    DateTime
+  endsAt      DateTime
+  createdById String
+  createdAt   DateTime @default(now())
+
+  completions MissionCompletion[]
+
+  @@index([endsAt])
+}
+
+model MissionCompletion {
+  id        String   @id @default(cuid())
+  missionId String
+  mission   Mission  @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([missionId, userId])
 }

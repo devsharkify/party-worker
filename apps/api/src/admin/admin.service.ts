@@ -168,7 +168,8 @@ export class AdminService {
   }
 
   resetWeekly() {
-    return this.scoring.resetWeekly();
+    // Manual trigger mirrors the Monday cron: settle the league, then zero.
+    return this.scoring.runWeeklyRollover();
   }
 
   applyDecay() {

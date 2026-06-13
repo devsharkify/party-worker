@@ -60,9 +60,11 @@ export class JobsProcessor extends WorkerHost {
         return { affected };
       }
       case JOB_NAMES.weeklyReset: {
-        const { affected } = await this.scoring.resetWeekly();
-        this.logger.log(`weekly-reset: zeroed weekly league for ${affected} user(s)`);
-        return { affected };
+        const { affected, promoted, demoted } = await this.scoring.runWeeklyRollover();
+        this.logger.log(
+          `weekly-reset: ${promoted} promoted, ${demoted} demoted, zeroed ${affected} user(s)`,
+        );
+        return { affected, promoted, demoted };
       }
       case JOB_NAMES.recruitBonus: {
         const result = await this.recruits.processBonus();

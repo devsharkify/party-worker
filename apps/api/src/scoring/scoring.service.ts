@@ -180,18 +180,18 @@ export class ScoringService {
     };
   }
 
-  /** The worker's weekly league: tier-matched ~30-person pool, with promote/demote zones. */
+  /** The worker's weekly league: leagueTier-matched ~30-person pool with REAL promote/demote. */
   async getPool(userId: string): Promise<PoolView> {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     const cohort = await this.prisma.user.findMany({
-      where: { tier: user.tier },
+      where: { leagueTier: user.leagueTier },
       orderBy: [{ weeklyLeaguePoints: "desc" }, { lifetimeReputation: "desc" }],
       take: POOL.SIZE,
       select: { id: true, name: true, photoUrl: true, tier: true, weeklyLeaguePoints: true },
     });
     const viewerIndex = cohort.findIndex((u) => u.id === userId);
     return {
-      poolId: `${user.tier}-${mondayOf().toISOString().slice(0, 10)}`,
+      poolId: `${user.leagueTier}-${mondayOf().toISOString().slice(0, 10)}`,
       weekStart: mondayOf().toISOString(),
       size: POOL.SIZE,
       promoteTop: POOL.PROMOTE_TOP,
@@ -209,6 +209,92 @@ export class ScoringService {
   async resetWeekly(): Promise<{ affected: number }> {
     const res = await this.prisma.user.updateMany({ data: { weeklyLeaguePoints: 0 } });
     return { affected: res.count };
+  }
+
+  private static readonly TIER_ORDER: ReadonlyArray<string> = [
+    "karyakarta",
+    "sevak",
+    "pramukh",
+    "nayak",
+    "ratna",
+  ];
+
+  /**
+   * League rollover — the promote/demote the PoolCard has always displayed,
+   * finally executed. Per leagueTier cohort, the ~30-person pool (top of the
+   * cohort by weekly points) promotes its top PROMOTE_TOP scorers (>0 pts) one
+   * league up and demotes its bottom DEMOTE_BOTTOM one league down. Workers
+   * outside the pool are untouched. leagueTier is competition-only — the
+   * reputation-derived `tier` (badges/labels) is never touched here.
+   */
+  async applyLeagueRollover(): Promise<{ promoted: number; demoted: number }> {
+    const ORDER = ScoringService.TIER_ORDER;
+    const week = mondayOf().toISOString().slice(0, 10);
+
+    // Snapshot ALL cohorts first so a user moved by this rollover can never be
+    // re-evaluated in their destination cohort within the same rollover.
+    const everyone = await this.prisma.user.findMany({
+      select: { id: true, leagueTier: true, weeklyLeaguePoints: true, lifetimeReputation: true },
+    });
+    const byCohort = new Map<string, typeof everyone>();
+    for (const u of everyone) {
+      const arr = byCohort.get(u.leagueTier) ?? [];
+      arr.push(u);
+      byCohort.set(u.leagueTier, arr);
+    }
+
+    const moves: { id: string; from: string; to: string; reason: string }[] = [];
+    for (let t = 0; t < ORDER.length; t++) {
+      const cohort = (byCohort.get(ORDER[t]!) ?? []).sort(
+        (a, b) =>
+          b.weeklyLeaguePoints - a.weeklyLeaguePoints ||
+          b.lifetimeReputation - a.lifetimeReputation,
+      );
+      const pool = cohort.slice(0, POOL.SIZE);
+      if (pool.length === 0) continue;
+
+      if (t < ORDER.length - 1) {
+        for (const u of pool.slice(0, POOL.PROMOTE_TOP)) {
+          if (u.weeklyLeaguePoints > 0) {
+            moves.push({ id: u.id, from: ORDER[t]!, to: ORDER[t + 1]!, reason: "league_promote" });
+          }
+        }
+      }
+      // Demotion only when the cohort actually filled a pool, never below floor.
+      if (t > 0 && pool.length === POOL.SIZE) {
+        for (const u of pool.slice(POOL.SIZE - POOL.DEMOTE_BOTTOM)) {
+          moves.push({ id: u.id, from: ORDER[t]!, to: ORDER[t - 1]!, reason: "league_demote" });
+        }
+      }
+    }
+
+    for (const m of moves) {
+      await this.prisma.$transaction([
+        this.prisma.user.update({ where: { id: m.id }, data: { leagueTier: m.to as any } }),
+        this.prisma.scoreEntry.create({
+          data: {
+            userId: m.id,
+            reason: m.reason as any,
+            points: 0,
+            weeklyDelta: 0,
+            lifetimeDelta: 0,
+            meta: { from: m.from, to: m.to, week } as any,
+          },
+        }),
+      ]);
+    }
+
+    return {
+      promoted: moves.filter((m) => m.reason === "league_promote").length,
+      demoted: moves.filter((m) => m.reason === "league_demote").length,
+    };
+  }
+
+  /** Monday rollover: settle promotions/demotions, then open the new week at 0. */
+  async runWeeklyRollover(): Promise<{ affected: number; promoted: number; demoted: number }> {
+    const { promoted, demoted } = await this.applyLeagueRollover();
+    const { affected } = await this.resetWeekly();
+    return { affected, promoted, demoted };
   }
 
   /**

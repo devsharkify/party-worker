@@ -35,6 +35,9 @@ const LABELS: Record<ScoreReason, ActivityLabel> = {
   streak: { te: "స్ట్రీక్ బోనస్", en: "Streak bonus" },
   decay: { te: "క్రియాశీలత తగ్గుదల", en: "Inactivity decay" },
   fraud_reversal: { te: "పాయింట్ల రద్దు", en: "Points reversed" },
+  league_promote: { te: "లీగ్ ప్రమోషన్! 🎉", en: "League promotion! 🎉" },
+  league_demote: { te: "లీగ్ డిమోషన్", en: "League demotion" },
+  mission_bonus: { te: "మిషన్ బోనస్", en: "Mission bonus" },
 };
 
 const FALLBACK_LABEL: ActivityLabel = { te: "కార్యకలాపం", en: "Activity" };

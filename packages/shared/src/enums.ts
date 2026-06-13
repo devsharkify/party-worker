@@ -91,5 +91,8 @@ export const ScoreReason = z.enum([
   "streak",
   "decay",
   "fraud_reversal",
+  "league_promote",
+  "league_demote",
+  "mission_bonus",
 ]);
 export type ScoreReason = z.infer<typeof ScoreReason>;
