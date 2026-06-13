@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState, createContext } from "react";
 import type {
   AdminGrievanceRow,
   AdminStats,
@@ -29,6 +29,31 @@ import { AnalyticsSection } from "../src/analytics-section";
 import { SubmissionsSection } from "../src/submissions-section";
 import { TRSLogo } from "../src/TRSLogo";
 import { BulkImport } from "../src/bulk-import";
+
+/* ------------------------------------------------------------------ */
+/* Admin language context (te / en toggle)                            */
+/* ------------------------------------------------------------------ */
+type AdminLang = "en" | "te";
+const AdminLangCtx = createContext<{ lang: AdminLang; toggle: () => void }>({
+  lang: "en",
+  toggle: () => undefined,
+});
+export function useAdminLang() { return useContext(AdminLangCtx); }
+
+const NAV_LABELS: Record<string, { en: string; te: string }> = {
+  overview:       { en: "Overview",              te: "అవలోకనం" },
+  people:         { en: "People",                te: "సభ్యులు" },
+  studio:         { en: "Studio",                te: "స్టూడియో" },
+  submissions:    { en: "Submissions",           te: "సమర్పణలు" },
+  templates:      { en: "Templates",             te: "టెంప్లేట్లు" },
+  organization:   { en: "Organization",          te: "సంఘటన" },
+  news:           { en: "News",                  te: "వార్తలు" },
+  grievances:     { en: "Grievances",            te: "ఫిర్యాదులు" },
+  events:         { en: "Events",                te: "ఈవెంట్లు" },
+  missions:       { en: "Trend Missions",        te: "ట్రెండ్ మిషన్లు" },
+  broadcast:      { en: "Broadcast & Insights",  te: "ప్రసారం & విశ్లేషణ" },
+  analytics:      { en: "Analytics",             te: "విశ్లేషణలు" },
+};
 
 export default function Page() {
   const { user, loading } = useAdmin();
@@ -190,8 +215,11 @@ const NAV: { id: Section; label: string }[] = [
 function Dashboard() {
   const { user, logout } = useAdmin();
   const [section, setSection] = useState<Section>("overview");
+  const [lang, setLang] = useState<AdminLang>("en");
+  const langCtx = useMemo(() => ({ lang, toggle: () => setLang((l) => (l === "en" ? "te" : "en")) }), [lang]);
 
   return (
+    <AdminLangCtx.Provider value={langCtx}>
     <div className="min-h-screen bg-slate-100">
       <header className="sticky top-0 z-40 border-b border-white/10 bg-navy text-white shadow-sm">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 pt-4">
@@ -205,10 +233,17 @@ function Dashboard() {
           <div className="flex items-center gap-3 text-sm">
             <span className="hidden text-slate-300 sm:inline">{user?.name}</span>
             <button
+              onClick={langCtx.toggle}
+              title="Toggle language"
+              className="rounded-md bg-white/10 px-3 py-1.5 font-semibold transition hover:bg-white/20"
+            >
+              {lang === "en" ? "తెలుగు" : "English"}
+            </button>
+            <button
               onClick={logout}
               className="rounded-md bg-white/10 px-3 py-1.5 font-semibold transition hover:bg-white/20"
             >
-              Log out
+              {lang === "en" ? "Log out" : "లాగ్ అవుట్"}
             </button>
           </div>
         </div>
@@ -217,6 +252,7 @@ function Dashboard() {
           <div className="mt-3 flex gap-1 overflow-x-auto" role="tablist" aria-label="Sections">
             {NAV.map((n) => {
               const active = section === n.id;
+              const label = NAV_LABELS[n.id]?.[lang] ?? n.label;
               return (
                 <button
                   key={n.id}
@@ -227,7 +263,7 @@ function Dashboard() {
                     active ? "text-white" : "text-slate-300 hover:text-white"
                   }`}
                 >
-                  {n.label}
+                  {label}
                   <span
                     className={`absolute inset-x-2 -bottom-px h-0.5 rounded-full transition ${
                       active ? "bg-saffron" : "bg-transparent"
@@ -255,6 +291,7 @@ function Dashboard() {
         {section === "analytics" ? <AnalyticsSection /> : null}
       </main>
     </div>
+    </AdminLangCtx.Provider>
   );
 }
 

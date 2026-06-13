@@ -4,8 +4,21 @@
     "appVersionSource": "local"
   },
   "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "channel": "development",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://localhost:4000",
+        "EXPO_PUBLIC_META_APP_ID": "1546425170279710"
+      }
+    },
     "preview": {
       "distribution": "internal",
+      "channel": "staging",
       "android": {
         "buildType": "apk"
       },
@@ -15,6 +28,7 @@
       }
     },
     "production": {
+      "channel": "production",
       "android": {
         "buildType": "app-bundle"
       },
@@ -23,6 +37,9 @@
         "EXPO_PUBLIC_META_APP_ID": "1546425170279710"
       }
     }
+  },
+  "update": {
+    "channel": "production"
   },
   "submit": {
     "production": {}

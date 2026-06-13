@@ -28,6 +28,7 @@
     "expo-linking": "~8.0.0",
     "expo-location": "^56.0.17",
     "expo-notifications": "~0.32.17",
+    "expo-updates": "~0.30.0",
     "expo-router": "~6.0.0",
     "expo-secure-store": "~15.0.0",
     "expo-sharing": "~14.0.8",

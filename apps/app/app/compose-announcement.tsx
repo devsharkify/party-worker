@@ -103,7 +103,7 @@ export default function ComposeAnnouncement() {
         {sending ? (
           <ActivityIndicator color={colors.primary} style={{ marginTop: 16 }} />
         ) : (
-          <PrimaryButton title={t("announce.send")} onPress={send} style={st.btn} />
+          <PrimaryButton title={t("announce.send")} onPress={send} />
         )}
       </Screen>
     </KeyboardAvoidingView>
@@ -155,5 +155,4 @@ const st = StyleSheet.create({
     fontFamily: fontFamily,
     lineHeight: lh(13),
   },
-  btn: { marginTop: 4 },
 });
