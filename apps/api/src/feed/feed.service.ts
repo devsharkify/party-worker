@@ -28,7 +28,8 @@ export class FeedService {
         published: true,
         OR: [{ targetOrgUnitId: null }, { targetOrgUnitId: { in: ancestorIds } }],
       },
-      orderBy: { publishedAt: "desc" },
+      // Breaking items sorted first, then newest
+      orderBy: [{ isBreaking: "desc" }, { publishedAt: "desc" }],
       take: 30,
       include: { targetOrgUnit: { select: { name: true } } },
     });
@@ -56,6 +57,7 @@ export class FeedService {
         personalizedVideoUrl: render?.cachedVideoUrl ?? null,
         videoDurationSec: c.videoDurationSec ?? null,
         isNew: Date.now() - new Date(publishedAt).getTime() < NEW_WINDOW_MS,
+        isBreaking: c.isBreaking,
         orgUnitName: c.targetOrgUnit?.name ?? null,
         createdAt: c.createdAt.toISOString(),
       } satisfies FeedItem;

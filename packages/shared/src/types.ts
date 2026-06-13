@@ -105,6 +105,8 @@ export interface FeedItem {
   /** seconds; only for type=video */
   videoDurationSec: number | null;
   isNew: boolean;
+  /** pinned to top of feed for 24 h after publish — rapid-response content */
+  isBreaking: boolean;
   orgUnitName: string | null;
   createdAt: string;
 }

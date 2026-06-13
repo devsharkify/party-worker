@@ -464,6 +464,7 @@ interface CreativeRow {
   /** Storage key for thumbnail derivation. */
   sourceKey?: string;
   createdAt?: string;
+  isBreaking: boolean;
 }
 
 function StudioSection() {
@@ -557,6 +558,19 @@ function StudioSection() {
                     } catch (e) {
                       toast(`Unpublish failed: ${(e as Error).message}`, "error");
                     }
+                  }}
+                  onToggleBreaking={async (isBreaking) => {
+                    await api(`/creatives/${c.id}/breaking`, {
+                      method: "PATCH",
+                      body: JSON.stringify({ isBreaking }),
+                    });
+                    toast(
+                      isBreaking
+                        ? `"${c.title}" marked as BREAKING — push-to-all on publish.`
+                        : `"${c.title}" breaking flag removed.`,
+                      "success",
+                    );
+                    await loadCreatives();
                   }}
                   onDelete={async () => {
                     if (!confirm(`Delete "${c.title}"? This cannot be undone.`)) return;
@@ -810,6 +824,7 @@ function CreativeCard({
   onDelete,
   onPostInstagram,
   onSchedule,
+  onToggleBreaking,
 }: {
   c: CreativeRow;
   org: OrgUnitNode[] | null;
@@ -819,6 +834,7 @@ function CreativeCard({
   onDelete: () => Promise<void>;
   onPostInstagram: () => Promise<void>;
   onSchedule: (scheduledAt: string) => Promise<void>;
+  onToggleBreaking: (isBreaking: boolean) => Promise<void>;
 }) {
   const [certId, setCertId] = useState("MCMC/TG/2026/");
   const [busy, setBusy] = useState(false);
@@ -859,6 +875,11 @@ function CreativeCard({
             {c.published && (
               <span className="absolute top-1 left-1 rounded-full bg-green-600 px-1.5 py-0.5 text-[10px] font-bold text-white leading-none">
                 LIVE
+              </span>
+            )}
+            {c.isBreaking && (
+              <span className="absolute bottom-1 left-1 rounded-full bg-red-600 px-1.5 py-0.5 text-[9px] font-bold text-white leading-none">
+                🚨 BREAKING
               </span>
             )}
           </div>
@@ -1046,6 +1067,24 @@ function CreativeCard({
                   : igStatus === "failed"
                     ? "✗ Failed"
                     : "📤 Instagram"}
+            </button>
+            <button
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  await onToggleBreaking(!c.isBreaking);
+                } finally {
+                  setBusy(false);
+                }
+              }}
+              className={`rounded-md px-3 py-1 text-sm font-bold transition disabled:opacity-50 ${
+                c.isBreaking
+                  ? "bg-red-600 text-white hover:bg-red-700"
+                  : "bg-red-50 text-red-600 hover:bg-red-100"
+              }`}
+            >
+              {c.isBreaking ? "🚨 Breaking ON" : "🚨 Mark Breaking"}
             </button>
             <button
               disabled={busy}

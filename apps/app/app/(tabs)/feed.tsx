@@ -60,8 +60,15 @@ function Tile({ item, onPress, onShare }: { item: FeedItem; onPress: () => void;
         </View>
       )}
 
-      {/* NEW badge top-left (when not personalized) */}
-      {item.isNew && !isPersonalized && (
+      {/* BREAKING badge — highest priority, shown over everything */}
+      {item.isBreaking && (
+        <View style={st.breakingBadge} pointerEvents="none">
+          <Text style={st.breakingBadgeText}>🚨 BREAKING</Text>
+        </View>
+      )}
+
+      {/* NEW badge top-left (when not personalized and not breaking) */}
+      {item.isNew && !isPersonalized && !item.isBreaking && (
         <View style={st.newBadge} pointerEvents="none">
           <Text style={st.newBadgeText}>NEW</Text>
         </View>
@@ -423,6 +430,18 @@ const st = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+
+  // BREAKING badge — red pill, always top-left
+  breakingBadge: {
+    position: "absolute",
+    top: 6,
+    left: 6,
+    backgroundColor: colors.danger,
+    borderRadius: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  breakingBadgeText: { color: "#fff", fontSize: 8, fontWeight: "900", letterSpacing: 0.5, fontFamily, lineHeight: lh(8) },
 
   // NEW badge top-left — gold pill with navy text for premium feel
   newBadge: {

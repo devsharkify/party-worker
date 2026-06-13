@@ -223,8 +223,29 @@ export class CreativesService {
       where: { id },
       data: { published: true, publishedAt: new Date() },
     });
-    await this.notifyPublished(c.targetOrgUnitId, c.title, c.id);
+
+    if (c.isBreaking) {
+      // Breaking news — always push to everyone regardless of target scope.
+      const breakingTitle = "🚨 Breaking: " + c.title;
+      void this.push.pushToAllUsers(breakingTitle, c.title, {
+        type: "creative_published",
+        creativeId: c.id,
+        isBreaking: "true",
+      }).catch(() => undefined);
+    } else {
+      await this.notifyPublished(c.targetOrgUnitId, c.title, c.id);
+    }
+
     return updated;
+  }
+
+  /** Toggle the breaking flag — can be set before or after publish. */
+  async setBreaking(id: string, isBreaking: boolean) {
+    await this.get(id);
+    return this.prisma.creative.update({
+      where: { id },
+      data: { isBreaking },
+    });
   }
 
   /** Unpublish a creative — moves it back to draft state. */

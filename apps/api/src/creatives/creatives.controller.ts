@@ -186,6 +186,14 @@ export class CreativesController {
     return this.creatives.unpublish(id);
   }
 
+  @Patch(":id/breaking")
+  setBreaking(
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(z.object({ isBreaking: z.boolean() }))) dto: { isBreaking: boolean },
+  ) {
+    return this.creatives.setBreaking(id, dto.isBreaking);
+  }
+
   @Delete(":id")
   remove(@Param("id") id: string) {
     return this.creatives.remove(id);
