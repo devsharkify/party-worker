@@ -64,7 +64,10 @@ const EnvSchema = z.object({
   FCM_PROVIDER: z.string().optional(),
   // Service-account JSON — only needed when PUSH_PROVIDER=firebase.
   FCM_SERVICE_ACCOUNT_JSON: z.string().optional(),
-  INSTAGRAM_PROVIDER: z.enum(["mock", "graph"]).default("mock"),
+  // "mock"   — instant connect, no API calls (dev default)
+  // "graph"  — direct Meta Graph API (requires META_APP_* vars + approved by Meta)
+  // "postiz" — relay via Postiz.com (use while Graph API approval is pending)
+  INSTAGRAM_PROVIDER: z.enum(["mock", "graph", "postiz"]).default("mock"),
   META_OAUTH_REDIRECT: z.string().default("http://localhost:4000/social/instagram/callback"),
   // Meta Graph (Instagram) — used when INSTAGRAM_PROVIDER=graph. Empty in dev.
   META_APP_ID: z.string().default(""),
@@ -75,6 +78,13 @@ const EnvSchema = z.object({
     .default(
       "instagram_basic,instagram_content_publish,instagram_manage_insights,pages_show_list,business_management",
     ),
+  // Postiz relay — used when INSTAGRAM_PROVIDER=postiz.
+  POSTIZ_API_KEY: z.string().default(""),
+  POSTIZ_CLIENT_ID: z.string().default(""),
+  POSTIZ_CLIENT_SECRET: z.string().default(""),
+  POSTIZ_REDIRECT_URL: z
+    .string()
+    .default("http://localhost:4000/social/postiz/callback"),
   // 32+ char secret used to AES-256-GCM encrypt stored OAuth tokens.
   SOCIAL_TOKEN_ENC_KEY: z.string().default("dev-social-token-encryption-key-change-me!"),
   // Where the OAuth callback sends the user back (the app/admin) after linking.

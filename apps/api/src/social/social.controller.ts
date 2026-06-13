@@ -8,6 +8,7 @@ import { CurrentUser } from "../auth/current-user.decorator";
 import type { AuthUser } from "../auth/auth.types";
 import { ZodValidationPipe } from "../common/zod-validation.pipe";
 import { SocialService } from "./social.service";
+import { PostizService } from "./postiz.service";
 
 const connectSchema = z.object({
   type: SocialAccountType.default("creator"),
@@ -106,5 +107,46 @@ export class SocialOAuthController {
     }
     const { redirectUrl } = await this.social.handleOAuthCallback(code, state);
     reply.redirect(redirectUrl);
+  }
+}
+
+/**
+ * Postiz OAuth2 endpoints. Public (no JWT) — the browser arrives here from
+ * Postiz after the worker approves. The signed `state` carries the worker id.
+ */
+@ApiTags("social")
+@Controller("social/postiz")
+export class PostizOAuthController {
+  constructor(private readonly postiz: PostizService) {}
+
+  /** Worker taps "Connect Instagram" → app calls this → we return the Postiz authorize URL. */
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get("connect")
+  connectUrl(@CurrentUser() user: AuthUser) {
+    return { redirectUrl: this.postiz.getConnectUrl(user.id) };
+  }
+
+  /** Postiz redirects here after the worker approves. */
+  @Get("callback")
+  async callback(
+    @Query("code") code: string | undefined,
+    @Query("state") state: string | undefined,
+    @Res() reply: FastifyReply,
+  ): Promise<void> {
+    if (!code || !state) {
+      reply.code(400).send("Missing code/state");
+      return;
+    }
+    const { redirectUrl } = await this.postiz.handleCallback(code, state);
+    reply.redirect(redirectUrl);
+  }
+
+  /** Admin: list channels connected to the admin Postiz account (API key). */
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get("integrations")
+  listAdminIntegrations() {
+    return this.postiz.listAdminIntegrations();
   }
 }

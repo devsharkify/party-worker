@@ -11,10 +11,11 @@ import { PrismaService } from "../prisma/prisma.service";
 import { ScoringService } from "../scoring/scoring.service";
 import { INSTAGRAM_PROVIDER, type InstagramProvider } from "../providers/posting.provider";
 import { decryptSecret, encryptSecret, sha256 } from "../auth/crypto.util";
+import { PostizService } from "./postiz.service";
 
 export type ConnectInstagramResult = SocialAccountInfo & {
-  /** "mock" = instantly connected (dev). "graph" = open authorizeUrl to link via Meta. */
-  mode: "mock" | "graph";
+  /** "mock" = instantly connected (dev). "graph" = direct Meta OAuth. "postiz" = Postiz relay OAuth. */
+  mode: "mock" | "graph" | "postiz";
   authorizeUrl?: string;
 };
 
@@ -34,10 +35,15 @@ export class SocialService {
     private readonly scoring: ScoringService,
     @Inject(INSTAGRAM_PROVIDER) private readonly ig: InstagramProvider,
     @Inject(APP_ENV) private readonly env: Env,
+    private readonly postiz: PostizService,
   ) {}
 
   private get graphMode(): boolean {
     return this.env.INSTAGRAM_PROVIDER === "graph";
+  }
+
+  private get postizMode(): boolean {
+    return this.env.INSTAGRAM_PROVIDER === "postiz";
   }
 
   private get graphBase(): string {
@@ -73,6 +79,17 @@ export class SocialService {
     type: SocialAccountType = "creator",
     handle?: string,
   ): Promise<ConnectInstagramResult> {
+    if (this.postizMode) {
+      return {
+        platform: "instagram",
+        type: "creator",
+        connected: false,
+        handle: null,
+        insightsAvailable: false,
+        mode: "postiz",
+        authorizeUrl: this.postiz.getConnectUrl(userId),
+      };
+    }
     if (this.graphMode) {
       return {
         platform: "instagram",
@@ -257,12 +274,6 @@ export class SocialService {
     kind: "feed" | "story" | "reel" = "feed",
     mediaUrlOverride?: string,
   ): Promise<{ published: boolean; remoteId: string }> {
-    const acct = await this.prisma.socialAccount.findFirst({
-      where: { userId, platform: "instagram" },
-    });
-    if (!acct || !acct.connected || acct.type === "personal") {
-      throw new ForbiddenException("Connect a Creator/Business Instagram account first.");
-    }
     const creative = await this.prisma.creative.findUnique({ where: { id: creativeId } });
     if (!creative) throw new NotFoundException("Creative not found.");
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
@@ -270,6 +281,21 @@ export class SocialService {
       where: { userId_creativeId: { userId, creativeId } },
     });
     const mediaUrl = mediaUrlOverride ?? render?.cachedUrl ?? creative.sourceKey;
+    const caption = this.captionFor(creative.captionVariants, user.preferredLanguage);
+
+    // Postiz relay path — delegate entirely to PostizService
+    if (this.postizMode) {
+      const { postId } = await this.postiz.publishForWorker(userId, mediaUrl, caption);
+      await this.upsertShareReachEvent(userId, creativeId, postId);
+      return { published: true, remoteId: postId };
+    }
+
+    const acct = await this.prisma.socialAccount.findFirst({
+      where: { userId, platform: "instagram" },
+    });
+    if (!acct || !acct.connected || acct.type === "personal") {
+      throw new ForbiddenException("Connect a Creator/Business Instagram account first.");
+    }
 
     let remoteId: string;
     try {
@@ -280,7 +306,7 @@ export class SocialService {
           igUserId: acct.remoteUserId ?? undefined,
         },
         mediaUrl,
-        caption: this.captionFor(creative.captionVariants, user.preferredLanguage),
+        caption,
         kind,
       }));
     } catch (e) {
@@ -291,7 +317,11 @@ export class SocialService {
       );
     }
 
-    // Link the post to a ShareEvent so insights/reach can accrue to it.
+    await this.upsertShareReachEvent(userId, creativeId, remoteId);
+    return { published: true, remoteId };
+  }
+
+  private async upsertShareReachEvent(userId: string, creativeId: string, remoteId: string) {
     let share = await this.prisma.shareEvent.findFirst({ where: { userId, creativeId } });
     if (!share) {
       share = await this.prisma.shareEvent.create({
@@ -299,7 +329,7 @@ export class SocialService {
           userId,
           creativeId,
           channel: "instagram_feed",
-          trackedLinkId: `${userId.slice(-6)}-${creativeId.slice(-6)}-ig${Date.now().toString(36)}`,
+          trackedLinkId: `${userId.slice(-6)}-${creativeId.slice(-6)}-ig${remoteId.slice(-8)}`,
           basePointsAwarded: 0,
         },
       });
@@ -309,8 +339,6 @@ export class SocialService {
       create: { shareEventId: share.id, igMediaId: remoteId, source: "instagram_insights", uniqueCount: 0 },
       update: { igMediaId: remoteId },
     });
-
-    return { published: true, remoteId };
   }
 
   async syncInstagram(userId: string): Promise<SyncResult> {
