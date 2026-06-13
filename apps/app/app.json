@@ -59,7 +59,6 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "expo-updates",
       [
         "expo-location",
         {
