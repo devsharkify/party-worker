@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import { useRouter } from "expo-router";
+import { Feather } from "@expo/vector-icons";
+import { LEADER_ROLES } from "@pw/shared";
+import { useAuth } from "../../src/auth/auth-context";
 import { useApi } from "../../src/hooks";
 import { Card, Pill } from "../../src/components/ui";
 import { SkeletonBlock } from "../../src/components/Skeleton";
@@ -43,6 +47,9 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleDateString();
 export default function Updates() {
   const { t, i18n } = useTranslation();
   const lang = i18n.language as Lang;
+  const { user } = useAuth();
+  const router = useRouter();
+  const isLeader = user ? LEADER_ROLES.includes(user.role as any) : false;
   const [segment, setSegment] = useState<"announcements" | "activity">("announcements");
 
   // Both data sources are subscribed so each segment shows fresh data on focus;
@@ -53,46 +60,57 @@ export default function Updates() {
   const active = segment === "announcements" ? announcements : activity;
 
   return (
-    <ScrollView
-      style={st.fill}
-      contentContainerStyle={st.content}
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl
-          refreshing={active.refreshing}
-          onRefresh={active.refresh}
-          tintColor={colors.primary}
-          colors={[colors.primary]}
-        />
-      }
-    >
-      <Text style={st.screenTitle}>
-        {tx(L.title, lang)} / {L.title.en}
-      </Text>
+    <View style={st.fill}>
+      <ScrollView
+        style={st.fill}
+        contentContainerStyle={st.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={active.refreshing}
+            onRefresh={active.refresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
+      >
+        <Text style={st.screenTitle}>
+          {tx(L.title, lang)} / {L.title.en}
+        </Text>
 
-      <View style={st.segWrap}>
-        <Segment
-          label={`${tx(L.segAnnouncements, lang)} / ${L.segAnnouncements.en}`}
-          active={segment === "announcements"}
-          onPress={() => setSegment("announcements")}
-        />
-        <Segment
-          label={`${tx(L.segActivity, lang)} / ${L.segActivity.en}`}
-          active={segment === "activity"}
-          onPress={() => setSegment("activity")}
-        />
-      </View>
+        <View style={st.segWrap}>
+          <Segment
+            label={`${tx(L.segAnnouncements, lang)} / ${L.segAnnouncements.en}`}
+            active={segment === "announcements"}
+            onPress={() => setSegment("announcements")}
+          />
+          <Segment
+            label={`${tx(L.segActivity, lang)} / ${L.segActivity.en}`}
+            active={segment === "activity"}
+            onPress={() => setSegment("activity")}
+          />
+        </View>
 
-      {segment === "announcements" ? (
-        <AnnouncementsList
-          state={announcements}
-          lang={lang}
-          retryLabel={t("common.retry")}
-        />
-      ) : (
-        <ActivityList state={activity} lang={lang} retryLabel={t("common.retry")} />
-      )}
-    </ScrollView>
+        {segment === "announcements" ? (
+          <AnnouncementsList
+            state={announcements}
+            lang={lang}
+            retryLabel={t("common.retry")}
+          />
+        ) : (
+          <ActivityList state={activity} lang={lang} retryLabel={t("common.retry")} />
+        )}
+      </ScrollView>
+
+      {isLeader && segment === "announcements" ? (
+        <Pressable
+          style={st.fab}
+          onPress={() => router.push("/compose-announcement" as any)}
+        >
+          <Feather name="edit-2" size={22} color="#fff" />
+        </Pressable>
+      ) : null}
+    </View>
   );
 }
 
@@ -232,7 +250,23 @@ function RowSkeletons() {
 
 const st = StyleSheet.create({
   fill: { flex: 1, backgroundColor: colors.cardMuted },
-  content: { padding: 16, paddingBottom: 48 },
+  content: { padding: 16, paddingBottom: 96 },
+  fab: {
+    position: "absolute",
+    right: 20,
+    bottom: 24,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 6,
+  },
   screenTitle: { fontSize: 22, fontWeight: "700", color: colors.text, marginBottom: 14, fontFamily: fontFamily, lineHeight: lh(22) },
 
   segWrap: {

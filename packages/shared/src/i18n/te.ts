@@ -146,6 +146,17 @@ export const te: Catalog = {
     notifGranted: "నోటిఫికేషన్లు ఎనేబుల్ చేయబడ్డాయి!",
     notifDenied: "మీరు సెట్టింగ్స్‌లో నోటిఫికేషన్లను తర్వాత ఎనేబుల్ చేయవచ్చు.",
   },
+  announce: {
+    titleLabel: "శీర్షిక",
+    titlePlaceholder: "ప్రకటన శీర్షిక",
+    bodyLabel: "సందేశం",
+    bodyPlaceholder: "ఇక్కడ మీ ప్రకటన రాయండి...",
+    targetHint: "{{unit}} మరియు దాని క్రిందివారికి పంపబడుతుంది.",
+    send: "ప్రకటన పంపండి",
+    titleRequired: "శీర్షిక అవసరం.",
+    bodyRequired: "సందేశం అవసరం.",
+    sendFailed: "పంపడం విఫలమైంది",
+  },
   grievances: {
     title: "ఫిర్యాదులు",
     newTitle: "ఫిర్యాదు నమోదు చేయండి",

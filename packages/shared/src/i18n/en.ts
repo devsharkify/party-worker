@@ -144,6 +144,17 @@ export const en = {
     notifGranted: "Notifications enabled!",
     notifDenied: "You can enable notifications later in Settings.",
   },
+  announce: {
+    titleLabel: "Title",
+    titlePlaceholder: "Short announcement headline",
+    bodyLabel: "Message",
+    bodyPlaceholder: "Write your announcement here...",
+    targetHint: "Will be sent to workers in {{unit}} and below.",
+    send: "Send Announcement",
+    titleRequired: "Title is required.",
+    bodyRequired: "Message is required.",
+    sendFailed: "Failed to send",
+  },
   grievances: {
     title: "Grievances",
     newTitle: "Log a grievance",
