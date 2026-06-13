@@ -1,0 +1,16 @@
+[phases.setup]
+nixPkgs = ["nodejs_22"]
+cmds = ["npm install -g pnpm@9.15.9"]
+
+[phases.install]
+cmds = ["pnpm install --frozen-lockfile"]
+
+[phases.build]
+cmds = [
+  "pnpm --filter @pw/shared build 2>/dev/null || true",
+  "pnpm --filter @pw/api build",
+  "pnpm --filter @pw/api exec prisma generate"
+]
+
+[start]
+cmd = "node apps/api/dist/main.js"
