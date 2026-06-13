@@ -73,6 +73,14 @@ export class EventsController {
     @Param("id") id: string,
     @Body(new ZodValidationPipe(checkInEventSchema)) dto: CheckInEventDto,
   ) {
-    return this.events.checkIn(user.id, id, dto.qrToken);
+    return this.events.checkIn(user.id, id, dto.qrToken, dto.lat, dto.lng);
+  }
+
+  /** Leader/admin: attendance list for an event. */
+  @Get(":id/attendance")
+  @UseGuards(RolesGuard)
+  @Roles("booth_leader", "mandal_leader", "constituency_leader", "district_leader", "state_admin", "hq_admin")
+  getAttendance(@Param("id") id: string) {
+    return this.events.getAttendance(id);
   }
 }

@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { randomBytes } from "node:crypto";
 import type {
+  AttendanceRow,
   CheckInResult,
   CreateEventDto,
   UpdateEventDto,
@@ -15,6 +16,20 @@ import { PushService } from "../push/push.service";
 
 /** Points credited for a QR-verified event check-in (single source of truth in @pw/shared). */
 const CHECKIN_POINTS = SCORING.EVENT_CHECKIN;
+
+/** Workers must be within 500 m of the venue to geo-verify their check-in. */
+const GEO_RADIUS_METRES = 500;
+
+/** Haversine great-circle distance in metres. */
+function haversineMetres(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6_371_000;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 @Injectable()
 export class EventsService {
@@ -146,10 +161,31 @@ export class EventsService {
   }
 
   /** Verify the QR token, create an idempotent check-in, and award points once. */
-  async checkIn(userId: string, eventId: string, qrToken: string): Promise<CheckInResult> {
+  async checkIn(
+    userId: string,
+    eventId: string,
+    qrToken: string,
+    userLat?: number,
+    userLng?: number,
+  ): Promise<CheckInResult> {
     const event = await this.prisma.event.findUniqueOrThrow({ where: { id: eventId } });
     if (qrToken !== event.qrToken) {
       throw new BadRequestException("Invalid check-in token");
+    }
+
+    // Geo-fence: if the event has coordinates AND the worker sent theirs, enforce radius.
+    let verified = true;
+    if (event.lat != null && event.lng != null && userLat != null && userLng != null) {
+      const dist = haversineMetres(userLat, userLng, event.lat, event.lng);
+      if (dist > GEO_RADIUS_METRES) {
+        throw new BadRequestException(
+          `Too far from venue (${Math.round(dist)} m away; must be within ${GEO_RADIUS_METRES} m)`,
+        );
+      }
+      verified = true;
+    } else {
+      // No coordinates available — allow but mark unverified.
+      verified = false;
     }
 
     const existing = await this.prisma.checkIn.findUnique({
@@ -160,9 +196,42 @@ export class EventsService {
     }
 
     await this.prisma.checkIn.create({
-      data: { eventId, userId, lat: event.lat, lng: event.lng, verified: true },
+      data: {
+        eventId,
+        userId,
+        lat: userLat ?? event.lat,
+        lng: userLng ?? event.lng,
+        verified,
+      },
     });
     const award = await this.scoring.award(userId, "event_checkin", CHECKIN_POINTS, { eventId });
     return { checkedIn: true, pointsAwarded: award.pointsAwarded };
+  }
+
+  /** Leader/admin: who checked in to an event, with geo-verification flag. */
+  async getAttendance(eventId: string): Promise<AttendanceRow[]> {
+    const event = await this.prisma.event.findUnique({ where: { id: eventId } });
+    if (!event) throw new NotFoundException("Event not found");
+
+    const checkIns = await this.prisma.checkIn.findMany({
+      where: { eventId },
+      orderBy: { createdAt: "asc" },
+      include: { user: { select: { id: true, name: true, photoUrl: true } } },
+    });
+
+    return checkIns.map((c) => {
+      let distanceMetres: number | null = null;
+      if (event.lat != null && event.lng != null && c.lat != null && c.lng != null) {
+        distanceMetres = Math.round(haversineMetres(c.lat, c.lng, event.lat, event.lng));
+      }
+      return {
+        userId: c.user.id,
+        name: c.user.name,
+        photoUrl: c.user.photoUrl,
+        checkedInAt: c.createdAt.toISOString(),
+        verified: c.verified,
+        distanceMetres,
+      };
+    });
   }
 }

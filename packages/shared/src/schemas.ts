@@ -166,6 +166,9 @@ export type RsvpEventDto = z.infer<typeof rsvpEventSchema>;
 export const checkInEventSchema = z.object({
   /** the event's QR token; in the demo the screen posts the event's own token */
   qrToken: z.string().min(1),
+  /** device GPS — used for geo-fence validation when the event has coordinates */
+  lat: z.number().optional(),
+  lng: z.number().optional(),
 });
 export type CheckInEventDto = z.infer<typeof checkInEventSchema>;
 

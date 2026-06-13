@@ -114,6 +114,10 @@ export const en = {
     checkIn: "Check in",
     checkedIn: "Checked in",
     pointsEarned: "+{{points}} points",
+    checkInFailed: "Check-in failed",
+    viewAttendance: "View attendance",
+    attendance: "Attendance",
+    noAttendance: "No one has checked in yet.",
   },
   onboarding: {
     welcomeTaglineTe: "మీ సేవ, మన విజయం",

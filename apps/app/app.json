@@ -52,7 +52,13 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "myTRS needs your location to verify you are present at the event venue."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": false

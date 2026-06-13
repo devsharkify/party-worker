@@ -1,7 +1,10 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import { useRouter } from "expo-router";
+import * as Location from "expo-location";
 import type { CheckInResult, EventItem, RsvpResult, RsvpStatus } from "@pw/shared";
+import { LEADER_ROLES } from "@pw/shared";
 import { useAuth } from "../auth/auth-context";
 import { Feather } from "@expo/vector-icons";
 import { Card, Pill, PrimaryButton } from "./ui";
@@ -26,7 +29,9 @@ function formatWhen(iso: string, lang: string): string {
 export function EventCard({ event, onChanged }: { event: EventItem; onChanged: () => void }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
-  const { api } = useAuth();
+  const { api, user } = useAuth();
+  const router = useRouter();
+  const isLeader = user ? LEADER_ROLES.includes(user.role as any) : false;
   const [rsvp, setRsvp] = useState<RsvpStatus | null>(event.rsvpStatus);
   const [checkedIn, setCheckedIn] = useState(event.checkedIn);
   const [busy, setBusy] = useState(false);
@@ -49,13 +54,29 @@ export function EventCard({ event, onChanged }: { event: EventItem; onChanged: (
   async function checkIn() {
     setBusy(true);
     try {
+      // Request GPS to satisfy the geo-fence on the server.
+      let lat: number | undefined;
+      let lng: number | undefined;
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === "granted") {
+          const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          lat = pos.coords.latitude;
+          lng = pos.coords.longitude;
+        }
+      } catch {
+        // GPS optional — server will allow without coords but mark unverified.
+      }
+
       const res = await api<CheckInResult>(`/events/${event.id}/checkin`, {
         method: "POST",
-        body: JSON.stringify({ qrToken: event.qrToken }),
+        body: JSON.stringify({ qrToken: event.qrToken, lat, lng }),
       });
       setCheckedIn(res.checkedIn);
       if (res.pointsAwarded > 0) setAwarded(res.pointsAwarded);
       onChanged();
+    } catch (err: any) {
+      Alert.alert(t("events.checkInFailed"), err?.message ?? String(err));
     } finally {
       setBusy(false);
     }
@@ -99,6 +120,12 @@ export function EventCard({ event, onChanged }: { event: EventItem; onChanged: (
       {awarded != null ? (
         <Text style={st.points}>{t("events.pointsEarned", { points: awarded })}</Text>
       ) : null}
+      {isLeader ? (
+        <Pressable style={st.attendanceLink} onPress={() => router.push(`/event-attendance/${event.id}` as any)}>
+          <Feather name="users" size={14} color={colors.primaryDark} />
+          <Text style={st.attendanceLinkText}>{t("events.viewAttendance")}</Text>
+        </Pressable>
+      ) : null}
     </Card>
   );
 }
@@ -124,4 +151,6 @@ const st = StyleSheet.create({
   rsvpTextActive: { color: "#fff", fontFamily: fontFamily },
   footer: { marginTop: 14 },
   points: { marginTop: 10, textAlign: "center", color: colors.success, fontWeight: "700", fontFamily: fontFamily },
+  attendanceLink: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 12 },
+  attendanceLinkText: { fontSize: 13, color: colors.primaryDark, fontWeight: "700", fontFamily: fontFamily, lineHeight: lh(13) },
 });

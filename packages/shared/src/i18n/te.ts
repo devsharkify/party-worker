@@ -116,6 +116,10 @@ export const te: Catalog = {
     checkIn: "చెక్-ఇన్ చేయండి",
     checkedIn: "చెక్-ఇన్ అయింది",
     pointsEarned: "+{{points}} పాయింట్లు",
+    checkInFailed: "చెక్-ఇన్ విఫలమైంది",
+    viewAttendance: "హాజరు చూడండి",
+    attendance: "హాజరు",
+    noAttendance: "ఇంకా ఎవరూ చెక్-ఇన్ చేయలేదు.",
   },
   onboarding: {
     welcomeTaglineTe: "మీ సేవ, మన విజయం",

@@ -255,6 +255,18 @@ export interface CheckInResult {
   pointsAwarded: number;
 }
 
+/** One row in the leader attendance list for an event. */
+export interface AttendanceRow {
+  userId: string;
+  name: string;
+  photoUrl: string | null;
+  checkedInAt: string;
+  /** whether geo-fence was satisfied when checking in */
+  verified: boolean;
+  /** distance from venue in metres, null when event has no coordinates */
+  distanceMetres: number | null;
+}
+
 /** Result of POST /grievances. */
 export interface GrievanceCreated {
   id: string;
