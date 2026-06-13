@@ -146,6 +146,12 @@ export const te: Catalog = {
     notifGranted: "నోటిఫికేషన్లు ఎనేబుల్ చేయబడ్డాయి!",
     notifDenied: "మీరు సెట్టింగ్స్‌లో నోటిఫికేషన్లను తర్వాత ఎనేబుల్ చేయవచ్చు.",
   },
+  missions: {
+    trendAlert: "ట్రెండ్ అలర్ట్",
+    bonus: "పాయింట్ల బోనస్",
+    shareNow: "ఇప్పుడే షేర్ చేయండి",
+    done: "పూర్తయింది ✓",
+  },
   announce: {
     titleLabel: "శీర్షిక",
     titlePlaceholder: "ప్రకటన శీర్షిక",

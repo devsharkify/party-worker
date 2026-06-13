@@ -168,6 +168,7 @@ type Section =
   | "news"
   | "grievances"
   | "events"
+  | "missions"
   | "broadcast"
   | "analytics";
 
@@ -181,6 +182,7 @@ const NAV: { id: Section; label: string }[] = [
   { id: "news", label: "News" },
   { id: "grievances", label: "Grievances" },
   { id: "events", label: "Events" },
+  { id: "missions", label: "Trend Missions" },
   { id: "broadcast", label: "Broadcast & Insights" },
   { id: "analytics", label: "Analytics" },
 ];
@@ -248,6 +250,7 @@ function Dashboard() {
         {section === "news" ? <NewsSection /> : null}
         {section === "grievances" ? <GrievancesSection /> : null}
         {section === "events" ? <EventsSection /> : null}
+        {section === "missions" ? <MissionsSection /> : null}
         {section === "broadcast" ? <BroadcastSection /> : null}
         {section === "analytics" ? <AnalyticsSection /> : null}
       </main>
@@ -3104,6 +3107,204 @@ function NewsSection() {
                 </div>
               </div>
             ))
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+// ============================================================
+// Missions (Trend Alerts) section
+// ============================================================
+
+interface MissionRow {
+  id: string;
+  title: string;
+  caption: string | null;
+  hashtag: string | null;
+  bonusPoints: number;
+  startsAt: string;
+  endsAt: string;
+  creativeId: string | null;
+  completionCount: number;
+}
+
+function MissionsSection() {
+  const { api } = useAdmin();
+  const { toast } = useToast();
+  const [missions, setMissions] = useState<MissionRow[] | null>(null);
+  const [title, setTitle] = useState("");
+  const [caption, setCaption] = useState("");
+  const [hashtag, setHashtag] = useState("");
+  const [bonusPoints, setBonusPoints] = useState(10);
+  const [startsAt, setStartsAt] = useState("");
+  const [endsAt, setEndsAt] = useState("");
+  const [creativeId, setCreativeId] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      setMissions(await api<MissionRow[]>("/missions/all"));
+    } catch {
+      setMissions([]);
+    }
+  }, [api]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  async function handleCreate() {
+    if (!title.trim() || !startsAt || !endsAt) {
+      toast("Title, start, and end time are required.", "error");
+      return;
+    }
+    setBusy(true);
+    try {
+      await api("/missions", {
+        method: "POST",
+        body: JSON.stringify({
+          title: title.trim(),
+          caption: caption.trim() || undefined,
+          hashtag: hashtag.trim() || undefined,
+          bonusPoints,
+          startsAt: new Date(startsAt).toISOString(),
+          endsAt: new Date(endsAt).toISOString(),
+          creativeId: creativeId.trim() || undefined,
+        }),
+      });
+      toast("Mission created.", "success");
+      setTitle(""); setCaption(""); setHashtag(""); setCreativeId(""); setStartsAt(""); setEndsAt("");
+      await load();
+    } catch (e) {
+      toast((e as Error).message, "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-8">
+      <section>
+        <SectionHeader title="Create Trend Alert Mission" />
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-bold text-slate-700">Title *</label>
+              <input
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-saffron"
+                placeholder="e.g. Share the Hyderabad rally poster"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-bold text-slate-700">Hashtag</label>
+              <input
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-saffron"
+                placeholder="#MyTRS"
+                value={hashtag}
+                onChange={(e) => setHashtag(e.target.value)}
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-sm font-bold text-slate-700">Caption (optional)</label>
+              <input
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-saffron"
+                placeholder="Short CTA for workers"
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-bold text-slate-700">Starts At *</label>
+              <input
+                type="datetime-local"
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-saffron"
+                value={startsAt}
+                onChange={(e) => setStartsAt(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-bold text-slate-700">Ends At *</label>
+              <input
+                type="datetime-local"
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-saffron"
+                value={endsAt}
+                onChange={(e) => setEndsAt(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-bold text-slate-700">Bonus Points</label>
+              <input
+                type="number"
+                min={1}
+                max={500}
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-saffron"
+                value={bonusPoints}
+                onChange={(e) => setBonusPoints(Number(e.target.value))}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-bold text-slate-700">Creative ID (optional)</label>
+              <input
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-saffron font-mono text-xs"
+                placeholder="Link to a specific creative"
+                value={creativeId}
+                onChange={(e) => setCreativeId(e.target.value)}
+              />
+            </div>
+          </div>
+          <button
+            disabled={busy}
+            onClick={handleCreate}
+            className="rounded-md bg-saffron px-6 py-2 text-sm font-bold text-navy transition hover:brightness-110 disabled:opacity-50"
+          >
+            {busy ? "Creating…" : "Create Mission"}
+          </button>
+        </div>
+      </section>
+
+      <section>
+        <SectionHeader title="All Missions" count={missions?.length} />
+        <div className="space-y-3">
+          {missions === null ? (
+            [0, 1].map((i) => <SkeletonRow key={i} />)
+          ) : missions.length === 0 ? (
+            <EmptyState glyph="🎯" title="No missions yet" message="Create a Trend Alert mission above." />
+          ) : (
+            missions.map((m) => {
+              const now = new Date();
+              const started = new Date(m.startsAt);
+              const ended = new Date(m.endsAt);
+              const status =
+                now < started ? "Upcoming" : now > ended ? "Ended" : "Active";
+              return (
+                <div key={m.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="font-bold text-slate-900">{m.title}</div>
+                      {m.caption && <div className="text-sm text-slate-500 mt-0.5">{m.caption}</div>}
+                      {m.hashtag && <div className="text-sm font-bold text-saffron mt-0.5">{m.hashtag}</div>}
+                      <div className="mt-1 text-xs text-slate-400">
+                        {formatDate(m.startsAt)} → {formatDate(m.endsAt)} · {m.completionCount} completions
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-2 shrink-0">
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${
+                        status === "Active" ? "bg-green-100 text-green-700" :
+                        status === "Upcoming" ? "bg-blue-100 text-blue-700" :
+                        "bg-slate-100 text-slate-500"
+                      }`}>
+                        {status}
+                      </span>
+                      <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-bold text-orange-600">
+                        +{m.bonusPoints} pts
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
           )}
         </div>
       </section>

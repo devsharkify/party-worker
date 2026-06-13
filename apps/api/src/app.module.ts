@@ -20,6 +20,7 @@ import { MaintenanceModule } from "./maintenance/maintenance.module";
 import { TeamModule } from "./team/team.module";
 import { ActivityModule } from "./activity/activity.module";
 import { AnnouncementsModule } from "./announcements/announcements.module";
+import { MissionsModule } from "./missions/missions.module";
 import { NewsModule } from "./news/news.module";
 import { TeamStatsModule } from "./teamstats/teamstats.module";
 import { RecruitsModule } from "./recruits/recruits.module";
@@ -56,6 +57,7 @@ import { AppController } from "./app.controller";
     TeamModule,
     ActivityModule,
     AnnouncementsModule,
+    MissionsModule,
     NewsModule,
     TeamStatsModule,
     RecruitsModule,

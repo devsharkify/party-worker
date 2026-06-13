@@ -9,6 +9,7 @@ import {
 } from "@pw/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { ScoringService } from "../scoring/scoring.service";
+import { MissionsService } from "../missions/missions.service";
 import { ASSISTED_SHARE, type AssistedShareProvider } from "../providers/posting.provider";
 import { STORAGE_PROVIDER, type StorageProvider } from "../providers/storage.provider";
 import { APP_ENV, type Env } from "../config/env";
@@ -20,6 +21,7 @@ export class ShareService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly scoring: ScoringService,
+    private readonly missions: MissionsService,
     @Inject(ASSISTED_SHARE) private readonly assisted: AssistedShareProvider,
     @Inject(STORAGE_PROVIDER) private readonly storage: StorageProvider,
     @Inject(APP_ENV) private readonly env: Env,
@@ -105,6 +107,10 @@ export class ShareService {
       data: { channel, shareIntentAt: new Date(), basePointsAwarded: SCORING.SHARE_BASE },
     });
     await this.scoring.award(userId, "share", SCORING.SHARE_BASE, { shareEventId: share.id, channel });
+
+    // Award mission bonus for any active timed missions matching this creative.
+    void this.missions.awardMissionBonusOnShare(userId, share.creativeId).catch(() => undefined);
+
     return { pointsAwarded: SCORING.SHARE_BASE };
   }
 }

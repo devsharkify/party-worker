@@ -257,6 +257,20 @@ export interface CheckInResult {
   pointsAwarded: number;
 }
 
+/** A timed "Trend Alert" mission visible to workers. */
+export interface MissionView {
+  id: string;
+  title: string;
+  caption: string | null;
+  hashtag: string | null;
+  bonusPoints: number;
+  startsAt: string;
+  endsAt: string;
+  creativeId: string | null;
+  completedByViewer: boolean;
+  completionCount: number;
+}
+
 /** One row in the leader attendance list for an event. */
 export interface AttendanceRow {
   userId: string;

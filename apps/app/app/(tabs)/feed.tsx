@@ -6,12 +6,13 @@ import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
 import { Skeleton as MotiSkeleton } from "moti/skeleton";
-import type { FeedItem } from "@pw/shared";
+import type { FeedItem, MissionView } from "@pw/shared";
 import { useApi } from "../../src/hooks";
 import { useAuth } from "../../src/auth/auth-context";
 import { StateView } from "../../src/components/StateView";
 import { RemoteImage } from "../../src/components/RemoteImage";
 import { BannerShareModal } from "../../src/components/BannerShareModal";
+import { MissionBanner } from "../../src/components/MissionBanner";
 import { TRSLogo } from "../../src/components/TRSLogo";
 import { colors, fontFamily, lh, radius, shadow, shadowLg } from "../../src/theme";
 import { useIsOnline } from "../../src/lib/offline";
@@ -155,8 +156,9 @@ export default function Feed() {
   const { t, i18n } = useTranslation();
   const lang = i18n.language as "te" | "en";
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, api } = useAuth();
   const { data, loading, refreshing, error, reload, refresh } = useApi<FeedItem[]>("/feed");
+  const { data: missions, reload: reloadMissions } = useApi<MissionView[]>("/missions");
   const isOnline = useIsOnline();
 
   const firstName = user?.name?.split(" ")[0] ?? "Worker";
@@ -228,7 +230,24 @@ export default function Feed() {
           />
         }
         ListHeaderComponent={
-          <DashboardHeader name={firstName} items={items.length} lang={lang} />
+          <>
+            <DashboardHeader name={firstName} items={items.length} lang={lang} />
+            {missions && missions.length > 0 ? (
+              <MissionBanner
+                missions={missions}
+                onComplete={async (missionId) => {
+                  try {
+                    await api<{ pointsAwarded: number }>(`/missions/${missionId}/complete`, {
+                      method: "POST",
+                    });
+                    reloadMissions();
+                  } catch {
+                    // Non-fatal
+                  }
+                }}
+              />
+            ) : null}
+          </>
         }
         ListEmptyComponent={
           <View style={st.emptyWrap}>

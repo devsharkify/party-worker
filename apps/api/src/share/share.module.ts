@@ -1,13 +1,14 @@
 import { Module } from "@nestjs/common";
 import { SecurityModule } from "../auth/security.module";
 import { ScoringModule } from "../scoring/scoring.module";
+import { MissionsModule } from "../missions/missions.module";
 import { ShareService } from "./share.service";
 import { ShareController } from "./share.controller";
 import { ReachService } from "./reach.service";
 import { RedirectController } from "./redirect.controller";
 
 @Module({
-  imports: [SecurityModule, ScoringModule],
+  imports: [SecurityModule, ScoringModule, MissionsModule],
   providers: [ShareService, ReachService],
   controllers: [ShareController, RedirectController],
   exports: [ShareService, ReachService],

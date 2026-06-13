@@ -17,6 +17,9 @@ function makeStorage() {
 function makeScoring() {
   return { award: vi.fn().mockResolvedValue({}) };
 }
+function makeMissions() {
+  return { awardMissionBonusOnShare: vi.fn().mockResolvedValue(undefined) };
+}
 function makeAssisted() {
   return { buildDeepLinks: vi.fn().mockReturnValue({ whatsapp: "wa://x" }) };
 }
@@ -45,7 +48,7 @@ describe("ShareService.share (prepare)", () => {
   it("creates the share event with ZERO points and returns the tracked link", async () => {
     const prisma = makePrisma();
     const scoring = makeScoring();
-    const svc = new ShareService(prisma as any, scoring as any, makeAssisted() as any, makeStorage() as any, env);
+    const svc = new ShareService(prisma as any, scoring as any, makeMissions() as any, makeAssisted() as any, makeStorage() as any, env);
 
     const res = await svc.share("u1", "c1");
 
@@ -62,7 +65,7 @@ describe("ShareService.share (prepare)", () => {
     const prisma = makePrisma({
       personalizedRender: { findFirst: vi.fn().mockResolvedValue({ cachedUrl: "https://cdn/renders/u1/c1.png" }) },
     });
-    const svc = new ShareService(prisma as any, makeScoring() as any, makeAssisted() as any, makeStorage() as any, env);
+    const svc = new ShareService(prisma as any, makeScoring() as any, makeMissions() as any, makeAssisted() as any, makeStorage() as any, env);
 
     const res = await svc.share("u1", "c1");
     expect(res.personalizedUrl).toBe("https://cdn/renders/u1/c1.png");
@@ -74,7 +77,7 @@ describe("ShareService.share (prepare)", () => {
     const prisma = makePrisma({
       shareEvent: { ...makePrisma().shareEvent, findFirst: vi.fn().mockResolvedValue(existing) },
     });
-    const svc = new ShareService(prisma as any, makeScoring() as any, makeAssisted() as any, makeStorage() as any, env);
+    const svc = new ShareService(prisma as any, makeScoring() as any, makeMissions() as any, makeAssisted() as any, makeStorage() as any, env);
 
     const res = await svc.share("u1", "c1");
     expect(prisma.shareEvent.create).not.toHaveBeenCalled();
@@ -90,7 +93,7 @@ describe("ShareService.confirm", () => {
       .fn()
       .mockResolvedValue({ id: "se1", userId: "u1", basePointsAwarded: 0 });
     const scoring = makeScoring();
-    const svc = new ShareService(prisma as any, scoring as any, makeAssisted() as any, makeStorage() as any, env);
+    const svc = new ShareService(prisma as any, scoring as any, makeMissions() as any, makeAssisted() as any, makeStorage() as any, env);
 
     const res = await svc.confirm("u1", "se1", "whatsapp");
 
@@ -112,7 +115,7 @@ describe("ShareService.confirm", () => {
       .fn()
       .mockResolvedValue({ id: "se1", userId: "u1", basePointsAwarded: SCORING.SHARE_BASE });
     const scoring = makeScoring();
-    const svc = new ShareService(prisma as any, scoring as any, makeAssisted() as any, makeStorage() as any, env);
+    const svc = new ShareService(prisma as any, scoring as any, makeMissions() as any, makeAssisted() as any, makeStorage() as any, env);
 
     const res = await svc.confirm("u1", "se1", "instagram_story");
 
@@ -128,7 +131,7 @@ describe("ShareService.confirm", () => {
     prisma.shareEvent.findUniqueOrThrow = vi
       .fn()
       .mockResolvedValue({ id: "se1", userId: "OTHER", basePointsAwarded: 0 });
-    const svc = new ShareService(prisma as any, makeScoring() as any, makeAssisted() as any, makeStorage() as any, env);
+    const svc = new ShareService(prisma as any, makeScoring() as any, makeMissions() as any, makeAssisted() as any, makeStorage() as any, env);
 
     await expect(svc.confirm("u1", "se1", "whatsapp")).rejects.toThrow();
   });

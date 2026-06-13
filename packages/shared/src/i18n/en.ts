@@ -144,6 +144,12 @@ export const en = {
     notifGranted: "Notifications enabled!",
     notifDenied: "You can enable notifications later in Settings.",
   },
+  missions: {
+    trendAlert: "TREND ALERT",
+    bonus: "pts bonus",
+    shareNow: "Share Now",
+    done: "Completed ✓",
+  },
   announce: {
     titleLabel: "Title",
     titlePlaceholder: "Short announcement headline",
