@@ -11,11 +11,10 @@ import { PrismaService } from "../prisma/prisma.service";
 import { ScoringService } from "../scoring/scoring.service";
 import { INSTAGRAM_PROVIDER, type InstagramProvider } from "../providers/posting.provider";
 import { decryptSecret, encryptSecret, sha256 } from "../auth/crypto.util";
-import { PostizService } from "./postiz.service";
 
 export type ConnectInstagramResult = SocialAccountInfo & {
-  /** "mock" = instantly connected (dev). "graph" = direct Meta OAuth. "postiz" = Postiz relay OAuth. */
-  mode: "mock" | "graph" | "postiz";
+  /** "mock" = instantly connected (dev). "graph" = direct Meta OAuth. */
+  mode: "mock" | "graph";
   authorizeUrl?: string;
 };
 
@@ -35,15 +34,10 @@ export class SocialService {
     private readonly scoring: ScoringService,
     @Inject(INSTAGRAM_PROVIDER) private readonly ig: InstagramProvider,
     @Inject(APP_ENV) private readonly env: Env,
-    private readonly postiz: PostizService,
   ) {}
 
   private get graphMode(): boolean {
     return this.env.INSTAGRAM_PROVIDER === "graph";
-  }
-
-  private get postizMode(): boolean {
-    return this.env.INSTAGRAM_PROVIDER === "postiz";
   }
 
   private get graphBase(): string {
@@ -79,17 +73,6 @@ export class SocialService {
     type: SocialAccountType = "creator",
     handle?: string,
   ): Promise<ConnectInstagramResult> {
-    if (this.postizMode) {
-      return {
-        platform: "instagram",
-        type: "creator",
-        connected: false,
-        handle: null,
-        insightsAvailable: false,
-        mode: "postiz",
-        authorizeUrl: this.postiz.getConnectUrl(userId),
-      };
-    }
     if (this.graphMode) {
       return {
         platform: "instagram",
@@ -282,13 +265,6 @@ export class SocialService {
     });
     const mediaUrl = mediaUrlOverride ?? render?.cachedUrl ?? creative.sourceKey;
     const caption = this.captionFor(creative.captionVariants, user.preferredLanguage);
-
-    // Postiz relay path — delegate entirely to PostizService
-    if (this.postizMode) {
-      const { postId } = await this.postiz.publishForWorker(userId, mediaUrl, caption);
-      await this.upsertShareReachEvent(userId, creativeId, postId);
-      return { published: true, remoteId: postId };
-    }
 
     const acct = await this.prisma.socialAccount.findFirst({
       where: { userId, platform: "instagram" },
