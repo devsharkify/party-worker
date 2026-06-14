@@ -139,7 +139,7 @@ export default function Login() {
 }
 
 const st = StyleSheet.create({
-  wrap: { flex: 1, padding: 24, justifyContent: "center", maxWidth: 460, width: "100%", alignSelf: "center" },
+  wrap: { flex: 1, padding: 24, paddingTop: 80, justifyContent: "flex-start", maxWidth: 460, width: "100%", alignSelf: "center" },
   langRow: { flexDirection: "row", gap: 8, justifyContent: "flex-end", marginBottom: 16 },
   lang: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 999, borderWidth: 1.5, borderColor: colors.border },
   langActive: { backgroundColor: colors.primary, borderColor: colors.primary },
