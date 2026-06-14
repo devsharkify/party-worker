@@ -13,7 +13,6 @@ import { StateView } from "../../src/components/StateView";
 import { RemoteImage } from "../../src/components/RemoteImage";
 import { BannerShareModal } from "../../src/components/BannerShareModal";
 import { MissionBanner } from "../../src/components/MissionBanner";
-import { TRSLogo } from "../../src/components/TRSLogo";
 import { colors, fontFamily, lh, radius, shadow, shadowLg } from "../../src/theme";
 import { useIsOnline } from "../../src/lib/offline";
 
@@ -111,13 +110,12 @@ function SkeletonGrid() {
 function DashboardHeader({ name, items, lang }: { name: string; items: number; lang: "te" | "en" }) {
   return (
     <View style={st.dashHeader}>
-      {/* Welcome row — name on left, TRS emblem on right */}
+      {/* Welcome row */}
       <View style={st.welcomeRow}>
         <View style={{ flex: 1 }}>
           <Text style={st.welcomeGreeting}>{lang === "te" ? "తిరిగి స్వాగతం" : "WELCOME BACK"}</Text>
           <Text style={st.welcomeName} numberOfLines={1}>{name}</Text>
         </View>
-        <TRSLogo size={42} showBanner={false} borderRadius={6} />
       </View>
 
       {/* Stats hero — deep navy with subtle navy gradient and gold accent line */}

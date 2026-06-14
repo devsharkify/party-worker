@@ -13,7 +13,6 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "../src/auth/auth-context";
 import { setLanguage } from "../src/i18n";
 import { PrimaryButton } from "../src/components/ui";
-import { TRSLogo } from "../src/components/TRSLogo";
 import { colors, fontFamily, lh, radius, shadow } from "../src/theme";
 
 export default function Login() {
@@ -77,9 +76,6 @@ export default function Login() {
           ))}
         </View>
 
-        <View style={st.logoWrap}>
-          <TRSLogo size={96} showBanner borderRadius={8} />
-        </View>
         <Text style={st.title}>{t("common.appName")}</Text>
         <Text style={st.subtitle}>{t("auth.loginSubtitle")}</Text>
 
@@ -144,21 +140,12 @@ export default function Login() {
 
 const st = StyleSheet.create({
   wrap: { flex: 1, padding: 24, justifyContent: "center", maxWidth: 460, width: "100%", alignSelf: "center" },
-  langRow: { flexDirection: "row", gap: 8, justifyContent: "flex-end", marginBottom: 24 },
+  langRow: { flexDirection: "row", gap: 8, justifyContent: "flex-end", marginBottom: 16 },
   lang: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 999, borderWidth: 1.5, borderColor: colors.border },
   langActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   langText: { color: colors.textMuted, fontWeight: "600", fontSize: 14, fontFamily: fontFamily, lineHeight: lh(14) },
   langTextActive: { color: "#fff", fontFamily: fontFamily },
-  logoWrap: {
-    alignSelf: "center",
-    marginTop: 8,
-    shadowColor: "#000",
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
-  },
-  title: { fontSize: 30, fontWeight: "700", color: colors.navy, textAlign: "center", marginTop: 14, fontFamily: fontFamily, lineHeight: lh(30) },
+  title: { fontSize: 30, fontWeight: "700", color: colors.navy, textAlign: "center", marginTop: 0, fontFamily: fontFamily, lineHeight: lh(30) },
   subtitle: { fontSize: 15, color: colors.textMuted, textAlign: "center", marginTop: 6, marginBottom: 28, fontFamily: fontFamily, lineHeight: lh(15) },
   card: {
     backgroundColor: "#fff",
