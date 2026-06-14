@@ -12,4 +12,4 @@ cmds = [
 ]
 
 [start]
-cmd = "node apps/api/dist/main.js"
+cmd = "pnpm --filter @pw/api exec prisma db push --skip-generate && node apps/api/dist/main.js"
