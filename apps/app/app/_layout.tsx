@@ -3,8 +3,8 @@
 // crashes a release APK to a blank white screen (web is a no-op, so web worked).
 import "react-native-gesture-handler";
 import "../src/i18n";
-import { Component, useEffect, useRef, type ReactNode } from "react";
-import { Platform, Text, View } from "react-native";
+import { Component, useEffect, useRef, useState, type ReactNode } from "react";
+import { ActivityIndicator, Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -12,7 +12,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Toaster } from "sonner-native";
 import { AuthProvider, useAuth } from "../src/auth/auth-context";
 import { checkOnboarded } from "../src/lib/onboarding";
-import { colors, fontFamily } from "../src/theme";
+import { colors, fontFamily, fontWeight, radius, shadow } from "../src/theme";
 import { useHandleDeepLink } from "../src/lib/deeplink";
 
 /**
@@ -67,12 +67,155 @@ function OnboardingGuard() {
   return null;
 }
 
+/**
+ * Soft modal prompting new workers to add a profile photo.
+ * Only fires on native, only when photoUrl is absent, only once per session,
+ * and only after onboarding is complete (so it doesn't compete with that flow).
+ */
+function PhotoGateModal() {
+  const { user, api, refreshUser } = useAuth();
+  const [visible, setVisible] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const shownRef = useRef(false);
+
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    if (!user || user.photoUrl || shownRef.current) return;
+    void (async () => {
+      const onboarded = await checkOnboarded();
+      if (!onboarded || shownRef.current) return;
+      shownRef.current = true;
+      setVisible(true);
+    })();
+  }, [user]);
+
+  async function upload() {
+    if (busy) return;
+    try {
+      const ImagePicker = await import("expo-image-picker");
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) return;
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"] as any,
+        allowsEditing: true,
+        aspect: [1, 1] as [number, number],
+        quality: 0.9,
+      });
+      const asset = res.assets?.[0];
+      if (res.canceled || !asset) return;
+      setBusy(true);
+      const { manipulateAsync, SaveFormat } = await import("expo-image-manipulator");
+      const out = await manipulateAsync(asset.uri, [{ resize: { width: 512 } }], {
+        compress: 0.88,
+        format: SaveFormat.JPEG,
+        base64: true,
+      });
+      await api("/users/me/photo", {
+        method: "POST",
+        body: JSON.stringify({ dataUrl: `data:image/jpeg;base64,${out.base64}` }),
+      });
+      await refreshUser();
+      setVisible(false);
+    } catch {
+      setVisible(false);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!visible) return null;
+
+  return (
+    <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={() => setVisible(false)}>
+      <View style={pg.backdrop}>
+        <View style={pg.card}>
+          <Text style={pg.emoji}>📸</Text>
+          <Text style={pg.title}>Add your photo</Text>
+          <Text style={pg.body}>
+            Workers with a profile photo are recognised faster by voters and leaders. It only takes a moment.
+          </Text>
+          <Pressable
+            style={({ pressed }) => [pg.btn, pressed && { opacity: 0.82 }, busy && { opacity: 0.6 }]}
+            onPress={upload}
+            disabled={busy}
+          >
+            {busy
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={pg.btnText}>Upload Photo</Text>}
+          </Pressable>
+          <Pressable onPress={() => setVisible(false)} style={pg.skip}>
+            <Text style={pg.skipText}>Skip for now</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const pg = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: radius.xl,
+    padding: 28,
+    width: "100%",
+    maxWidth: 380,
+    alignItems: "center",
+    ...shadow,
+  },
+  emoji: { fontSize: 48, marginBottom: 16 },
+  title: {
+    fontSize: 22,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+    fontFamily,
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  body: {
+    fontSize: 15,
+    color: colors.textMuted,
+    fontFamily,
+    textAlign: "center",
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  btn: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    height: 52,
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  btnText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: fontWeight.bold,
+    fontFamily,
+  },
+  skip: { paddingVertical: 8 },
+  skipText: {
+    color: colors.textMuted,
+    fontSize: 14,
+    fontFamily,
+  },
+});
+
 /** Inner component rendered inside the navigator so useRouter() is available. */
 function AppNavigator() {
   useHandleDeepLink();
   return (
     <>
       <OnboardingGuard />
+      <PhotoGateModal />
       <Stack
         screenOptions={{
           headerShown: false,
