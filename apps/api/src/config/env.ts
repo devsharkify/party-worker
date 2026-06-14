@@ -47,7 +47,7 @@ const EnvSchema = z.object({
   WHATSAPP_ACCESS_TOKEN: z.string().optional(),
   WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
 
-  STORAGE_PROVIDER: z.enum(["local", "r2", "b2"]).default("local"),
+  STORAGE_PROVIDER: z.enum(["local", "r2", "b2", "imagekit"]).default("local"),
   STORAGE_LOCAL_DIR: z.string().default(".storage"),
   STORAGE_PUBLIC_BASE: z.string().default("http://localhost:4000/media"),
   // Cloudflare R2 (S3-compatible) — required when STORAGE_PROVIDER=r2.
@@ -56,6 +56,9 @@ const EnvSchema = z.object({
   R2_SECRET_ACCESS_KEY: z.string().optional(),
   R2_BUCKET: z.string().optional(),
   R2_PUBLIC_BASE: z.string().optional(),
+  // ImageKit — required when STORAGE_PROVIDER=imagekit.
+  IK_PRIVATE_KEY: z.string().optional(),
+  IK_URL_ENDPOINT: z.string().optional(),
 
   // Push: mock (default) | expo (Expo Push API — the app registers Expo tokens,
   // zero server creds needed) | firebase (raw FCM tokens; "fcm" = legacy alias).

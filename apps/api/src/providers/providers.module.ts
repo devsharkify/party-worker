@@ -16,6 +16,7 @@ import {
 } from "./posting.provider";
 import { MockPaymentProvider, PAYMENT_PROVIDER } from "./payment.provider";
 import { RazorpayPaymentProvider } from "./razorpay.provider";
+import { ImageKitStorageProvider } from "./imagekit-storage.provider";
 
 const env = loadEnv();
 
@@ -42,7 +43,13 @@ function selectPushProvider() {
  */
 const providers: Provider[] = [
   { provide: OTP_PROVIDER, useClass: selectOtpProvider() },
-  { provide: STORAGE_PROVIDER, useClass: env.STORAGE_PROVIDER === "r2" ? R2StorageProvider : LocalStorageProvider },
+  {
+    provide: STORAGE_PROVIDER,
+    useClass:
+      env.STORAGE_PROVIDER === "r2" ? R2StorageProvider :
+      env.STORAGE_PROVIDER === "imagekit" ? ImageKitStorageProvider :
+      LocalStorageProvider,
+  },
   { provide: PUSH_PROVIDER, useClass: selectPushProvider() },
   { provide: ASSISTED_SHARE, useClass: DefaultAssistedShareProvider },
   {

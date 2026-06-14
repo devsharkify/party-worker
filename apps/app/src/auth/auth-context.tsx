@@ -10,6 +10,7 @@ import { Platform } from "react-native";
 import type { AuthResult, UserPublic } from "@pw/shared";
 import { API_URL, isWeb } from "../config";
 import { tokenStore } from "./token-store";
+import { CONSTITUENCY_NAMES } from "../data/telangana";
 
 
 // ---------------------------------------------------------------------------
@@ -26,6 +27,45 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+async function captureLocationForUser(
+  userId: string,
+  apiFn: <T>(path: string, opts?: RequestInit) => Promise<T>,
+): Promise<void> {
+  try {
+    const Location = await import("expo-location");
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== "granted") return;
+
+    const pos = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.Balanced,
+    });
+    const [addr] = await Location.reverseGeocodeAsync({
+      latitude: pos.coords.latitude,
+      longitude: pos.coords.longitude,
+    });
+
+    const candidates = [addr?.subregion, addr?.city, addr?.district, addr?.name]
+      .filter((s): s is string => !!s);
+
+    const matched = CONSTITUENCY_NAMES.find((name) =>
+      candidates.some(
+        (c) =>
+          c.toLowerCase().includes(name.toLowerCase()) ||
+          name.toLowerCase().includes(c.toLowerCase()),
+      ),
+    );
+
+    if (matched) {
+      await apiFn("/users/me", {
+        method: "PATCH",
+        body: JSON.stringify({ constituency: matched }),
+      });
+    }
+  } catch {
+    // Non-critical — location is best-effort
+  }
+}
 
 async function parseError(res: Response): Promise<string> {
   try {
@@ -104,7 +144,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     accessRef.current = data.accessToken;
     if (!isWeb && data.refreshToken) await tokenStore.setRefresh(data.refreshToken);
     setUser(data.user);
-  }, [rawFetch]);
+
+    // Silently capture GPS on native if constituency not yet set
+    if (Platform.OS !== "web" && !data.user.constituency) {
+      void captureLocationForUser(data.user.id, api);
+    }
+  }, [rawFetch, api]);
 
   const logout = useCallback(async () => {
     const refreshToken = await tokenStore.getRefresh();
