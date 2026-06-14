@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "expo start",
     "web": "expo start --web --port 8081",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "export:web": "expo export --platform web",
     "typecheck": "tsc --noEmit"
   },
@@ -26,7 +26,7 @@
     "expo-image-picker": "~17.0.11",
     "expo-linear-gradient": "~15.0.8",
     "expo-linking": "~8.0.0",
-    "expo-location": "^56.0.17",
+    "expo-location": "~19.0.8",
     "expo-notifications": "~0.32.17",
     "expo-router": "~6.0.0",
     "expo-secure-store": "~15.0.0",
