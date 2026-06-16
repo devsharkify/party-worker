@@ -169,6 +169,8 @@ export const checkInEventSchema = z.object({
   /** device GPS — used for geo-fence validation when the event has coordinates */
   lat: z.number().optional(),
   lng: z.number().optional(),
+  /** Storage key for an event proof photo (optional; triggers collage when 3+ photos exist) */
+  photoKey: z.string().optional(),
 });
 export type CheckInEventDto = z.infer<typeof checkInEventSchema>;
 

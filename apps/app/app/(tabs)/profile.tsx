@@ -85,6 +85,7 @@ export default function Profile() {
   const reach = useApi<MyAnalytics>("/me/analytics");
   const consents = useApi<ConsentState[]>("/me/consents");
   const recruits = useApi<OrgMemberRow[]>("/me/recruits");
+  const badges = useApi<{ key: string; label: string; earned: boolean }[]>("/scoring/badges");
   const [busy, setBusy] = useState<string | undefined>();
   const [consentBusy, setConsentBusy] = useState<ConsentPurpose | undefined>();
 
@@ -717,6 +718,18 @@ export default function Profile() {
         onToggle={toggleConsent}
       />
 
+      {/* Badge Ladder */}
+      <View style={st.section}>
+        <Text style={st.sectionTitle}>{lang === "te" ? "నా బ్యాడ్జ్‌లు" : "My Badges"}</Text>
+        <View style={st.badgeGrid}>
+          {(badges.data ?? []).map((b) => (
+            <View key={b.key} style={[st.badgeChip, !b.earned && st.badgeChipLocked]}>
+              <Text style={[st.badgeLabel, !b.earned && st.badgeLabelLocked]}>{b.label}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
       <Pressable onPress={logout} style={({ pressed }) => [st.logout, pressed && { opacity: 0.75 }]}>
         <Feather name="log-out" size={16} color={colors.danger} />
         <Text style={st.logoutText}>{t("common.logout")}</Text>
@@ -1047,6 +1060,11 @@ const st = StyleSheet.create({
     ...shadow,
   },
   sectionTitle: { fontWeight: "700", color: colors.text, marginBottom: 12, fontSize: 16, fontFamily: fontFamily, lineHeight: lh(16) },
+  badgeGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  badgeChip: { backgroundColor: colors.primary + "22", borderWidth: 1, borderColor: colors.primary + "55", borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 5 },
+  badgeChipLocked: { backgroundColor: colors.cardMuted, borderColor: colors.border },
+  badgeLabel: { fontSize: 12, fontWeight: "600", color: colors.primary, fontFamily },
+  badgeLabelLocked: { color: colors.textMuted },
   scoreRow: { flexDirection: "row", gap: 12 },
   stat: {
     flex: 1,

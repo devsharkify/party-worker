@@ -39,6 +39,7 @@ const LABELS: Record<ScoreReason, ActivityLabel> = {
   league_demote: { te: "లీగ్ డిమోషన్", en: "League demotion" },
   mission_bonus: { te: "మిషన్ బోనస్", en: "Mission bonus" },
   news_share: { te: "వార్తలు షేర్ చేసినందుకు", en: "For sharing news" },
+  poll_vote: { te: "పోల్‌లో ఓటు వేసినందుకు", en: "For voting in a poll" },
 };
 
 const FALLBACK_LABEL: ActivityLabel = { te: "కార్యకలాపం", en: "Activity" };

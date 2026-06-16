@@ -141,6 +141,7 @@ enum ScoreReason {
   league_demote
   mission_bonus
   news_share
+  poll_vote
 }
 
 // ---------------------------------------------------------------------------
@@ -157,6 +158,7 @@ model OrgUnit {
   users     User[]
   creatives Creative[]  @relation("CreativeTarget")
   events    Event[]
+  polls     Poll[]
   pools     LeaderboardPool[]
   newsItems NewsItem[]
   createdAt DateTime    @default(now())
@@ -209,6 +211,7 @@ model User {
   rsvps            Rsvp[]
   checkIns         CheckIn[]
   missionCompletions MissionCompletion[]
+  pollVotes        PollVote[]
   grievancesFiled  Grievance[]          @relation("GrievanceFiledBy")
   grievancesRouted Grievance[]          @relation("GrievanceRoutedTo")
   creativesCreated Creative[]           @relation("CreativeCreatedBy")
@@ -450,17 +453,18 @@ model PoolMembership {
 // ---------------------------------------------------------------------------
 
 model Event {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  startsAt    DateTime
-  location    String?
-  lat         Float?
-  lng         Float?
-  qrToken     String   @unique
-  orgUnitId   String?
-  orgUnit     OrgUnit? @relation(fields: [orgUnitId], references: [id])
-  createdAt   DateTime @default(now())
+  id               String    @id @default(cuid())
+  title            String
+  description      String?
+  startsAt         DateTime
+  location         String?
+  lat              Float?
+  lng              Float?
+  qrToken          String    @unique
+  orgUnitId        String?
+  orgUnit          OrgUnit?  @relation(fields: [orgUnitId], references: [id])
+  collagePostedAt  DateTime?
+  createdAt        DateTime  @default(now())
 
   rsvps    Rsvp[]
   checkIns CheckIn[]
@@ -657,4 +661,35 @@ model MissionCompletion {
   createdAt DateTime @default(now())
 
   @@unique([missionId, userId])
+}
+
+/// Leader-created yes/no poll scoped to an org unit. Workers vote and earn points.
+model Poll {
+  id          String    @id @default(cuid())
+  question    String
+  optionA     String    @default("అవును / Yes")
+  optionB     String    @default("కాదు / No")
+  orgUnitId   String?
+  orgUnit     OrgUnit?  @relation(fields: [orgUnitId], references: [id])
+  createdById String
+  endsAt      DateTime
+  createdAt   DateTime  @default(now())
+
+  votes PollVote[]
+
+  @@index([endsAt])
+  @@index([orgUnitId])
+}
+
+model PollVote {
+  id        String   @id @default(cuid())
+  pollId    String
+  poll      Poll     @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  choice    String   // "A" or "B"
+  createdAt DateTime @default(now())
+
+  @@unique([pollId, userId])
+  @@index([pollId])
 }

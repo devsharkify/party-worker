@@ -26,6 +26,8 @@ const SCHEDULES: ReadonlyArray<{ id: string; name: string; repeat: Repeat }> = [
   { id: "worker-of-week", name: JOB_NAMES.workerOfWeek, repeat: { pattern: "30 23 * * 0", tz: "Asia/Kolkata" } },
   // Verified Worker badge — daily sweep at 03:00 IST.
   { id: "worker-verify", name: JOB_NAMES.workerVerify, repeat: { pattern: "0 3 * * *", tz: "Asia/Kolkata" } },
+  // Constituency failure report — Sunday 23:00 IST (30 min before Worker-of-Week).
+  { id: "constituency-failure", name: JOB_NAMES.constituencyFailure, repeat: { pattern: "0 23 * * 0", tz: "Asia/Kolkata" } },
 ];
 
 /**

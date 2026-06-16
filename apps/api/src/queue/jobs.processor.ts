@@ -34,6 +34,8 @@ export const JOB_NAMES = {
   workerOfWeek: "worker-of-week",
   /** Verified Worker badge: daily sweep to grant/revoke verified status. */
   workerVerify: "worker-verify",
+  /** Constituency failure report: post coverage alert news item — Sunday 23:00 IST. */
+  constituencyFailure: "constituency-failure",
 } as const;
 
 /**
@@ -130,6 +132,13 @@ export class JobsProcessor extends WorkerHost {
         const result = await this.scoring.runVerification();
         if (result.verified > 0 || result.unverified > 0) {
           this.logger.log(`worker-verify: +${result.verified} verified, -${result.unverified} unverified`);
+        }
+        return result;
+      }
+      case JOB_NAMES.constituencyFailure: {
+        const result = await this.scoring.postConstituencyFailureReport();
+        if (result.found > 0) {
+          this.logger.log(`constituency-failure: ${result.found} failing constituencies, posted=${result.posted}`);
         }
         return result;
       }

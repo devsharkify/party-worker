@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { randomBytes } from "node:crypto";
 import type {
   AttendanceRow,
@@ -13,6 +13,7 @@ import { SCORING } from "@pw/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { ScoringService } from "../scoring/scoring.service";
 import { PushService } from "../push/push.service";
+import { STORAGE_PROVIDER, type StorageProvider } from "../providers/storage.provider";
 
 /** Points credited for a QR-verified event check-in (single source of truth in @pw/shared). */
 const CHECKIN_POINTS = SCORING.EVENT_CHECKIN;
@@ -37,6 +38,7 @@ export class EventsService {
     private readonly prisma: PrismaService,
     private readonly scoring: ScoringService,
     private readonly push: PushService,
+    @Inject(STORAGE_PROVIDER) private readonly storage: StorageProvider,
   ) {}
 
   /** Upcoming events (from yesterday onwards) with the viewer's RSVP + check-in state. */
@@ -167,6 +169,7 @@ export class EventsService {
     qrToken: string,
     userLat?: number,
     userLng?: number,
+    photoKey?: string,
   ): Promise<CheckInResult> {
     const event = await this.prisma.event.findUniqueOrThrow({ where: { id: eventId } });
     if (qrToken !== event.qrToken) {
@@ -202,10 +205,44 @@ export class EventsService {
         lat: userLat ?? event.lat,
         lng: userLng ?? event.lng,
         verified,
+        photoKey: photoKey ?? null,
       },
     });
     const award = await this.scoring.award(userId, "event_checkin", CHECKIN_POINTS, { eventId });
+
+    // Fire-and-forget collage: if 3+ photo check-ins exist and not posted yet, create a news item.
+    if (photoKey) void this.maybePostCollage(eventId, event.title).catch(() => undefined);
+
     return { checkedIn: true, pointsAwarded: award.pointsAwarded };
+  }
+
+  private async maybePostCollage(eventId: string, eventTitle: string): Promise<void> {
+    const ev = await this.prisma.event.findUnique({ where: { id: eventId }, select: { collagePostedAt: true } });
+    if (!ev || ev.collagePostedAt) return;
+
+    const photoCIs = await this.prisma.checkIn.findMany({
+      where: { eventId, photoKey: { not: null } },
+      select: { photoKey: true, user: { select: { name: true } } },
+      take: 9,
+    });
+    if (photoCIs.length < 3) return;
+
+    const photoUrls = photoCIs.map((ci) => {
+      const key = ci.photoKey!;
+      return /^https?:\/\//.test(key) ? key : this.storage.publicUrl(key);
+    });
+
+    const names = photoCIs.slice(0, 3).map((ci) => ci.user.name).join(", ");
+    const title = `📸 ${eventTitle} — ${photoCIs.length} workers checked in!`;
+    const body = `TRS workers showed up strong: ${names} and more. Our people are on the ground every day. #TRS #Kavitha #TelanganaRaksha\n\n${photoUrls.join("\n")}`;
+
+    await this.prisma.$transaction([
+      this.prisma.newsItem.create({
+        data: { handle: "@EventLive", title: title.slice(0, 500), body: body.slice(0, 3000),
+                imageUrl: photoUrls[0], status: "published", publishedAt: new Date() },
+      }),
+      this.prisma.event.update({ where: { id: eventId }, data: { collagePostedAt: new Date() } }),
+    ]);
   }
 
   /** Leader/admin: who checked in to an event, with geo-verification flag. */

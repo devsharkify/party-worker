@@ -444,4 +444,65 @@ export class ScoringService {
     }
     return { verified, unverified };
   }
+
+  async getBadges(userId: string): Promise<{ key: string; label: string; earned: boolean }[]> {
+    const [shares, grievances, recruits, checkIns, user] = await Promise.all([
+      this.prisma.scoreEntry.count({ where: { userId, reason: "share" } }),
+      this.prisma.grievance.count({ where: { filedById: userId } }),
+      this.prisma.user.count({ where: { recruitedById: userId } }),
+      this.prisma.checkIn.count({ where: { userId } }),
+      this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { lifetimeReputation: true, isVerified: true, streakDays: true } }),
+    ]);
+    const pts = user.lifetimeReputation;
+
+    return [
+      { key: "first_share",   label: "First Share 🎉",          earned: shares >= 1 },
+      { key: "sharer_10",     label: "10 Shares 📣",            earned: shares >= 10 },
+      { key: "sharer_50",     label: "50 Shares 🔥",            earned: shares >= 50 },
+      { key: "first_issue",   label: "Issue Reporter 📝",       earned: grievances >= 1 },
+      { key: "issue_10",      label: "Civic Champion 🏙️",       earned: grievances >= 10 },
+      { key: "first_recruit", label: "Recruiter 🤝",            earned: recruits >= 1 },
+      { key: "recruit_5",     label: "Team Builder 👥",         earned: recruits >= 5 },
+      { key: "checkin_1",     label: "Event Presence 📍",       earned: checkIns >= 1 },
+      { key: "checkin_5",     label: "Rally Regular 🎪",        earned: checkIns >= 5 },
+      { key: "pts_100",       label: "100 Points 💯",           earned: pts >= 100 },
+      { key: "pts_500",       label: "500 Points ⭐",           earned: pts >= 500 },
+      { key: "pts_1000",      label: "1000 Points 🌟",          earned: pts >= 1000 },
+      { key: "streak_7",      label: "7-Day Streak 🗓️",         earned: user.streakDays >= 7 },
+      { key: "verified",      label: "Verified Worker ✓",       earned: user.isVerified },
+    ];
+  }
+
+  async postConstituencyFailureReport(): Promise<{ found: number; posted: number }> {
+    const constituencies = await this.prisma.orgUnit.findMany({ where: { type: "constituency" }, select: { id: true, name: true } });
+    if (!constituencies.length) return { found: 0, posted: 0 };
+
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3600_000);
+    let posted = 0;
+    const failing: string[] = [];
+
+    for (const c of constituencies) {
+      const booths = await this.prisma.orgUnit.findMany({ where: { type: "booth", parentId: c.id }, select: { id: true } });
+      if (!booths.length) continue;
+
+      const active = await this.prisma.user.groupBy({
+        by: ["orgUnitId"],
+        where: { orgUnitId: { in: booths.map((b) => b.id) }, lastActiveAt: { gte: sevenDaysAgo } },
+      });
+      const coveredCount = active.length;
+      const coverRate = coveredCount / booths.length;
+      if (coverRate < 0.5) failing.push(`${c.name} (${coveredCount}/${booths.length})`);
+    }
+
+    if (failing.length > 0) {
+      const title = `⚠️ Coverage Alert: ${failing.length} constituencies below 50% booth coverage`;
+      const body = `Units needing urgent worker deployment:\n${failing.slice(0, 20).join("\n")}\n\nAssign workers to uncovered booths before elections. #TRS #KavitihaGarantees`;
+      await this.prisma.newsItem.create({
+        data: { handle: "@FieldCommand", title: title.slice(0, 500), body: body.slice(0, 3000), status: "published", publishedAt: new Date() },
+      });
+      posted = 1;
+    }
+
+    return { found: failing.length, posted };
+  }
 }

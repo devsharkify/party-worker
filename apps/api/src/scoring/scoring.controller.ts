@@ -1,7 +1,9 @@
-import { Controller, Get, Query, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Query, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiQuery, ApiTags } from "@nestjs/swagger";
 import { OrgUnitType } from "@pw/shared";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { RolesGuard } from "../auth/roles.guard";
+import { Roles } from "../auth/roles.decorator";
 import { CurrentUser } from "../auth/current-user.decorator";
 import type { AuthUser } from "../auth/auth.types";
 import { ScoringService } from "./scoring.service";
@@ -28,5 +30,17 @@ export class ScoringController {
   @Get("pool")
   pool(@CurrentUser() user: AuthUser) {
     return this.scoring.getPool(user.id);
+  }
+
+  @Get("badges")
+  badges(@CurrentUser() user: AuthUser) {
+    return this.scoring.getBadges(user.id);
+  }
+
+  @Post("constituency-failure")
+  @UseGuards(RolesGuard)
+  @Roles("hq_admin", "state_admin")
+  constituencyFailure() {
+    return this.scoring.postConstituencyFailureReport();
   }
 }

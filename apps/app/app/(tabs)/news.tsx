@@ -5,6 +5,7 @@ import {
   Platform,
   Pressable,
   RefreshControl,
+  ScrollView,
   Share,
   StyleSheet,
   Text,
@@ -31,6 +32,85 @@ type NewsItem = {
   isBreaking: boolean;
   shareCount: number;
 };
+
+type PollResult = {
+  id: string;
+  question: string;
+  optionA: string;
+  optionB: string;
+  endsAt: string;
+  totalVotes: number;
+  aCount: number;
+  bCount: number;
+  myChoice: "A" | "B" | null;
+};
+
+type PollListItem = {
+  id: string;
+  question: string;
+  optionA: string;
+  optionB: string;
+  endsAt: string;
+  _count: { votes: number };
+};
+
+function PollCard({ poll, onVoted }: { poll: PollListItem; onVoted: (result: PollResult) => void }) {
+  const { api } = useAuth();
+  const [result, setResult] = useState<PollResult | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function vote(choice: "A" | "B") {
+    if (busy || result) return;
+    setBusy(true);
+    try {
+      const r = await api<PollResult>(`/polls/${poll.id}/vote`, { method: "POST", body: JSON.stringify({ choice }) });
+      setResult(r);
+      onVoted(r);
+    } catch {
+      // already voted — fetch results
+      const r = await api<PollResult>(`/polls/${poll.id}/results`).catch(() => null);
+      if (r) setResult(r);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const total = result?.totalVotes ?? poll._count.votes;
+  const aCount = result?.aCount ?? 0;
+  const bCount = result?.bCount ?? 0;
+  const aPct = total > 0 ? Math.round((aCount / total) * 100) : 0;
+  const bPct = total > 0 ? Math.round((bCount / total) * 100) : 0;
+  const voted = !!result?.myChoice;
+
+  return (
+    <View style={st.pollCard}>
+      <Text style={st.pollQuestion}>{poll.question}</Text>
+      <View style={{ gap: 8, marginTop: 10 }}>
+        {(["A", "B"] as const).map((choice) => {
+          const label = choice === "A" ? poll.optionA : poll.optionB;
+          const pct = choice === "A" ? aPct : bPct;
+          const isChosen = result?.myChoice === choice;
+          return (
+            <Pressable
+              key={choice}
+              onPress={() => vote(choice)}
+              disabled={voted || busy}
+              style={({ pressed }) => [st.pollOption, isChosen && st.pollOptionChosen, pressed && { opacity: 0.8 }]}
+            >
+              {voted && (
+                <View style={[st.pollBar, { width: `${pct}%` as `${number}%` }]} />
+              )}
+              <Text style={[st.pollOptionText, isChosen && st.pollOptionTextChosen]}>
+                {label}{voted ? `  ${pct}%` : ""}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      <Text style={st.pollMeta}>{total} votes · ends {timeAgo(poll.endsAt)}</Text>
+    </View>
+  );
+}
 
 function timeAgo(iso: string): string {
   const diff = (Date.now() - new Date(iso).getTime()) / 1000;
@@ -216,6 +296,7 @@ function NewsCard({
 export default function News() {
   const { data, loading, refreshing, error, reload, refresh } =
     useApi<NewsItem[]>("/news");
+  const polls = useApi<PollListItem[]>("/polls");
   const { api } = useAuth();
   const [shareItem, setShareItem] = useState<NewsItem | null>(null);
   const flatRef = useRef<FlatList>(null);
@@ -372,6 +453,18 @@ export default function News() {
             </Pressable>
           </View>
         </>
+      )}
+
+      {/* Active Polls */}
+      {(polls.data ?? []).length > 0 && (
+        <View style={st.pollsSection}>
+          <Text style={st.pollsSectionTitle}>📊 Active Polls</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingHorizontal: 16 }}>
+            {(polls.data ?? []).map((p) => (
+              <PollCard key={p.id} poll={p} onVoted={() => polls.reload()} />
+            ))}
+          </ScrollView>
+        </View>
       )}
 
       {shareItem && (
@@ -582,4 +675,23 @@ const st = StyleSheet.create({
     justifyContent: "center",
   },
   sheetLabel: { fontSize: 12, color: "#94a3b8", fontWeight: "600", fontFamily, lineHeight: lh(12) },
+
+  pollsSection: { paddingTop: 12, paddingBottom: 8 },
+  pollsSectionTitle: { fontSize: 13, fontWeight: "700", color: colors.textMuted, paddingHorizontal: 16, marginBottom: 8, fontFamily, lineHeight: lh(13) },
+  pollCard: { width: 240, backgroundColor: colors.card, borderRadius: radius.lg, padding: 14, borderWidth: 1, borderColor: colors.border },
+  pollQuestion: { fontSize: 14, fontWeight: "700", color: colors.text, fontFamily, lineHeight: lh(14) },
+  pollOption: {
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    overflow: "hidden",
+    position: "relative",
+  },
+  pollOptionChosen: { borderColor: colors.primary },
+  pollBar: { position: "absolute", top: 0, left: 0, bottom: 0, backgroundColor: colors.primary + "22" },
+  pollOptionText: { fontSize: 13, color: colors.text, fontFamily, lineHeight: lh(13), zIndex: 1 },
+  pollOptionTextChosen: { color: colors.primary, fontWeight: "700" },
+  pollMeta: { fontSize: 11, color: colors.textMuted, marginTop: 8, fontFamily, lineHeight: lh(11) },
 });
