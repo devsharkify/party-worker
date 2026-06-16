@@ -16,6 +16,8 @@ const SCHEDULES: ReadonlyArray<{ id: string; name: string; repeat: Repeat }> = [
   { id: "recruit-bonus", name: JOB_NAMES.recruitBonus, repeat: { pattern: "0 2 * * *", tz: "Asia/Kolkata" } },
   // Morning Brief — push latest published news headline at 7:30 AM IST.
   { id: "morning-brief", name: JOB_NAMES.morningBrief, repeat: { pattern: "30 7 * * *", tz: "Asia/Kolkata" } },
+  // News scraper — pull RSS from Telugu/national channels every 30 minutes.
+  { id: "news-scrape", name: JOB_NAMES.newsScrape, repeat: { every: 30 * 60_000 } },
 ];
 
 /**

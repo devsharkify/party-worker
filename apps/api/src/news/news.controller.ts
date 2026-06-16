@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Param, Post, Put, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { z } from "zod";
 import { NewsService } from "./news.service";
+import { NewsScraperService } from "./news-scraper.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
 import { Roles } from "../auth/roles.decorator";
@@ -13,7 +14,7 @@ const createNewsSchema = z.object({
   body: z.string().min(1),
   imageUrl: z.string().url().optional(),
   sourceUrl: z.string().url().optional(),
-  status: z.enum(["draft", "published"]).default("draft"),
+  status: z.enum(["draft", "published"]).default("published"),
 });
 
 type CreateNewsDto = z.infer<typeof createNewsSchema>;
@@ -23,7 +24,10 @@ type CreateNewsDto = z.infer<typeof createNewsSchema>;
 @UseGuards(JwtAuthGuard)
 @Controller()
 export class NewsController {
-  constructor(private readonly news: NewsService) {}
+  constructor(
+    private readonly news: NewsService,
+    private readonly scraper: NewsScraperService,
+  ) {}
 
   @Get("news")
   list(@Query("limit") limit?: string) {
@@ -49,5 +53,20 @@ export class NewsController {
   @Roles("hq_admin", "state_admin")
   publish(@Param("id") id: string) {
     return this.news.publish(id);
+  }
+
+  @Delete("news/:id")
+  @UseGuards(RolesGuard)
+  @Roles("hq_admin", "state_admin")
+  remove(@Param("id") id: string) {
+    return this.news.remove(id);
+  }
+
+  /** Trigger an immediate RSS scrape — useful from the admin panel without waiting 30 min. */
+  @Post("news/scrape")
+  @UseGuards(RolesGuard)
+  @Roles("hq_admin", "state_admin")
+  scrape() {
+    return this.scraper.scrape();
   }
 }

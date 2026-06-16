@@ -5,6 +5,7 @@ import { SchedulingService } from "../scheduling/scheduling.service";
 import { ScoringService } from "../scoring/scoring.service";
 import { RecruitsService } from "../recruits/recruits.service";
 import { NewsService } from "../news/news.service";
+import { NewsScraperService } from "../news/news-scraper.service";
 
 /** Logical name of the single shared queue all background jobs run on. */
 export const JOBS_QUEUE = "jobs";
@@ -21,6 +22,8 @@ export const JOB_NAMES = {
   recruitBonus: "recruit-bonus",
   /** Send the morning news headline push at 7:30 AM IST. */
   morningBrief: "morning-brief",
+  /** Scrape RSS feeds from Telugu/national news channels every 30 minutes. */
+  newsScrape: "news-scrape",
 } as const;
 
 /**
@@ -43,6 +46,7 @@ export class JobsProcessor extends WorkerHost {
     private readonly scoring: ScoringService,
     private readonly recruits: RecruitsService,
     private readonly news: NewsService,
+    private readonly newsScraper: NewsScraperService,
   ) {
     super();
   }
@@ -82,6 +86,13 @@ export class JobsProcessor extends WorkerHost {
         } else {
           this.logger.log("morning-brief: no published news to send");
         }
+        return result;
+      }
+      case JOB_NAMES.newsScrape: {
+        const result = await this.newsScraper.scrape();
+        this.logger.log(
+          `news-scrape: fetched=${result.fetched} saved=${result.saved} skipped=${result.skipped}`,
+        );
         return result;
       }
       default:

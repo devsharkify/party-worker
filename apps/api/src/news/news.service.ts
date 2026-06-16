@@ -54,6 +54,11 @@ export class NewsService {
     return updated;
   }
 
+  async remove(id: string) {
+    await this.prisma.newsItem.delete({ where: { id } });
+    return { deleted: true };
+  }
+
   /** Morning Brief: push the latest published headline to all workers. */
   async sendMorningBrief(): Promise<{ sent: boolean; title?: string }> {
     const latest = await this.prisma.newsItem.findFirst({

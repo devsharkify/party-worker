@@ -177,9 +177,20 @@ function NewsCard({
 
         {/* Footer */}
         <View style={st.cardFooter}>
-          <Text style={st.paginationText}>
-            {index + 1} / {total}
-          </Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            <Text style={st.paginationText}>{index + 1} / {total}</Text>
+            {item.sourceUrl ? (
+              <Pressable
+                onPress={() => Linking.openURL(item.sourceUrl!).catch(() => undefined)}
+                style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+              >
+                <View style={st.readOriginalBtn}>
+                  <Feather name="external-link" size={11} color={colors.primary} />
+                  <Text style={st.readOriginalText}>Source</Text>
+                </View>
+              </Pressable>
+            ) : null}
+          </View>
           <Pressable
             style={({ pressed }) => [st.shareBtn, pressed && { opacity: 0.8 }]}
             onPress={() => onShare(item)}
@@ -418,6 +429,17 @@ const st = StyleSheet.create({
     borderTopColor: "#222",
   },
   paginationText: { fontSize: 12, color: colors.textMuted, fontFamily, lineHeight: lh(12) },
+  readOriginalBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    borderWidth: 1,
+    borderColor: colors.primary + "55",
+    borderRadius: radius.pill,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  readOriginalText: { fontSize: 11, color: colors.primary, fontFamily, lineHeight: lh(11) },
   shareBtn: {
     flexDirection: "row",
     alignItems: "center",
