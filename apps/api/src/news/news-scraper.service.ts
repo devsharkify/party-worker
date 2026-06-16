@@ -16,25 +16,28 @@ interface NewsSource {
 }
 
 const SOURCES: NewsSource[] = [
-  // Google News RSS — most reliable, aggregates all major Indian outlets
+  // Kalvakuntla Kavitha — direct coverage of TRS president and MLC
   {
-    handle: "@TelanganaPolitics",
-    rssUrl: "https://news.google.com/rss/search?q=telangana+politics+BRS+Congress+BJP&hl=en-IN&gl=IN&ceid=IN:en",
+    handle: "@KavithaTRS",
+    rssUrl: "https://news.google.com/rss/search?q=%22Kalvakuntla+Kavitha%22&hl=en-IN&gl=IN&ceid=IN:en",
+    maxItems: 10,
+  },
+  // Telangana Rakshana Samithi organisation news
+  {
+    handle: "@TelanganaRakshana",
+    rssUrl: "https://news.google.com/rss/search?q=%22Telangana+Rakshana+Samithi%22+OR+%22TRS+Kavitha%22&hl=en-IN&gl=IN&ceid=IN:en",
     maxItems: 8,
   },
+  // Kavitha's campaigns — Delhi liquor case, women rights, Telangana culture
   {
-    handle: "@TelanganaGovt",
-    rssUrl: "https://news.google.com/rss/search?q=KCR+Revanth+Reddy+Telangana+2025&hl=en-IN&gl=IN&ceid=IN:en",
+    handle: "@KavithaCampaigns",
+    rssUrl: "https://news.google.com/rss/search?q=Kavitha+Telangana+culture+women+rights+MLC&hl=en-IN&gl=IN&ceid=IN:en",
     maxItems: 6,
   },
+  // The Hindu Telangana — authoritative sourcing
   {
     handle: "@TheHindu",
     rssUrl: "https://www.thehindu.com/news/national/telangana/feeder/default.rss",
-    maxItems: 6,
-  },
-  {
-    handle: "@HyderabadNews",
-    rssUrl: "https://news.google.com/rss/search?q=Hyderabad+assembly+election+party&hl=en-IN&gl=IN&ceid=IN:en",
     maxItems: 6,
   },
 ];
