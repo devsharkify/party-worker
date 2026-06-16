@@ -88,7 +88,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ...opts,
         credentials: "include",
         headers: {
-          "Content-Type": "application/json",
+          // Skip Content-Type for FormData — the fetch impl sets multipart+boundary automatically.
+          ...(!(opts.body instanceof FormData) ? { "Content-Type": "application/json" } : {}),
           "bypass-tunnel-reminder": "true",
           ...(opts.headers ?? {}),
           ...(token ? { Authorization: `Bearer ${token}` } : {}),

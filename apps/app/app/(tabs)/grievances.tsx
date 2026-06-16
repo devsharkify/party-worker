@@ -187,27 +187,58 @@ function AreaCard({ g }: { g: AreaGrievanceSummary }) {
 }
 
 // ---------------------------------------------------------------------------
-// Photo picker (web: hidden file input; native: text placeholder)
+// Photo picker (web: hidden file input; native: expo-image-picker)
 // ---------------------------------------------------------------------------
 function PhotoPicker({
   photoDataUrl,
   onPhoto,
+  onPhotoUri,
   onClear,
   uploading,
 }: {
   photoDataUrl: string | null;
   onPhoto: (file: File) => void;
+  onPhotoUri?: (uri: string) => void;
   onClear: () => void;
   uploading: boolean;
 }) {
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   if (Platform.OS !== "web") {
+    async function pickNative() {
+      const ImagePicker = await import("expo-image-picker");
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) return;
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"] as any,
+        allowsEditing: true,
+        aspect: [1, 1] as [number, number],
+        quality: 0.85,
+      });
+      const asset = res.assets?.[0];
+      if (!res.canceled && asset) onPhotoUri?.(asset.uri);
+    }
+
+    if (photoDataUrl) {
+      return (
+        <View style={st.photoPreviewWrap}>
+          <Image source={{ uri: photoDataUrl }} style={st.photoPreview} resizeMode="cover" />
+          {uploading && (
+            <View style={st.photoUploadingOverlay}>
+              <ActivityIndicator color="#fff" />
+            </View>
+          )}
+          <Pressable style={st.photoClearBtn} onPress={onClear}>
+            <Text style={st.photoClearText}>✕</Text>
+          </Pressable>
+        </View>
+      );
+    }
     return (
-      <View style={st.photoPH}>
-        <Feather name="camera" size={14} color={colors.textMuted} />
-        <Text style={st.photoPHText}>Photo upload available on web</Text>
-      </View>
+      <Pressable style={st.photoAddBtn} onPress={() => { void pickNative(); }}>
+        <Feather name="camera" size={22} color={colors.primary} />
+        <Text style={st.photoAddText}>Add photo</Text>
+      </Pressable>
     );
   }
 
@@ -334,12 +365,10 @@ export default function Grievances() {
   const [activeTab, setActiveTab] = useState<"mine" | "area">("mine");
 
   async function handlePhoto(file: File) {
-    // Preview immediately
     const reader = new FileReader();
     reader.onload = (e) => setPhotoDataUrl(e.target?.result as string);
     reader.readAsDataURL(file);
 
-    // Upload to server
     setPhotoUploading(true);
     try {
       const formData = new FormData();
@@ -347,12 +376,30 @@ export default function Grievances() {
       const result = await api<{ key: string }>("/creatives/upload", {
         method: "POST",
         body: formData,
-        // Don't set Content-Type — browser sets multipart boundary automatically
         headers: {},
       });
       setPhotoKey(result.key);
     } catch {
-      // keep preview, skip key — server will accept without photo
+      // keep preview, skip key
+    } finally {
+      setPhotoUploading(false);
+    }
+  }
+
+  async function handlePhotoUri(uri: string) {
+    setPhotoDataUrl(uri);
+    setPhotoUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", { uri, name: "grievance.jpg", type: "image/jpeg" } as any);
+      const result = await api<{ key: string }>("/creatives/upload", {
+        method: "POST",
+        body: formData,
+        headers: {},
+      });
+      setPhotoKey(result.key);
+    } catch {
+      // keep preview, skip key
     } finally {
       setPhotoUploading(false);
     }
@@ -431,6 +478,7 @@ export default function Grievances() {
         <PhotoPicker
           photoDataUrl={photoDataUrl}
           onPhoto={handlePhoto}
+          onPhotoUri={handlePhotoUri}
           onClear={() => { setPhotoDataUrl(null); setPhotoKey(null); }}
           uploading={photoUploading}
         />
@@ -597,18 +645,6 @@ const st = StyleSheet.create({
     justifyContent: "center",
   },
   photoClearText: { color: "#fff", fontSize: 14, fontWeight: "700", fontFamily: fontFamily, lineHeight: lh(14) },
-  photoPH: {
-    flexDirection: "row",
-    gap: 8,
-    height: 64,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.cardMuted,
-  },
-  photoPHText: { color: colors.textMuted, fontSize: 13, fontFamily: fontFamily, lineHeight: lh(13) },
   // Location
   locationRow: { flexDirection: "row", gap: 8, alignItems: "stretch" },
   gpsBtn: {
