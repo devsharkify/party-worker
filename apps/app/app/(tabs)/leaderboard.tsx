@@ -154,6 +154,9 @@ function Row({ entry: e, youLabel }: { entry: LeaderboardEntry; youLabel: string
           <Text style={[st.name, e.isViewer && st.nameViewer]} numberOfLines={1}>
             {e.name}
           </Text>
+          {e.isVerified ? (
+            <Text style={st.verifiedBadge}>✓</Text>
+          ) : null}
           {e.isViewer ? (
             <View style={st.youBadge}>
               <Text style={st.youBadgeText}>YOU</Text>
@@ -288,6 +291,7 @@ const st = StyleSheet.create({
     paddingVertical: 2,
   },
   youBadgeText: { color: "#fff", fontSize: 9, fontWeight: "900", letterSpacing: 0.5, fontFamily, lineHeight: lh(9) },
+  verifiedBadge: { color: "#22c55e", fontSize: 13, fontWeight: "700", marginLeft: 3 },
   tierChip: {
     flexDirection: "row",
     alignItems: "center",

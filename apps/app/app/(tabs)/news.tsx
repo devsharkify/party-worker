@@ -14,6 +14,7 @@ import { useRef, useState } from "react";
 import { Feather } from "@expo/vector-icons";
 import { RemoteImage } from "../../src/components/RemoteImage";
 import { useApi } from "../../src/hooks";
+import { useAuth } from "../../src/auth/auth-context";
 import { colors, fontFamily, lh, radius, shadow } from "../../src/theme";
 
 const SCREEN_W = Dimensions.get("window").width;
@@ -27,6 +28,8 @@ type NewsItem = {
   imageUrl: string | null;
   sourceUrl: string | null;
   publishedAt: string;
+  isBreaking: boolean;
+  shareCount: number;
 };
 
 function timeAgo(iso: string): string {
@@ -39,11 +42,15 @@ function timeAgo(iso: string): string {
 function ShareSheet({
   item,
   onClose,
+  onShareDone,
 }: {
   item: NewsItem;
   onClose: () => void;
+  onShareDone: () => void;
 }) {
   const shareText = `${item.title}\n\n${item.body.slice(0, 120)}...${item.sourceUrl ? `\n\n${item.sourceUrl}` : ""}`;
+
+  function done() { onShareDone(); onClose(); }
 
   async function toWhatsApp() {
     const encoded = encodeURIComponent(shareText);
@@ -54,11 +61,10 @@ function ShareSheet({
     } else {
       await Linking.openURL(`https://web.whatsapp.com/send?text=${encoded}`);
     }
-    onClose();
+    done();
   }
 
   async function toWhatsAppStatus() {
-    // On native: save the image to the camera roll first so WA Status picks it up.
     if (Platform.OS !== "web" && item.imageUrl) {
       try {
         const MediaLibrary = await import("expo-media-library");
@@ -69,9 +75,7 @@ function ShareSheet({
           await FileSystem.downloadAsync(item.imageUrl, dest);
           await MediaLibrary.saveToLibraryAsync(dest);
         }
-      } catch {
-        // Non-critical — open Status anyway
-      }
+      } catch { /* non-critical */ }
     }
     const supported = await Linking.canOpenURL("whatsapp://status");
     if (supported) {
@@ -79,7 +83,7 @@ function ShareSheet({
     } else {
       await Linking.openURL("https://web.whatsapp.com");
     }
-    onClose();
+    done();
   }
 
   async function toInstagram() {
@@ -89,14 +93,14 @@ function ShareSheet({
     } else {
       await Linking.openURL("https://www.instagram.com");
     }
-    onClose();
+    done();
   }
 
   async function nativeShare() {
     try {
       await Share.share({ message: shareText, title: item.title });
     } catch {}
-    onClose();
+    done();
   }
 
   return (
@@ -152,6 +156,11 @@ function NewsCard({
 }) {
   return (
     <View style={[st.card, { width: CARD_W }]}>
+      {item.isBreaking ? (
+        <View style={st.breakingBanner}>
+          <Text style={st.breakingText}>🔴 BREAKING</Text>
+        </View>
+      ) : null}
       {item.imageUrl && (
         <RemoteImage uri={item.imageUrl} width={CARD_W} height={220} />
       )}
@@ -207,9 +216,14 @@ function NewsCard({
 export default function News() {
   const { data, loading, refreshing, error, reload, refresh } =
     useApi<NewsItem[]>("/news");
+  const { api } = useAuth();
   const [shareItem, setShareItem] = useState<NewsItem | null>(null);
   const flatRef = useRef<FlatList>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
+
+  function handleShareDone(itemId: string) {
+    void api(`/news/${itemId}/share`, { method: "POST" }).catch(() => undefined);
+  }
 
   const items = data ?? [];
 
@@ -361,7 +375,11 @@ export default function News() {
       )}
 
       {shareItem && (
-        <ShareSheet item={shareItem} onClose={() => setShareItem(null)} />
+        <ShareSheet
+          item={shareItem}
+          onClose={() => setShareItem(null)}
+          onShareDone={() => handleShareDone(shareItem.id)}
+        />
       )}
     </View>
   );
@@ -382,6 +400,15 @@ const st = StyleSheet.create({
   headerTitle: { fontSize: 24, fontWeight: "700", color: "#fff", fontFamily, lineHeight: lh(24) },
   headerRight: { flexDirection: "row", alignItems: "center", gap: 6 },
   headerSub: { fontSize: 13, color: colors.textMuted, fontFamily, lineHeight: lh(13) },
+
+  breakingBanner: {
+    backgroundColor: "#DC2626",
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  breakingText: { color: "#fff", fontSize: 12, fontWeight: "700", fontFamily, lineHeight: lh(12), letterSpacing: 0.5 },
 
   // Card
   card: {

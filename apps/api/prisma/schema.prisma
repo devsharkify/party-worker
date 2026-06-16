@@ -140,6 +140,7 @@ enum ScoreReason {
   league_promote
   league_demote
   mission_bonus
+  news_share
 }
 
 // ---------------------------------------------------------------------------
@@ -189,6 +190,8 @@ model User {
   streakDays         Int        @default(0)
   lastActiveAt       DateTime?
   membershipActive   Boolean    @default(false)
+  isVerified         Boolean    @default(false)  // auto-set by daily verification cron
+  verifiedAt         DateTime?
 
   recruitedById String?
   recruitedBy   User?     @relation("Recruits", fields: [recruitedById], references: [id])
@@ -613,6 +616,8 @@ model NewsItem {
   imageUrl    String?
   sourceUrl   String?
   status      NewsStatus @default(published)
+  isBreaking  Boolean    @default(false)
+  shareCount  Int        @default(0)
   publishedAt DateTime   @default(now())
   createdAt   DateTime   @default(now())
   orgUnitId   String?
@@ -621,6 +626,7 @@ model NewsItem {
   @@index([publishedAt])
   @@index([handle])
   @@index([status])
+  @@index([isBreaking])
 }
 
 /// Timed "Trend Alert" mission: share within the window for bonus points.

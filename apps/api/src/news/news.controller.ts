@@ -6,6 +6,8 @@ import { NewsScraperService } from "./news-scraper.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
 import { Roles } from "../auth/roles.decorator";
+import { CurrentUser } from "../auth/current-user.decorator";
+import type { AuthUser } from "../auth/auth.types";
 import { ZodValidationPipe } from "../common/zod-validation.pipe";
 
 const createNewsSchema = z.object({
@@ -60,6 +62,20 @@ export class NewsController {
   @Roles("hq_admin", "state_admin")
   remove(@Param("id") id: string) {
     return this.news.remove(id);
+  }
+
+  /** Mark a news item as 🔴 BREAKING — instantly pushes to all workers + pins at top. */
+  @Put("news/:id/breaking")
+  @UseGuards(RolesGuard)
+  @Roles("hq_admin", "state_admin")
+  markBreaking(@Param("id") id: string) {
+    return this.news.markBreaking(id);
+  }
+
+  /** Worker logs a news share (+5 pts, increments shareCount). */
+  @Post("news/:id/share")
+  logNewsShare(@Param("id") id: string, @CurrentUser() user: AuthUser) {
+    return this.news.logShare(id, user.id);
   }
 
   /** Trigger an immediate RSS scrape — useful from the admin panel without waiting 30 min. */

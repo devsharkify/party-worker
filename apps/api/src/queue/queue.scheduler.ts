@@ -22,6 +22,10 @@ const SCHEDULES: ReadonlyArray<{ id: string; name: string; repeat: Repeat }> = [
   { id: "issue-aging", name: JOB_NAMES.issueAging, repeat: { pattern: "30 2 * * *", tz: "Asia/Kolkata" } },
   // Calendar push — send today's festival/birthday/anniversary events at 06:00 IST.
   { id: "calendar-push", name: JOB_NAMES.calendarPush, repeat: { pattern: "0 6 * * *", tz: "Asia/Kolkata" } },
+  // Worker of the Week — crown top scorer per unit Sunday 23:30 IST (before Monday reset).
+  { id: "worker-of-week", name: JOB_NAMES.workerOfWeek, repeat: { pattern: "30 23 * * 0", tz: "Asia/Kolkata" } },
+  // Verified Worker badge — daily sweep at 03:00 IST.
+  { id: "worker-verify", name: JOB_NAMES.workerVerify, repeat: { pattern: "0 3 * * *", tz: "Asia/Kolkata" } },
 ];
 
 /**

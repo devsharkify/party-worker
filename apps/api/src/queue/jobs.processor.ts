@@ -30,6 +30,10 @@ export const JOB_NAMES = {
   issueAging: "issue-aging",
   /** Push today's festival/birthday/anniversary calendar events — daily at 06:00 IST. */
   calendarPush: "calendar-push",
+  /** Worker-of-the-Week: pick champions per unit, news item + personal push — Sunday 23:30 IST. */
+  workerOfWeek: "worker-of-week",
+  /** Verified Worker badge: daily sweep to grant/revoke verified status. */
+  workerVerify: "worker-verify",
 } as const;
 
 /**
@@ -114,6 +118,18 @@ export class JobsProcessor extends WorkerHost {
         const result = await this.calendar.sendToday();
         if (result.sent > 0) {
           this.logger.log(`calendar-push: sent ${result.sent}/${result.found} calendar events`);
+        }
+        return result;
+      }
+      case JOB_NAMES.workerOfWeek: {
+        const result = await this.scoring.pickWorkerOfWeek();
+        this.logger.log(`worker-of-week: ${result.winners} champions crowned`);
+        return result;
+      }
+      case JOB_NAMES.workerVerify: {
+        const result = await this.scoring.runVerification();
+        if (result.verified > 0 || result.unverified > 0) {
+          this.logger.log(`worker-verify: +${result.verified} verified, -${result.unverified} unverified`);
         }
         return result;
       }

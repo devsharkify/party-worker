@@ -153,6 +153,7 @@ export interface LeaderboardEntry {
   tier: Tier;
   points: number;
   isViewer: boolean;
+  isVerified?: boolean;
 }
 
 export interface LeaderboardView {

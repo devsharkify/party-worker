@@ -14,6 +14,7 @@ import {
 } from "@pw/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { OrgService } from "../org/org.service";
+import { PushService } from "../push/push.service";
 
 function mondayOf(date = new Date()): Date {
   const d = new Date(date);
@@ -40,6 +41,7 @@ export class ScoringService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly org: OrgService,
+    private readonly push: PushService,
   ) {}
 
   /**
@@ -118,7 +120,7 @@ export class ScoringService {
   }
 
   private toEntries(
-    users: { id: string; name: string; photoUrl: string | null; tier: any; weeklyLeaguePoints: number }[],
+    users: { id: string; name: string; photoUrl: string | null; tier: any; weeklyLeaguePoints: number; isVerified?: boolean }[],
     viewerId: string,
   ): LeaderboardEntry[] {
     return users.map((u, i) => ({
@@ -129,6 +131,7 @@ export class ScoringService {
       tier: u.tier,
       points: u.weeklyLeaguePoints,
       isViewer: u.id === viewerId,
+      isVerified: u.isVerified ?? false,
     }));
   }
 
@@ -143,7 +146,7 @@ export class ScoringService {
       where: { orgUnitId: { in: ids } },
       orderBy: [{ weeklyLeaguePoints: "desc" }, { lifetimeReputation: "desc" }],
       take: 50,
-      select: { id: true, name: true, photoUrl: true, tier: true, weeklyLeaguePoints: true },
+      select: { id: true, name: true, photoUrl: true, tier: true, weeklyLeaguePoints: true, isVerified: true },
     });
     const higher = await this.prisma.user.count({
       where: { orgUnitId: { in: ids }, weeklyLeaguePoints: { gt: user.weeklyLeaguePoints } },
@@ -187,7 +190,7 @@ export class ScoringService {
       where: { leagueTier: user.leagueTier },
       orderBy: [{ weeklyLeaguePoints: "desc" }, { lifetimeReputation: "desc" }],
       take: POOL.SIZE,
-      select: { id: true, name: true, photoUrl: true, tier: true, weeklyLeaguePoints: true },
+      select: { id: true, name: true, photoUrl: true, tier: true, weeklyLeaguePoints: true, isVerified: true },
     });
     const viewerIndex = cohort.findIndex((u) => u.id === userId);
     return {
@@ -343,5 +346,102 @@ export class ScoringService {
       affected += 1;
     }
     return { affected };
+  }
+
+  /**
+   * Worker-of-the-Week: run Sunday 23:30 IST (before Monday reset clears weekly points).
+   * For each OrgUnit with active members, finds the top scorer and creates a NewsItem.
+   * Also pushes a personal notification to each winner.
+   */
+  async pickWorkerOfWeek(): Promise<{ winners: number }> {
+    const push = this.push;
+    const news = this.prisma;
+    const units = await this.prisma.orgUnit.findMany({ select: { id: true, name: true } });
+    let winners = 0;
+
+    for (const unit of units) {
+      const top = await this.prisma.user.findFirst({
+        where: { orgUnitId: unit.id, weeklyLeaguePoints: { gt: 0 } },
+        orderBy: { weeklyLeaguePoints: "desc" },
+        select: { id: true, name: true, weeklyLeaguePoints: true },
+      });
+      if (!top) continue;
+
+      const title = `🏆 ఈ వారం ${unit.name} TRS ఛాంపియన్: ${top.name}`;
+      const body = `${top.name} ఈ వారం ${top.weeklyLeaguePoints} పాయింట్లు సాధించారు! మీకు అభినందనలు 🎉 #TRS #Kavitha`;
+
+      await news.newsItem.create({
+        data: {
+          handle: "@WotW",
+          title: title.slice(0, 500),
+          body: body.slice(0, 3000),
+          status: "published",
+          publishedAt: new Date(),
+          orgUnitId: unit.id,
+        },
+      });
+
+      // Personal push to the winner
+      void push.pushToUser(top.id, "🏆 " + title, "మీరు ఈ వారం నంబర్ 1! 🎉", { type: "worker_of_week" }).catch(() => undefined);
+      winners++;
+    }
+    return { winners };
+  }
+
+  /**
+   * Verified Worker cron: daily check. Workers are "verified" when they have had
+   * ≥1 share AND ≥1 grievance filed in the last 30 days, OR ≥100 lifetime points.
+   */
+  async runVerification(): Promise<{ verified: number; unverified: number }> {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 3600_000);
+
+    // Workers who share
+    const sharers = await this.prisma.scoreEntry.findMany({
+      where: { reason: "share", createdAt: { gte: thirtyDaysAgo } },
+      select: { userId: true },
+      distinct: ["userId"],
+    });
+    const sharerIds = new Set(sharers.map((s) => s.userId));
+
+    // Workers who filed grievances
+    const filers = await this.prisma.grievance.findMany({
+      where: { createdAt: { gte: thirtyDaysAgo } },
+      select: { filedById: true },
+      distinct: ["filedById"],
+    });
+    const filerIds = new Set(filers.map((f) => f.filedById));
+
+    // High-reputation workers (100+ lifetime)
+    const highRep = await this.prisma.user.findMany({
+      where: { lifetimeReputation: { gte: 100 } },
+      select: { id: true },
+    });
+    const highRepIds = new Set(highRep.map((u) => u.id));
+
+    // All workers
+    const all = await this.prisma.user.findMany({
+      where: { role: "worker" },
+      select: { id: true, isVerified: true },
+    });
+
+    let verified = 0;
+    let unverified = 0;
+    for (const u of all) {
+      const shouldVerify = highRepIds.has(u.id) || (sharerIds.has(u.id) && filerIds.has(u.id));
+      if (shouldVerify && !u.isVerified) {
+        await this.prisma.user.update({
+          where: { id: u.id },
+          data: { isVerified: true, verifiedAt: new Date() },
+        });
+        verified++;
+      } else if (!shouldVerify && u.isVerified) {
+        await this.prisma.user.update({
+          where: { id: u.id },
+          data: { isVerified: false, verifiedAt: null },
+        });
+        unverified++;
+      }
+    }
+    return { verified, unverified };
   }
 }
