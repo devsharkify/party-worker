@@ -53,6 +53,11 @@ const NAV_LABELS: Record<string, { en: string; te: string }> = {
   missions:       { en: "Trend Missions",        te: "ట్రెండ్ మిషన్లు" },
   broadcast:      { en: "Broadcast & Insights",  te: "ప్రసారం & విశ్లేషణ" },
   analytics:      { en: "Analytics",             te: "విశ్లేషణలు" },
+  polls:          { en: "Polls",                  te: "పోల్లు" },
+  crisis:         { en: "Crisis",                 te: "క్రైసిస్" },
+  opposition:     { en: "Opposition",             te: "ప్రతిపక్షం" },
+  boothtasks:     { en: "Booth Tasks",            te: "బూత్ టాస్క్లు" },
+  wagroups:       { en: "WA Groups",              te: "WA గ్రూపులు" },
 };
 
 export default function Page() {
@@ -195,7 +200,12 @@ type Section =
   | "events"
   | "missions"
   | "broadcast"
-  | "analytics";
+  | "analytics"
+  | "polls"
+  | "crisis"
+  | "opposition"
+  | "boothtasks"
+  | "wagroups";
 
 const NAV: { id: Section; label: string }[] = [
   { id: "overview", label: "Overview" },
@@ -210,6 +220,11 @@ const NAV: { id: Section; label: string }[] = [
   { id: "missions", label: "Trend Missions" },
   { id: "broadcast", label: "Broadcast & Insights" },
   { id: "analytics", label: "Analytics" },
+  { id: "polls", label: "Polls" },
+  { id: "crisis", label: "Crisis" },
+  { id: "opposition", label: "Opposition" },
+  { id: "boothtasks", label: "Booth Tasks" },
+  { id: "wagroups", label: "WA Groups" },
 ];
 
 function Dashboard() {
@@ -289,6 +304,11 @@ function Dashboard() {
         {section === "missions" ? <MissionsSection /> : null}
         {section === "broadcast" ? <BroadcastSection /> : null}
         {section === "analytics" ? <AnalyticsSection /> : null}
+        {section === "polls" ? <PollsSection /> : null}
+        {section === "crisis" ? <CrisisSection /> : null}
+        {section === "opposition" ? <OppositionSection /> : null}
+        {section === "boothtasks" ? <BoothTasksSection /> : null}
+        {section === "wagroups" ? <WaGroupsSection /> : null}
       </main>
     </div>
     </AdminLangCtx.Provider>
@@ -3343,6 +3363,384 @@ function MissionsSection() {
               );
             })
           )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+/* ================================================================== */
+/* Polls — create + list                                              */
+/* ================================================================== */
+
+type PollItem = {
+  id: string;
+  question: string;
+  optionA: string;
+  optionB: string;
+  endsAt: string;
+  createdAt: string;
+  _count: { votes: number };
+};
+
+function PollsSection() {
+  const { api } = useAdmin();
+  const { toast } = useToast();
+  const [polls, setPolls] = useState<PollItem[] | null>(null);
+  const [question, setQuestion] = useState("");
+  const [optionA, setOptionA] = useState("అవును / Yes");
+  const [optionB, setOptionB] = useState("కాదు / No");
+  const [endsAt, setEndsAt] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    try { setPolls(await api<PollItem[]>("/polls")); } catch (e) { toast((e as Error).message, "error"); }
+  }, [api, toast]);
+  useEffect(() => { void load(); }, [load]);
+
+  async function create() {
+    if (!question.trim() || !endsAt) return;
+    setBusy(true);
+    try {
+      await api("/polls", { method: "POST", body: JSON.stringify({ question, optionA, optionB, endsAt: new Date(endsAt).toISOString() }) });
+      toast("Poll created", "success");
+      setQuestion(""); setEndsAt("");
+      void load();
+    } catch (e) { toast((e as Error).message, "error"); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <div className="space-y-8">
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <SectionHeader title="Create Poll" />
+        <div className="space-y-3 mt-4">
+          <input className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-saffron" placeholder="Question (Telugu + English)" value={question} onChange={e => setQuestion(e.target.value)} />
+          <div className="flex gap-3">
+            <input className="flex-1 rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-saffron" placeholder="Option A" value={optionA} onChange={e => setOptionA(e.target.value)} />
+            <input className="flex-1 rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-saffron" placeholder="Option B" value={optionB} onChange={e => setOptionB(e.target.value)} />
+          </div>
+          <input type="datetime-local" className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-saffron" value={endsAt} onChange={e => setEndsAt(e.target.value)} />
+          <button disabled={busy || !question.trim() || !endsAt} onClick={create} className="rounded-md bg-saffron px-6 py-2 text-sm font-bold text-navy transition hover:brightness-110 disabled:opacity-50">
+            {busy ? "Creating…" : "Create Poll"}
+          </button>
+        </div>
+      </section>
+
+      <section>
+        <SectionHeader title="All Polls" count={polls?.length} />
+        <div className="space-y-3">
+          {polls === null ? [0,1].map(i => <SkeletonRow key={i} />) : polls.length === 0 ? (
+            <EmptyState glyph="📊" title="No polls yet" message="Create one above." />
+          ) : polls.map(p => {
+            const ended = new Date(p.endsAt) < new Date();
+            return (
+              <div key={p.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1">
+                    <div className="font-bold text-slate-900">{p.question}</div>
+                    <div className="mt-1 text-sm text-slate-500">{p.optionA} vs {p.optionB}</div>
+                    <div className="mt-2 text-xs text-slate-400">{p._count.votes} votes · ends {formatDate(p.endsAt)}</div>
+                  </div>
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-bold shrink-0 ${ended ? "bg-slate-100 text-slate-500" : "bg-green-100 text-green-700"}`}>{ended ? "Ended" : "Live"}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+/* ================================================================== */
+/* Crisis — activate / resolve alerts                                 */
+/* ================================================================== */
+
+type CrisisAlert = { id: string; title: string; message: string; createdAt: string };
+
+function CrisisSection() {
+  const { api } = useAdmin();
+  const { toast } = useToast();
+  const [alerts, setAlerts] = useState<CrisisAlert[] | null>(null);
+  const [title, setTitle] = useState("");
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    try { setAlerts(await api<CrisisAlert[]>("/crisis/active")); } catch (e) { toast((e as Error).message, "error"); }
+  }, [api, toast]);
+  useEffect(() => { void load(); }, [load]);
+
+  async function activate() {
+    if (!title.trim() || !message.trim()) return;
+    setBusy(true);
+    try {
+      await api("/crisis", { method: "POST", body: JSON.stringify({ title, message }) });
+      toast("Crisis alert activated — push sent to all workers", "success");
+      setTitle(""); setMessage("");
+      void load();
+    } catch (e) { toast((e as Error).message, "error"); }
+    finally { setBusy(false); }
+  }
+
+  async function resolve(id: string) {
+    try {
+      await api(`/crisis/${id}/resolve`, { method: "POST" });
+      toast("Alert resolved", "success");
+      void load();
+    } catch (e) { toast((e as Error).message, "error"); }
+  }
+
+  return (
+    <div className="space-y-8">
+      <section className="rounded-2xl border border-red-200 bg-red-50 p-6 shadow-sm">
+        <SectionHeader title="Activate Crisis Alert" />
+        <p className="text-sm text-red-600 mb-4 mt-1">Sends push notification to ALL party workers immediately.</p>
+        <div className="space-y-3">
+          <input className="w-full rounded-lg border border-red-300 px-4 py-2.5 text-sm outline-none focus:border-red-500" placeholder="Alert title" value={title} onChange={e => setTitle(e.target.value)} />
+          <textarea className="w-full rounded-lg border border-red-300 px-4 py-2.5 text-sm outline-none focus:border-red-500 resize-none" rows={3} placeholder="Alert message (bilingual)" value={message} onChange={e => setMessage(e.target.value)} />
+          <button disabled={busy || !title.trim() || !message.trim()} onClick={activate} className="rounded-md bg-red-600 px-6 py-2 text-sm font-bold text-white transition hover:brightness-110 disabled:opacity-50">
+            {busy ? "Activating…" : "Activate Crisis Alert"}
+          </button>
+        </div>
+      </section>
+
+      <section>
+        <SectionHeader title="Active Alerts" count={alerts?.length} />
+        <div className="space-y-3">
+          {alerts === null ? [0,1].map(i => <SkeletonRow key={i} />) : alerts.length === 0 ? (
+            <EmptyState glyph="✅" title="No active alerts" message="No crisis alerts currently active." />
+          ) : alerts.map(a => (
+            <div key={a.id} className="rounded-xl border border-red-200 bg-white p-4 shadow-sm flex items-start justify-between gap-4">
+              <div>
+                <div className="font-bold text-red-700">🚨 {a.title}</div>
+                <div className="text-sm text-slate-600 mt-1">{a.message}</div>
+                <div className="text-xs text-slate-400 mt-2">{formatDate(a.createdAt)}</div>
+              </div>
+              <button onClick={() => resolve(a.id)} className="shrink-0 rounded-md bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-200">Resolve</button>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+/* ================================================================== */
+/* Opposition tracker                                                  */
+/* ================================================================== */
+
+type OppositionItem = { id: string; party: string; headline: string; details: string | null; trsResponse: string | null; createdAt: string };
+
+function OppositionSection() {
+  const { api } = useAdmin();
+  const { toast } = useToast();
+  const [items, setItems] = useState<OppositionItem[] | null>(null);
+  const [party, setParty] = useState("");
+  const [headline, setHeadline] = useState("");
+  const [details, setDetails] = useState("");
+  const [replyId, setReplyId] = useState<string | null>(null);
+  const [reply, setReply] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    try { setItems(await api<OppositionItem[]>("/opposition")); } catch (e) { toast((e as Error).message, "error"); }
+  }, [api, toast]);
+  useEffect(() => { void load(); }, [load]);
+
+  async function create() {
+    if (!party.trim() || !headline.trim()) return;
+    setBusy(true);
+    try {
+      await api("/opposition", { method: "POST", body: JSON.stringify({ party, headline, details: details || undefined }) });
+      toast("Item created", "success");
+      setParty(""); setHeadline(""); setDetails("");
+      void load();
+    } catch (e) { toast((e as Error).message, "error"); }
+    finally { setBusy(false); }
+  }
+
+  async function addResponse(id: string) {
+    if (!reply.trim()) return;
+    setBusy(true);
+    try {
+      await api(`/opposition/${id}/response`, { method: "PUT", body: JSON.stringify({ trsResponse: reply }) });
+      toast("Response saved", "success");
+      setReplyId(null); setReply("");
+      void load();
+    } catch (e) { toast((e as Error).message, "error"); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <div className="space-y-8">
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <SectionHeader title="Add Opposition Attack" />
+        <div className="space-y-3 mt-4">
+          <input className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-saffron" placeholder="Party name (e.g. BJP, Congress)" value={party} onChange={e => setParty(e.target.value)} />
+          <input className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-saffron" placeholder="Headline / claim" value={headline} onChange={e => setHeadline(e.target.value)} />
+          <textarea className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-saffron resize-none" rows={3} placeholder="Full details (optional)" value={details} onChange={e => setDetails(e.target.value)} />
+          <button disabled={busy || !party.trim() || !headline.trim()} onClick={create} className="rounded-md bg-saffron px-6 py-2 text-sm font-bold text-navy transition hover:brightness-110 disabled:opacity-50">
+            {busy ? "Saving…" : "Add to Tracker"}
+          </button>
+        </div>
+      </section>
+
+      <section>
+        <SectionHeader title="All Items" count={items?.length} />
+        <div className="space-y-3">
+          {items === null ? [0,1].map(i => <SkeletonRow key={i} />) : items.length === 0 ? (
+            <EmptyState glyph="🛡️" title="No items yet" message="Add opposition attacks above to craft counter-narratives." />
+          ) : items.map(item => (
+            <div key={item.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-2">
+              <div className="flex items-start gap-2">
+                <span className="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-bold text-rose-700 shrink-0">{item.party}</span>
+                <div className="font-bold text-slate-900">{item.headline}</div>
+              </div>
+              {item.details && <div className="text-sm text-slate-600">{item.details}</div>}
+              {item.trsResponse ? (
+                <div className="rounded-lg bg-green-50 border border-green-200 p-3">
+                  <div className="text-xs font-bold text-green-700 mb-0.5">TRS response:</div>
+                  <div className="text-sm text-green-800">{item.trsResponse}</div>
+                </div>
+              ) : replyId === item.id ? (
+                <div className="space-y-2">
+                  <textarea className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-saffron resize-none" rows={3} placeholder="TRS counter-narrative" value={reply} onChange={e => setReply(e.target.value)} />
+                  <div className="flex gap-2">
+                    <button disabled={busy} onClick={() => addResponse(item.id)} className="rounded-md bg-saffron px-4 py-1.5 text-xs font-bold text-navy disabled:opacity-50">{busy ? "Saving…" : "Save Response"}</button>
+                    <button onClick={() => { setReplyId(null); setReply(""); }} className="rounded-md bg-slate-100 px-4 py-1.5 text-xs font-bold text-slate-600">Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={() => { setReplyId(item.id); setReply(""); }} className="text-xs font-bold text-saffron hover:underline">+ Add TRS response</button>
+              )}
+              <div className="text-xs text-slate-400">{formatDate(item.createdAt)}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+/* ================================================================== */
+/* Booth Tasks — report view                                           */
+/* ================================================================== */
+
+type TaskReportItem = { id: string; title: string; description: string | null; dueAt: string | null; _count: { completions: number }; assignedTo: { name: string } | null };
+type TaskReport = { total: number; completedCount: number; pct: number; tasks: TaskReportItem[] };
+
+function BoothTasksSection() {
+  const { api } = useAdmin();
+  const { toast } = useToast();
+  const [orgUnitId, setOrgUnitId] = useState("");
+  const [report, setReport] = useState<TaskReport | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function load() {
+    if (!orgUnitId.trim()) return;
+    setBusy(true);
+    try { setReport(await api<TaskReport>(`/booth-tasks/report?orgUnitId=${orgUnitId.trim()}`)); }
+    catch (e) { toast((e as Error).message, "error"); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <div className="space-y-8">
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <SectionHeader title="Task Report by Unit" />
+        <div className="flex gap-3 mt-4">
+          <input className="flex-1 rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-saffron" placeholder="Org Unit ID" value={orgUnitId} onChange={e => setOrgUnitId(e.target.value)} onKeyDown={e => e.key === "Enter" && load()} />
+          <button disabled={busy || !orgUnitId.trim()} onClick={load} className="rounded-md bg-navy px-5 py-2 text-sm font-bold text-white transition hover:brightness-110 disabled:opacity-50">{busy ? "Loading…" : "Load"}</button>
+        </div>
+      </section>
+
+      {report !== null && (
+        <>
+          <div className="grid grid-cols-3 gap-3">
+            <StatCard label="Total tasks" value={report.total} accent="navy" />
+            <StatCard label="Completed" value={report.completedCount} accent="green" />
+            <StatCard label="Completion %" value={`${report.pct}%`} accent="saffron" />
+          </div>
+          <section>
+            <SectionHeader title="Tasks" count={report.tasks.length} />
+            <div className="space-y-3">
+              {report.tasks.length === 0 ? (
+                <EmptyState glyph="📋" title="No tasks" message="No booth tasks for this unit." />
+              ) : report.tasks.map(t => (
+                <div key={t.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="font-bold text-slate-900">{t.title}</div>
+                      {t.description && <div className="text-sm text-slate-500 mt-0.5">{t.description}</div>}
+                      {t.assignedTo && <div className="text-xs text-slate-400 mt-1">Assigned to: {t.assignedTo.name}</div>}
+                      {t.dueAt && <div className="text-xs text-slate-400">Due: {formatDate(t.dueAt)}</div>}
+                    </div>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-bold shrink-0 ${t._count.completions > 0 ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
+                      {t._count.completions > 0 ? `✓ ${t._count.completions}` : "Pending"}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ================================================================== */
+/* WA Groups — upsert + view                                          */
+/* ================================================================== */
+
+type WaGroupInfo = { id: string; orgUnitId: string; link: string; label: string | null; updatedAt: string };
+
+function WaGroupsSection() {
+  const { api } = useAdmin();
+  const { toast } = useToast();
+  const [orgUnitId, setOrgUnitId] = useState("");
+  const [link, setLink] = useState("");
+  const [label, setLabel] = useState("");
+  const [info, setInfo] = useState<WaGroupInfo | null | undefined>(undefined);
+  const [busy, setBusy] = useState(false);
+
+  async function fetchGroup() {
+    if (!orgUnitId.trim()) return;
+    setBusy(true);
+    try { setInfo(await api<WaGroupInfo>(`/wa-groups/${orgUnitId.trim()}`)); }
+    catch { setInfo(null); }
+    finally { setBusy(false); }
+  }
+
+  async function upsert() {
+    if (!orgUnitId.trim() || !link.trim()) return;
+    setBusy(true);
+    try {
+      await api("/wa-groups", { method: "POST", body: JSON.stringify({ orgUnitId: orgUnitId.trim(), link, label: label || undefined }) });
+      toast("Group saved", "success");
+      void fetchGroup();
+    } catch (e) { toast((e as Error).message, "error"); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <div className="space-y-8">
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <SectionHeader title="Manage WhatsApp Group" />
+        <div className="space-y-3 mt-4">
+          <input className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-saffron" placeholder="Org Unit ID" value={orgUnitId} onChange={e => setOrgUnitId(e.target.value)} onBlur={fetchGroup} />
+          {info !== undefined && info !== null && (
+            <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 text-sm text-slate-600">
+              Current: <a href={info.link} target="_blank" rel="noreferrer" className="font-bold text-green-700 hover:underline">{info.label ?? info.link}</a> · updated {formatDate(info.updatedAt)}
+            </div>
+          )}
+          <input className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-saffron" placeholder="WhatsApp invite link (https://chat.whatsapp.com/…)" value={link} onChange={e => setLink(e.target.value)} />
+          <input className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-saffron" placeholder="Label (optional, e.g. Booth 42 Karyakartalu)" value={label} onChange={e => setLabel(e.target.value)} />
+          <button disabled={busy || !orgUnitId.trim() || !link.trim()} onClick={upsert} className="rounded-md bg-green-600 px-6 py-2 text-sm font-bold text-white transition hover:brightness-110 disabled:opacity-50">
+            {busy ? "Saving…" : "Save Group"}
+          </button>
         </div>
       </section>
     </div>

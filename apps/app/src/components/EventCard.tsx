@@ -3,6 +3,7 @@ import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "expo-router";
 import * as Location from "expo-location";
+import * as ImagePicker from "expo-image-picker";
 import type { CheckInResult, EventItem, RsvpResult, RsvpStatus } from "@pw/shared";
 import { LEADER_ROLES } from "@pw/shared";
 import { useAuth } from "../auth/auth-context";
@@ -36,6 +37,23 @@ export function EventCard({ event, onChanged }: { event: EventItem; onChanged: (
   const [checkedIn, setCheckedIn] = useState(event.checkedIn);
   const [busy, setBusy] = useState(false);
   const [awarded, setAwarded] = useState<number | null>(null);
+  const [photoKey, setPhotoKey] = useState<string | null>(null);
+
+  async function capturePhoto() {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== "granted") return;
+      const res = await ImagePicker.launchCameraAsync({ quality: 0.7, base64: false });
+      if (res.canceled || !res.assets[0]) return;
+      const asset = res.assets[0];
+      const form = new FormData();
+      form.append("file", { uri: asset.uri, name: "checkin.jpg", type: "image/jpeg" } as any);
+      const up = await api<{ key: string }>("/creatives/upload", { method: "POST", body: form });
+      setPhotoKey(up.key);
+    } catch {
+      // camera error — silently skip, photo is optional
+    }
+  }
 
   async function chooseRsvp(status: RsvpStatus) {
     setBusy(true);
@@ -70,7 +88,7 @@ export function EventCard({ event, onChanged }: { event: EventItem; onChanged: (
 
       const res = await api<CheckInResult>(`/events/${event.id}/checkin`, {
         method: "POST",
-        body: JSON.stringify({ qrToken: event.qrToken, lat, lng }),
+        body: JSON.stringify({ qrToken: event.qrToken, lat, lng, ...(photoKey ? { photoKey } : {}) }),
       });
       setCheckedIn(res.checkedIn);
       if (res.pointsAwarded > 0) setAwarded(res.pointsAwarded);
@@ -114,7 +132,12 @@ export function EventCard({ event, onChanged }: { event: EventItem; onChanged: (
         {checkedIn ? (
           <Pill label={t("events.checkedIn")} color={colors.success} />
         ) : (
-          <PrimaryButton title={t("events.checkIn")} onPress={checkIn} loading={busy} />
+          <View style={st.checkInRow}>
+            <PrimaryButton title={t("events.checkIn")} onPress={checkIn} loading={busy} />
+            <Pressable onPress={capturePhoto} style={st.cameraBtn} disabled={busy}>
+              <Text style={st.cameraBtnText}>{photoKey ? "📷✓" : "📷"}</Text>
+            </Pressable>
+          </View>
         )}
       </View>
       {awarded != null ? (
@@ -150,6 +173,9 @@ const st = StyleSheet.create({
   rsvpText: { fontWeight: "700", color: colors.text, fontSize: 14, fontFamily: fontFamily, lineHeight: lh(14) },
   rsvpTextActive: { color: "#fff", fontFamily: fontFamily },
   footer: { marginTop: 14 },
+  checkInRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  cameraBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.cardMuted, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center" },
+  cameraBtnText: { fontSize: 18 },
   points: { marginTop: 10, textAlign: "center", color: colors.success, fontWeight: "700", fontFamily: fontFamily },
   attendanceLink: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 12 },
   attendanceLinkText: { fontSize: 13, color: colors.primaryDark, fontWeight: "700", fontFamily: fontFamily, lineHeight: lh(13) },

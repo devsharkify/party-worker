@@ -37,6 +37,8 @@ export class BoothTasksController {
   }
 
   @Get("report")
+  @UseGuards(RolesGuard)
+  @Roles("booth_leader", "mandal_leader", "constituency_leader", "district_leader", "state_admin", "hq_admin")
   report(@Query("orgUnitId") orgUnitId: string) {
     return this.tasks.report(orgUnitId);
   }
