@@ -34,6 +34,9 @@ import { PushModule } from "./push/push.module";
 import { AnalyticsModule } from "./analytics/analytics.module";
 import { PosterCalendarModule } from "./poster-calendar/poster-calendar.module";
 import { PollsModule } from "./polls/polls.module";
+import { ContactsModule } from "./contacts/contacts.module";
+import { CrisisModule } from "./crisis/crisis.module";
+import { OppositionModule } from "./opposition/opposition.module";
 import { AppController } from "./app.controller";
 
 @Module({
@@ -73,6 +76,9 @@ import { AppController } from "./app.controller";
     AnalyticsModule,
     PosterCalendarModule,
     PollsModule,
+    ContactsModule,
+    CrisisModule,
+    OppositionModule,
   ],
   controllers: [AppController],
 })

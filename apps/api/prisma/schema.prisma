@@ -142,6 +142,7 @@ enum ScoreReason {
   mission_bonus
   news_share
   poll_vote
+  contact_register
 }
 
 // ---------------------------------------------------------------------------
@@ -156,9 +157,11 @@ model OrgUnit {
   parent    OrgUnit?    @relation("OrgTree", fields: [parentId], references: [id])
   children  OrgUnit[]   @relation("OrgTree")
   users     User[]
-  creatives Creative[]  @relation("CreativeTarget")
-  events    Event[]
-  polls     Poll[]
+  creatives    Creative[]    @relation("CreativeTarget")
+  events       Event[]
+  polls        Poll[]
+  contacts     Contact[]
+  crisisAlerts CrisisAlert[]
   pools     LeaderboardPool[]
   newsItems NewsItem[]
   createdAt DateTime    @default(now())
@@ -212,6 +215,7 @@ model User {
   checkIns         CheckIn[]
   missionCompletions MissionCompletion[]
   pollVotes        PollVote[]
+  contactsRegistered Contact[]
   grievancesFiled  Grievance[]          @relation("GrievanceFiledBy")
   grievancesRouted Grievance[]          @relation("GrievanceRoutedTo")
   creativesCreated Creative[]           @relation("CreativeCreatedBy")
@@ -692,4 +696,49 @@ model PollVote {
 
   @@unique([pollId, userId])
   @@index([pollId])
+}
+
+/// Voter/citizen contact registered by a TRS worker in their booth area.
+model Contact {
+  id           String   @id @default(cuid())
+  name         String
+  phone        String?
+  address      String?
+  notes        String?
+  registeredById String
+  registeredBy   User     @relation(fields: [registeredById], references: [id])
+  orgUnitId    String?
+  orgUnit      OrgUnit? @relation(fields: [orgUnitId], references: [id])
+  createdAt    DateTime @default(now())
+
+  @@index([registeredById])
+  @@index([orgUnitId])
+}
+
+/// Active crisis alerts broadcast by leaders — all workers see a red banner.
+model CrisisAlert {
+  id          String    @id @default(cuid())
+  title       String
+  message     String
+  createdById String
+  orgUnitId   String?
+  orgUnit     OrgUnit?  @relation(fields: [orgUnitId], references: [id])
+  resolvedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([resolvedAt])
+  @@index([orgUnitId])
+}
+
+/// BJP/Congress activity tracker — admin logs rival moves, leaders log TRS responses.
+model OppositionItem {
+  id          String   @id @default(cuid())
+  party       String   // "BJP" | "Congress" | "Other"
+  headline    String
+  details     String?
+  trsResponse String?
+  createdById String
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
 }

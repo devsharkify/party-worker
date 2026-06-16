@@ -157,6 +157,7 @@ export default function Feed() {
   const { user, api } = useAuth();
   const { data, loading, refreshing, error, reload, refresh } = useApi<FeedItem[]>("/feed");
   const { data: missions, reload: reloadMissions } = useApi<MissionView[]>("/missions");
+  const { data: crisisAlerts } = useApi<{ id: string; title: string; message: string }[]>("/crisis/active");
   const isOnline = useIsOnline();
 
   const firstName = user?.name?.split(" ")[0] ?? "Worker";
@@ -207,6 +208,15 @@ export default function Feed() {
 
   return (
     <View style={st.fill}>
+      {(crisisAlerts ?? []).map((alert) => (
+        <View key={alert.id} style={st.crisisBanner}>
+          <Text style={st.crisisIcon}>🚨</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={st.crisisTitle} numberOfLines={1}>{alert.title}</Text>
+            <Text style={st.crisisMsg} numberOfLines={2}>{alert.message}</Text>
+          </View>
+        </View>
+      ))}
       {!isOnline && (
         <View style={st.offlineBanner}>
           <Feather name="wifi-off" size={13} color="#92400e" />
@@ -245,6 +255,20 @@ export default function Feed() {
                 }}
               />
             ) : null}
+            {/* Voter Connect quick action */}
+            <Pressable
+              onPress={() => router.push("/voter-connect")}
+              style={({ pressed }) => [st.voterConnectCard, pressed && { opacity: 0.8 }]}
+            >
+              <View style={st.voterConnectIcon}>
+                <Feather name="user-plus" size={20} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={st.voterConnectTitle}>{lang === "te" ? "ఓటరు నమోదు" : "Voter Connect"}</Text>
+                <Text style={st.voterConnectSub}>{lang === "te" ? "ఓటర్లను నమోదు చేయండి · +5 పాయింట్లు" : "Register a voter · +5 pts"}</Text>
+              </View>
+              <Feather name="chevron-right" size={18} color={colors.textMuted} />
+            </Pressable>
           </>
         }
         ListEmptyComponent={
@@ -293,6 +317,14 @@ const st = StyleSheet.create({
     paddingHorizontal: 14,
   },
   offlineBannerText: { fontSize: 13, fontWeight: "600", color: colors.goldDark, fontFamily, lineHeight: lh(13) },
+  crisisBanner: { flexDirection: "row", alignItems: "flex-start", gap: 10, backgroundColor: "#7f1d1d", paddingHorizontal: 14, paddingVertical: 10 },
+  crisisIcon: { fontSize: 18 },
+  crisisTitle: { fontSize: 13, fontWeight: "900", color: "#fca5a5", fontFamily, lineHeight: lh(13) },
+  crisisMsg: { fontSize: 12, color: "#fecaca", fontFamily, lineHeight: lh(12), marginTop: 2 },
+  voterConnectCard: { flexDirection: "row", alignItems: "center", gap: 12, marginHorizontal: 16, marginBottom: 12, backgroundColor: colors.card, borderRadius: radius.lg, padding: 14, borderWidth: 1, borderColor: colors.border },
+  voterConnectIcon: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.primary + "22", alignItems: "center", justifyContent: "center" },
+  voterConnectTitle: { fontSize: 14, fontWeight: "700", color: colors.text, fontFamily, lineHeight: lh(14) },
+  voterConnectSub: { fontSize: 12, color: colors.textMuted, fontFamily, lineHeight: lh(12), marginTop: 2 },
 
   // Dashboard header — deep navy with gold accent line
   dashHeader: {

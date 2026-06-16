@@ -4,6 +4,7 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   View,
@@ -77,9 +78,27 @@ export default function Leaderboard() {
               {data.orgUnitName}
             </Text>
           </View>
-          <View style={st.rankPill}>
-            <Text style={st.rankPillLabel}>{L.rankHere[lang] ?? L.rankHere.en}</Text>
-            <Text style={st.rankPillValue}>#{data.viewerRank ?? "—"}</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <View style={st.rankPill}>
+              <Text style={st.rankPillLabel}>{L.rankHere[lang] ?? L.rankHere.en}</Text>
+              <Text style={st.rankPillValue}>#{data.viewerRank ?? "—"}</Text>
+            </View>
+            {data.viewerRank != null && (
+              <Pressable
+                onPress={() => {
+                  const me = data.entries.find((e) => e.isViewer);
+                  const pts = me?.points ?? 0;
+                  const tier = me?.tier ?? "";
+                  const msg = lang === "te"
+                    ? `🏆 నేను TRS ${data.orgUnitName} లీడర్‌బోర్డ్‌లో #${data.viewerRank} స్థానంలో ఉన్నాను! ${pts} పాయింట్లు — Tier: ${tier}\n\nKavitha TRS తో కలిసి పని చేయండి. #TRS #Kavitha`
+                    : `🏆 I'm ranked #${data.viewerRank} on the TRS ${data.orgUnitName} leaderboard! ${pts} pts — Tier: ${tier}\n\nJoin Kavitha's TRS movement. #TRS #Kavitha`;
+                  void Share.share({ message: msg }).catch(() => undefined);
+                }}
+                style={({ pressed }) => [st.shareRankBtn, pressed && { opacity: 0.75 }]}
+              >
+                <Feather name="share-2" size={14} color={colors.primary} />
+              </Pressable>
+            )}
           </View>
         </View>
       ) : null}
@@ -292,6 +311,7 @@ const st = StyleSheet.create({
   },
   youBadgeText: { color: "#fff", fontSize: 9, fontWeight: "900", letterSpacing: 0.5, fontFamily, lineHeight: lh(9) },
   verifiedBadge: { color: "#22c55e", fontSize: 13, fontWeight: "700", marginLeft: 3 },
+  shareRankBtn: { padding: 6, borderRadius: 999, backgroundColor: colors.primary + "22" },
   tierChip: {
     flexDirection: "row",
     alignItems: "center",
