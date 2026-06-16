@@ -58,7 +58,27 @@ function ShareSheet({
   }
 
   async function toWhatsAppStatus() {
-    await Linking.openURL("whatsapp://status");
+    // On native: save the image to the camera roll first so WA Status picks it up.
+    if (Platform.OS !== "web" && item.imageUrl) {
+      try {
+        const MediaLibrary = await import("expo-media-library");
+        const FileSystem = await import("expo-file-system/legacy");
+        const { status } = await MediaLibrary.requestPermissionsAsync();
+        if (status === "granted") {
+          const dest = `${FileSystem.cacheDirectory}wa-status-news.jpg`;
+          await FileSystem.downloadAsync(item.imageUrl, dest);
+          await MediaLibrary.saveToLibraryAsync(dest);
+        }
+      } catch {
+        // Non-critical — open Status anyway
+      }
+    }
+    const supported = await Linking.canOpenURL("whatsapp://status");
+    if (supported) {
+      await Linking.openURL("whatsapp://status");
+    } else {
+      await Linking.openURL("https://web.whatsapp.com");
+    }
     onClose();
   }
 

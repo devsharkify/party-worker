@@ -116,6 +116,11 @@ enum GrievanceStatus {
   rejected
 }
 
+enum NewsStatus {
+  draft
+  published
+}
+
 enum RsvpStatus {
   going
   maybe
@@ -584,19 +589,21 @@ model DeviceToken {
 // ---------------------------------------------------------------------------
 
 model NewsItem {
-  id          String    @id @default(cuid())
-  handle      String    @default("admin") // source handle e.g. "@KCRofficial"
+  id          String     @id @default(cuid())
+  handle      String     @default("admin") // source handle e.g. "@KCRofficial"
   title       String
   body        String
   imageUrl    String?
   sourceUrl   String?
-  publishedAt DateTime  @default(now())
-  createdAt   DateTime  @default(now())
+  status      NewsStatus @default(published)
+  publishedAt DateTime   @default(now())
+  createdAt   DateTime   @default(now())
   orgUnitId   String?
-  orgUnit     OrgUnit?  @relation(fields: [orgUnitId], references: [id])
+  orgUnit     OrgUnit?   @relation(fields: [orgUnitId], references: [id])
 
   @@index([publishedAt])
   @@index([handle])
+  @@index([status])
 }
 
 /// Timed "Trend Alert" mission: share within the window for bonus points.

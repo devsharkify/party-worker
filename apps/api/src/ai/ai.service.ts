@@ -55,13 +55,32 @@ export class AiService {
    * If lang='en', the English caption is returned directly.
    */
   async generateCaption(creativeTitle: string, lang: "te" | "en"): Promise<string> {
-    const baseCaption = `Share this message: ${creativeTitle} | Join our movement! 🙏 #TelanganaForward`;
+    const variants = await this.generateCaptionVariants(creativeTitle, lang);
+    return variants[0] ?? "";
+  }
+
+  /**
+   * Generate 3 distinct WhatsApp-ready caption variants for a creative.
+   * Each has a different tone — formal, conversational, and urgent.
+   * Telugu variants are translated via Sarvam; English are returned directly.
+   */
+  async generateCaptionVariants(creativeTitle: string, lang: "te" | "en"): Promise<string[]> {
+    const englishVariants = [
+      `${creativeTitle} | Our TRS family is growing stronger every day. Share this with your contacts and help us build Telangana together. 🙏 #TelanganaForward #TRS`,
+      `Hey! Look at this — ${creativeTitle}. We're making real progress for our people. Forward this to your groups and spread the word! 💪 #TRS`,
+      `IMPORTANT: ${creativeTitle}. Every share from your side brings us closer to our goal. Please share this right away with all your contacts. 🚨 #Telangana #TRS`,
+    ];
 
     if (lang === "en") {
-      return baseCaption;
+      return englishVariants;
     }
 
-    // Translate the full caption to Telugu
-    return this.translate(baseCaption, "en-IN", "te-IN");
+    // Translate all 3 in parallel — fall back to English on any individual failure
+    const results = await Promise.all(
+      englishVariants.map((v) =>
+        this.translate(v, "en-IN", "te-IN").catch(() => v),
+      ),
+    );
+    return results;
   }
 }

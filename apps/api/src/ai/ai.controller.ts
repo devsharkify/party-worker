@@ -43,4 +43,13 @@ export class AiController {
     const caption = await this.ai.generateCaption(dto.title, dto.lang);
     return { caption };
   }
+
+  /** POST /ai/captions — generate 3 distinct caption variants for cycling on the personalize screen. */
+  @Post("captions")
+  async captions(
+    @Body(new ZodValidationPipe(captionBodySchema)) dto: CaptionBody,
+  ): Promise<{ captions: string[] }> {
+    const captions = await this.ai.generateCaptionVariants(dto.title, dto.lang);
+    return { captions };
+  }
 }

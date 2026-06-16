@@ -185,6 +185,27 @@ export default function ShareScreen() {
     }
   }
 
+  /** Save poster to camera roll, then open WA Status so it auto-picks the image. */
+  async function shareToWaStatus() {
+    if (!data || !imageUrl) return;
+    if (Platform.OS !== "web") {
+      try {
+        const MediaLibrary = await import("expo-media-library");
+        const FileSystem = await import("expo-file-system/legacy");
+        const { status } = await MediaLibrary.requestPermissionsAsync();
+        if (status === "granted") {
+          const ext = imageUrl.includes(".jpg") || imageUrl.includes(".jpeg") ? "jpg" : "png";
+          const dest = `${FileSystem.cacheDirectory}wa-status-${data.shareEventId}.${ext}`;
+          await FileSystem.downloadAsync(imageUrl, dest);
+          await MediaLibrary.saveToLibraryAsync(dest);
+        }
+      } catch {
+        // Non-critical — open Status anyway
+      }
+    }
+    await openChannel("whatsapp_status", "whatsapp://status");
+  }
+
   /** Copy the caption via expo-clipboard (works web + native). No points. */
   async function copyLink() {
     if (!data) return;
@@ -272,6 +293,12 @@ export default function ShareScreen() {
           icon="message-circle"
           color="#25D366"
           onPress={() => void openChannel("whatsapp", data.deepLinks.whatsapp_web ?? data.deepLinks.whatsapp)}
+        />
+        <Channel
+          label="WA Status"
+          icon="circle"
+          color="#075e54"
+          onPress={() => void shareToWaStatus()}
         />
         <Channel
           label={t("share.instagram")}

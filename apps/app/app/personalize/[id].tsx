@@ -95,11 +95,13 @@ export default function Personalize() {
   const [videoDone, setVideoDone] = useState(false);
   const [videoError, setVideoError] = useState(false);
 
-  // AI Caption state
-  const [caption, setCaption] = useState<string | null>(null);
+  // AI Caption state — 3 variants, auto-loaded, cycling
+  const [captions, setCaptions] = useState<string[]>([]);
+  const [captionIdx, setCaptionIdx] = useState(0);
   const [captionLoading, setCaptionLoading] = useState(false);
   const [captionError, setCaptionError] = useState(false);
   const [captionCopied, setCaptionCopied] = useState(false);
+  const caption = captions[captionIdx] ?? null;
 
   const isVideo = item?.type === "video";
 
@@ -206,18 +208,17 @@ export default function Personalize() {
     document.body.removeChild(a);
   }
 
-  const handleAiCaption = async () => {
-    if (!item) return;
+  const loadCaptions = async (title: string) => {
     setCaptionLoading(true);
     setCaptionError(false);
-    setCaption(null);
     setCaptionCopied(false);
     try {
-      const result = await api<{ caption: string }>("/ai/caption", {
+      const result = await api<{ captions: string[] }>("/ai/captions", {
         method: "POST",
-        body: JSON.stringify({ title: item.title, lang: user?.preferredLanguage ?? "te" }),
+        body: JSON.stringify({ title, lang: user?.preferredLanguage ?? "te" }),
       });
-      setCaption(result.caption);
+      setCaptions(result.captions ?? []);
+      setCaptionIdx(0);
     } catch {
       setCaptionError(true);
     } finally {
@@ -225,11 +226,25 @@ export default function Personalize() {
     }
   };
 
+  // Auto-load captions once the item arrives
+  const captionLoadedRef = useRef(false);
+  useEffect(() => {
+    if (!item || captionLoadedRef.current) return;
+    captionLoadedRef.current = true;
+    void loadCaptions(item.title);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item]);
+
   const handleCopyCaption = async () => {
     if (!caption) return;
     await Clipboard.setStringAsync(caption);
     setCaptionCopied(true);
     setTimeout(() => setCaptionCopied(false), 2000);
+  };
+
+  const handleNextCaption = () => {
+    setCaptionCopied(false);
+    setCaptionIdx((i) => (i + 1) % captions.length);
   };
 
   if (error && !item) {
@@ -347,31 +362,52 @@ export default function Personalize() {
 
       {/* ── AI Caption ── */}
       <View style={st.captionWrap}>
-        <Pressable
-          onPress={handleAiCaption}
-          disabled={captionLoading}
-          style={({ pressed }) => [st.captionBtn, { opacity: pressed || captionLoading ? 0.75 : 1 }]}
-        >
-          {captionLoading
-            ? <ActivityIndicator color={colors.gold} size="small" />
-            : <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
-                <Feather name="zap" size={15} color={colors.gold} />
-                <Text style={st.captionBtnText}>{t("personalize.aiCaption")}</Text>
-              </View>
-          }
-        </Pressable>
+        {/* Header row: label + refresh */}
+        <View style={st.captionHeader}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <Feather name="zap" size={13} color={colors.gold} />
+            <Text style={st.captionLabel}>{t("personalize.aiCaption")}</Text>
+          </View>
+          {captions.length > 0 && !captionLoading && (
+            <Pressable
+              onPress={() => void loadCaptions(item!.title)}
+              style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+            >
+              <Feather name="refresh-cw" size={14} color={colors.textMutedOnDark} />
+            </Pressable>
+          )}
+        </View>
+
+        {captionLoading && (
+          <View style={st.captionLoading}>
+            <ActivityIndicator color={colors.gold} size="small" />
+            <Text style={st.captionUnavailable}>Generating captions…</Text>
+          </View>
+        )}
+
         {captionError && !captionLoading && (
           <Text style={st.captionUnavailable}>Caption unavailable</Text>
         )}
-        {caption && !captionError && (
-          <Pressable onPress={handleCopyCaption} style={st.captionTextWrap}>
-            <ScrollView scrollEnabled style={st.captionScroll} nestedScrollEnabled>
-              <Text style={st.captionText} selectable>{caption}</Text>
-            </ScrollView>
-            <Text style={st.captionCopyHint}>
-              {captionCopied ? t("personalize.captionCopied") : "Tap to copy"}
-            </Text>
-          </Pressable>
+
+        {caption && !captionLoading && !captionError && (
+          <>
+            <Pressable onPress={handleCopyCaption} style={st.captionTextWrap}>
+              <ScrollView scrollEnabled style={st.captionScroll} nestedScrollEnabled>
+                <Text style={st.captionText} selectable>{caption}</Text>
+              </ScrollView>
+              <Text style={st.captionCopyHint}>
+                {captionCopied ? t("personalize.captionCopied") : "Tap to copy"}
+              </Text>
+            </Pressable>
+            {captions.length > 1 && (
+              <Pressable onPress={handleNextCaption} style={st.captionNextBtn}>
+                <Feather name="chevron-right" size={14} color={colors.textMutedOnDark} />
+                <Text style={st.captionNextText}>
+                  Next variant ({captionIdx + 1}/{captions.length})
+                </Text>
+              </Pressable>
+            )}
+          </>
         )}
       </View>
 
@@ -489,18 +525,24 @@ const st = StyleSheet.create({
   },
   doneText: { color: colors.green, fontSize: 14, fontWeight: "700", fontFamily: fontFamily, lineHeight: lh(14) },
   captionWrap: { width: "100%", maxWidth: 340, marginBottom: 16 },
-  captionBtn: {
-    height: 46,
-    borderRadius: radius.md,
-    borderWidth: 1.5,
-    borderColor: colors.gold,
-    backgroundColor: "rgba(255,213,74,0.10)",
+  captionHeader: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 20,
+    justifyContent: "space-between",
+    marginBottom: 8,
   },
-  captionBtnText: { color: colors.gold, fontSize: 15, fontWeight: "700", fontFamily: fontFamily, lineHeight: lh(15) },
-  captionUnavailable: { color: colors.textMutedOnDark, fontSize: 13, marginTop: 10, textAlign: "center", fontFamily: fontFamily, lineHeight: lh(13) },
+  captionLabel: { color: colors.gold, fontSize: 13, fontWeight: "700", fontFamily: fontFamily, lineHeight: lh(13) },
+  captionLoading: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 12 },
+  captionUnavailable: { color: colors.textMutedOnDark, fontSize: 13, marginTop: 4, textAlign: "center", fontFamily: fontFamily, lineHeight: lh(13) },
+  captionNextBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 8,
+    paddingVertical: 4,
+    alignSelf: "flex-end",
+  },
+  captionNextText: { color: colors.textMutedOnDark, fontSize: 12, fontFamily: fontFamily, lineHeight: lh(12) },
   captionTextWrap: {
     marginTop: 12,
     backgroundColor: colors.bgElevated,

@@ -14,6 +14,8 @@ const SCHEDULES: ReadonlyArray<{ id: string; name: string; repeat: Repeat }> = [
   { id: "weekly-reset", name: JOB_NAMES.weeklyReset, repeat: { pattern: "0 0 * * 1", tz: "Asia/Kolkata" } },
   // Delayed second-half recruit bonus — daily 02:00 IST (service dedupes payouts).
   { id: "recruit-bonus", name: JOB_NAMES.recruitBonus, repeat: { pattern: "0 2 * * *", tz: "Asia/Kolkata" } },
+  // Morning Brief — push latest published news headline at 7:30 AM IST.
+  { id: "morning-brief", name: JOB_NAMES.morningBrief, repeat: { pattern: "30 7 * * *", tz: "Asia/Kolkata" } },
 ];
 
 /**

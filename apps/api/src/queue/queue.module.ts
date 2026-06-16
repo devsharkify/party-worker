@@ -4,6 +4,7 @@ import { APP_ENV, type Env } from "../config/env";
 import { ScoringModule } from "../scoring/scoring.module";
 import { SchedulingModule } from "../scheduling/scheduling.module";
 import { RecruitsModule } from "../recruits/recruits.module";
+import { NewsModule } from "../news/news.module";
 import { JOBS_QUEUE, JobsProcessor } from "./jobs.processor";
 import { QueueScheduler } from "./queue.scheduler";
 
@@ -34,6 +35,7 @@ import { QueueScheduler } from "./queue.scheduler";
     SchedulingModule,
     ScoringModule,
     RecruitsModule,
+    NewsModule,
   ],
   providers: [JobsProcessor, QueueScheduler],
   exports: [BullModule],

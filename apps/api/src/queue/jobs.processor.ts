@@ -4,6 +4,7 @@ import type { Job } from "bullmq";
 import { SchedulingService } from "../scheduling/scheduling.service";
 import { ScoringService } from "../scoring/scoring.service";
 import { RecruitsService } from "../recruits/recruits.service";
+import { NewsService } from "../news/news.service";
 
 /** Logical name of the single shared queue all background jobs run on. */
 export const JOBS_QUEUE = "jobs";
@@ -18,6 +19,8 @@ export const JOB_NAMES = {
   weeklyReset: "weekly-reset",
   /** Pay the delayed second-half recruit bonus daily (idempotent in service). */
   recruitBonus: "recruit-bonus",
+  /** Send the morning news headline push at 7:30 AM IST. */
+  morningBrief: "morning-brief",
 } as const;
 
 /**
@@ -39,6 +42,7 @@ export class JobsProcessor extends WorkerHost {
     private readonly scheduling: SchedulingService,
     private readonly scoring: ScoringService,
     private readonly recruits: RecruitsService,
+    private readonly news: NewsService,
   ) {
     super();
   }
@@ -69,6 +73,15 @@ export class JobsProcessor extends WorkerHost {
       case JOB_NAMES.recruitBonus: {
         const result = await this.recruits.processBonus();
         this.logger.log(`recruit-bonus: ${JSON.stringify(result)}`);
+        return result;
+      }
+      case JOB_NAMES.morningBrief: {
+        const result = await this.news.sendMorningBrief();
+        if (result.sent) {
+          this.logger.log(`morning-brief: sent — "${result.title}"`);
+        } else {
+          this.logger.log("morning-brief: no published news to send");
+        }
         return result;
       }
       default:
