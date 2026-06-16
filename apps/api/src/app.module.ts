@@ -37,6 +37,8 @@ import { PollsModule } from "./polls/polls.module";
 import { ContactsModule } from "./contacts/contacts.module";
 import { CrisisModule } from "./crisis/crisis.module";
 import { OppositionModule } from "./opposition/opposition.module";
+import { BoothTasksModule } from "./boothtasks/boothtasks.module";
+import { WaGroupsModule } from "./wagroups/wagroups.module";
 import { AppController } from "./app.controller";
 
 @Module({
@@ -79,6 +81,8 @@ import { AppController } from "./app.controller";
     ContactsModule,
     CrisisModule,
     OppositionModule,
+    BoothTasksModule,
+    WaGroupsModule,
   ],
   controllers: [AppController],
 })

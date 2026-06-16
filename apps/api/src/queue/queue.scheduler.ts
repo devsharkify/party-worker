@@ -28,6 +28,10 @@ const SCHEDULES: ReadonlyArray<{ id: string; name: string; repeat: Repeat }> = [
   { id: "worker-verify", name: JOB_NAMES.workerVerify, repeat: { pattern: "0 3 * * *", tz: "Asia/Kolkata" } },
   // Constituency failure report — Sunday 23:00 IST (30 min before Worker-of-Week).
   { id: "constituency-failure", name: JOB_NAMES.constituencyFailure, repeat: { pattern: "0 23 * * 0", tz: "Asia/Kolkata" } },
+  // Sentiment pulse — daily 07:00 IST (after morning scrape at 07:30 → actually runs 10 min before to base on yesterday).
+  { id: "sentiment-pulse", name: JOB_NAMES.sentimentPulse, repeat: { pattern: "0 7 * * *", tz: "Asia/Kolkata" } },
+  // Volunteer surge detector — daily 08:00 IST.
+  { id: "volunteer-surge", name: JOB_NAMES.volunteerSurge, repeat: { pattern: "0 8 * * *", tz: "Asia/Kolkata" } },
 ];
 
 /**

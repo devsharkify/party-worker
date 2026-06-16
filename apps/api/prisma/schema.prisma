@@ -143,6 +143,7 @@ enum ScoreReason {
   news_share
   poll_vote
   contact_register
+  task_complete
 }
 
 // ---------------------------------------------------------------------------
@@ -162,6 +163,8 @@ model OrgUnit {
   polls        Poll[]
   contacts     Contact[]
   crisisAlerts CrisisAlert[]
+  boothTasks   BoothTask[]
+  waGroup      WaGroup?
   pools     LeaderboardPool[]
   newsItems NewsItem[]
   createdAt DateTime    @default(now())
@@ -214,8 +217,10 @@ model User {
   rsvps            Rsvp[]
   checkIns         CheckIn[]
   missionCompletions MissionCompletion[]
-  pollVotes        PollVote[]
+  pollVotes          PollVote[]
   contactsRegistered Contact[]
+  tasksAssigned      BoothTask[]           @relation("TaskAssignedTo")
+  taskCompletions    BoothTaskCompletion[]
   grievancesFiled  Grievance[]          @relation("GrievanceFiledBy")
   grievancesRouted Grievance[]          @relation("GrievanceRoutedTo")
   creativesCreated Creative[]           @relation("CreativeCreatedBy")
@@ -742,3 +747,46 @@ model OppositionItem {
 
   @@index([createdAt])
 }
+
+/// Booth leader-assigned ground task (door knocking, pamphlet, meeting attendance).
+model BoothTask {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  orgUnitId   String
+  orgUnit     OrgUnit   @relation(fields: [orgUnitId], references: [id])
+  assignedToId String?
+  assignedTo  User?     @relation("TaskAssignedTo", fields: [assignedToId], references: [id])
+  createdById String
+  dueAt       DateTime?
+  createdAt   DateTime  @default(now())
+
+  completions BoothTaskCompletion[]
+
+  @@index([orgUnitId])
+  @@index([assignedToId])
+}
+
+model BoothTaskCompletion {
+  id         String    @id @default(cuid())
+  taskId     String
+  task       BoothTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  note       String?
+  createdAt  DateTime  @default(now())
+
+  @@unique([taskId, userId])
+}
+
+/// WhatsApp group link managed per org unit — workers tap to join.
+model WaGroup {
+  id        String   @id @default(cuid())
+  orgUnitId String   @unique
+  orgUnit   OrgUnit  @relation(fields: [orgUnitId], references: [id])
+  link      String
+  label     String?
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}
+

@@ -41,6 +41,7 @@ const LABELS: Record<ScoreReason, ActivityLabel> = {
   news_share: { te: "వార్తలు షేర్ చేసినందుకు", en: "For sharing news" },
   poll_vote: { te: "పోల్‌లో ఓటు వేసినందుకు", en: "For voting in a poll" },
   contact_register: { te: "ఓటరుని నమోదు చేసినందుకు", en: "For registering a voter contact" },
+  task_complete: { te: "టాస్క్ పూర్తి చేసినందుకు", en: "For completing a booth task" },
 };
 
 const FALLBACK_LABEL: ActivityLabel = { te: "కార్యకలాపం", en: "Activity" };

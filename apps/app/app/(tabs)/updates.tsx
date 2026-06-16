@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useState, useCallback } from "react";
+import { Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
@@ -31,14 +31,25 @@ type ActivityEntry = {
   label: { te: string; en: string };
 };
 
+type BoothTask = {
+  id: string;
+  title: string;
+  description: string | null;
+  dueAt: string | null;
+  done: boolean;
+  assignedTo: { name: string } | null;
+};
+
 const L = {
   title: { te: "నా అప్‌డేట్లు", en: "Updates" },
   segAnnouncements: { te: "ప్రకటనలు", en: "Announcements" },
   segActivity: { te: "నా కార్యకలాపం", en: "My Activity" },
+  segTasks: { te: "టాస్క్‌లు", en: "Tasks" },
   annEmpty: { te: "ప్రకటనలు లేవు", en: "No announcements yet" },
   annError: { te: "ప్రకటనలు లోడ్ కాలేదు", en: "Couldn’t load announcements" },
   actEmpty: { te: "ఇంకా కార్యకలాపం లేదు", en: "No activity yet" },
   actError: { te: "కార్యకలాపం లోడ్ కాలేదు", en: "Couldn’t load your activity" },
+  taskEmpty: { te: "ఇంకా టాస్క్‌లు లేవు", en: "No tasks assigned yet" },
 } as const;
 
 const tx = (m: { te: string; en: string }, lang: Lang) => m[lang] ?? m.en;
@@ -50,14 +61,14 @@ export default function Updates() {
   const { user } = useAuth();
   const router = useRouter();
   const isLeader = user ? LEADER_ROLES.includes(user.role as any) : false;
-  const [segment, setSegment] = useState<"announcements" | "activity">("announcements");
+  const [segment, setSegment] = useState<"announcements" | "activity" | "tasks">("announcements");
 
-  // Both data sources are subscribed so each segment shows fresh data on focus;
-  // pull-to-refresh only drives the segment currently on screen.
   const announcements = useApi<Announcement[]>("/announcements");
   const activity = useApi<ActivityEntry[]>("/me/activity");
+  const tasks = useApi<BoothTask[]>(user ? `/booth-tasks/mine?orgUnitId=${user.orgUnitId}` : null);
+  const waGroup = useApi<{ link: string; label: string | null } | null>(user ? `/wa-groups/${user.orgUnitId}` : null);
 
-  const active = segment === "announcements" ? announcements : activity;
+  const active = segment === "announcements" ? announcements : segment === "activity" ? activity : tasks;
 
   return (
     <View style={st.fill}>
@@ -78,6 +89,19 @@ export default function Updates() {
           {tx(L.title, lang)} / {L.title.en}
         </Text>
 
+        {/* WA Group join button */}
+        {waGroup.data && (
+          <Pressable
+            onPress={() => Linking.openURL(waGroup.data!.link).catch(() => undefined)}
+            style={({ pressed }) => [st.waBtn, pressed && { opacity: 0.75 }]}
+          >
+            <Text style={st.waIcon}>💬</Text>
+            <Text style={st.waBtnText}>
+              {waGroup.data.label ?? (lang === "te" ? "WhatsApp గ్రూప్‌లో చేరండి" : "Join WhatsApp Group")}
+            </Text>
+          </Pressable>
+        )}
+
         <View style={st.segWrap}>
           <Segment
             label={`${tx(L.segAnnouncements, lang)} / ${L.segAnnouncements.en}`}
@@ -89,6 +113,11 @@ export default function Updates() {
             active={segment === "activity"}
             onPress={() => setSegment("activity")}
           />
+          <Segment
+            label={`${tx(L.segTasks, lang)} / ${L.segTasks.en}`}
+            active={segment === "tasks"}
+            onPress={() => setSegment("tasks")}
+          />
         </View>
 
         {segment === "announcements" ? (
@@ -97,8 +126,10 @@ export default function Updates() {
             lang={lang}
             retryLabel={t("common.retry")}
           />
-        ) : (
+        ) : segment === "activity" ? (
           <ActivityList state={activity} lang={lang} retryLabel={t("common.retry")} />
+        ) : (
+          <TasksList state={tasks} lang={lang} retryLabel={t("common.retry")} onReload={tasks.reload} />
         )}
       </ScrollView>
 
@@ -217,6 +248,64 @@ function ActivityList({
   );
 }
 
+function TasksList({
+  state,
+  lang,
+  retryLabel,
+  onReload,
+}: {
+  state: ReturnType<typeof useApi<BoothTask[]>>;
+  lang: Lang;
+  retryLabel: string;
+  onReload: () => void;
+}) {
+  const { api } = useAuth();
+  const [doneIds, setDoneIds] = useState<Set<string>>(new Set());
+
+  async function completeTask(taskId: string) {
+    try {
+      await api(`/booth-tasks/${taskId}/complete`, { method: "POST" });
+      setDoneIds((prev) => new Set([...prev, taskId]));
+    } catch {
+      // Already done or error — ignore
+    }
+  }
+
+  if (state.loading && !state.data) return <RowSkeletons />;
+  if (state.error && !state.data) {
+    return <StateView tone="error" title="Couldn't load tasks" message={state.error} retryLabel={retryLabel} onRetry={onReload} />;
+  }
+  if ((state.data ?? []).length === 0) {
+    return <StateView title={tx(L.taskEmpty, lang)} />;
+  }
+  return (
+    <View>
+      {(state.data ?? []).map((task) => {
+        const done = task.done || doneIds.has(task.id);
+        return (
+          <Card key={task.id} style={done ? { ...st.actCard, opacity: 0.6 } : st.actCard}>
+            <View style={st.actMain}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                {done && <Text style={{ color: colors.success }}>✓</Text>}
+                <Text style={[st.actLabel, done && { textDecorationLine: "line-through" }]} numberOfLines={2}>
+                  {task.title}
+                </Text>
+              </View>
+              {task.description ? <Text style={st.annBody} numberOfLines={2}>{task.description}</Text> : null}
+              {task.dueAt ? <Text style={st.date}>{lang === "te" ? "గడువు: " : "Due: "}{fmtDate(task.dueAt)}</Text> : null}
+            </View>
+            {!done && (
+              <Pressable onPress={() => completeTask(task.id)} style={({ pressed }) => [st.doneBtn, pressed && { opacity: 0.75 }]}>
+                <Text style={st.doneBtnText}>{lang === "te" ? "పూర్తి" : "Done"}</Text>
+              </Pressable>
+            )}
+          </Card>
+        );
+      })}
+    </View>
+  );
+}
+
 function CardSkeletons() {
   return (
     <View>
@@ -307,4 +396,10 @@ const st = StyleSheet.create({
     borderColor: colors.border,
   },
   skelRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+
+  waBtn: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#25D366", borderRadius: radius.pill, paddingHorizontal: 16, paddingVertical: 10, marginBottom: 12, alignSelf: "flex-start" },
+  waIcon: { fontSize: 16 },
+  waBtnText: { color: "#fff", fontWeight: "700", fontSize: 14, fontFamily, lineHeight: lh(14) },
+  doneBtn: { backgroundColor: colors.primary, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6 },
+  doneBtnText: { color: "#fff", fontWeight: "700", fontSize: 12, fontFamily, lineHeight: lh(12) },
 });

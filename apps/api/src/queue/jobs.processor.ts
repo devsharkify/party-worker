@@ -36,6 +36,10 @@ export const JOB_NAMES = {
   workerVerify: "worker-verify",
   /** Constituency failure report: post coverage alert news item — Sunday 23:00 IST. */
   constituencyFailure: "constituency-failure",
+  /** Sentiment pulse: post daily news sentiment summary — daily 07:00 IST (after morning scrape). */
+  sentimentPulse: "sentiment-pulse",
+  /** Volunteer surge detector: celebrate booth-level registration spikes — daily 08:00 IST. */
+  volunteerSurge: "volunteer-surge",
 } as const;
 
 /**
@@ -140,6 +144,16 @@ export class JobsProcessor extends WorkerHost {
         if (result.found > 0) {
           this.logger.log(`constituency-failure: ${result.found} failing constituencies, posted=${result.posted}`);
         }
+        return result;
+      }
+      case JOB_NAMES.sentimentPulse: {
+        const result = await this.scoring.postSentimentPulse();
+        if (result.posted) this.logger.log("sentiment-pulse: daily pulse posted");
+        return result;
+      }
+      case JOB_NAMES.volunteerSurge: {
+        const result = await this.scoring.detectVolunteerSurge();
+        if (result.surges > 0) this.logger.log(`volunteer-surge: ${result.surges} surge(s) detected`);
         return result;
       }
       default:

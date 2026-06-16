@@ -473,6 +473,63 @@ export class ScoringService {
     ];
   }
 
+  async postSentimentPulse(): Promise<{ posted: boolean }> {
+    const yesterday = new Date(Date.now() - 24 * 3600_000);
+    const items = await this.prisma.newsItem.findMany({
+      where: { createdAt: { gte: yesterday }, status: "published" },
+      select: { title: true, body: true, handle: true },
+      take: 40,
+    });
+    if (items.length < 3) return { posted: false };
+
+    const positive = ["Kavitha", "TRS", "Telangana Raksha", "development", "guarantee", "welfare", "scheme", "inauguration", "flood relief"];
+    const negative = ["BJP", "Congress", "arrest", "ED", "corruption", "scam", "case", "bail", "court"];
+
+    let posHits = 0;
+    let negHits = 0;
+    for (const item of items) {
+      const text = `${item.title} ${item.body}`.toLowerCase();
+      for (const kw of positive) if (text.includes(kw.toLowerCase())) posHits++;
+      for (const kw of negative) if (text.includes(kw.toLowerCase())) negHits++;
+    }
+
+    const total = posHits + negHits || 1;
+    const posPct = Math.round((posHits / total) * 100);
+    const sentiment = posPct >= 60 ? "positive 🟢" : posPct >= 40 ? "mixed 🟡" : "challenging 🔴";
+
+    const title = `📊 Daily Sentiment Pulse — TRS coverage: ${sentiment}`;
+    const body = `Today's news analysis (${items.length} stories):\n• Positive signals: ${posHits} mentions (${posPct}%)\n• Opposition noise: ${negHits} mentions\n\nKavitha's TRS continues to dominate Telangana political discourse. Stay strong, keep sharing! #TRS #Kavitha`;
+
+    await this.prisma.newsItem.create({
+      data: { handle: "@SentimentPulse", title: title.slice(0, 500), body: body.slice(0, 3000), status: "published", publishedAt: new Date() },
+    });
+    return { posted: true };
+  }
+
+  async detectVolunteerSurge(): Promise<{ surges: number }> {
+    const yesterday = new Date(Date.now() - 24 * 3600_000);
+    const twoDaysAgo = new Date(Date.now() - 48 * 3600_000);
+
+    const booths = await this.prisma.orgUnit.findMany({ where: { type: "booth" }, select: { id: true, name: true } });
+    let surges = 0;
+
+    for (const booth of booths) {
+      const [todayCount, prevCount] = await Promise.all([
+        this.prisma.user.count({ where: { orgUnitId: booth.id, createdAt: { gte: yesterday } } }),
+        this.prisma.user.count({ where: { orgUnitId: booth.id, createdAt: { gte: twoDaysAgo, lt: yesterday } } }),
+      ]);
+      if (todayCount >= 2 && prevCount > 0 && todayCount >= prevCount * 2) {
+        const title = `🚀 Volunteer Surge: ${booth.name} — ${todayCount} new joiners today!`;
+        const body = `TRS momentum is building at ${booth.name} — ${todayCount} new workers joined in the last 24 hours! The TRS wave is real. #Kavitha #TRS #TelanganaRaksha`;
+        await this.prisma.newsItem.create({
+          data: { handle: "@Momentum", title: title.slice(0, 500), body: body.slice(0, 3000), status: "published", publishedAt: new Date() },
+        });
+        surges++;
+      }
+    }
+    return { surges };
+  }
+
   async postConstituencyFailureReport(): Promise<{ found: number; posted: number }> {
     const constituencies = await this.prisma.orgUnit.findMany({ where: { type: "constituency" }, select: { id: true, name: true } });
     if (!constituencies.length) return { found: 0, posted: 0 };
