@@ -6,6 +6,8 @@ import { ScoringService } from "../scoring/scoring.service";
 import { RecruitsService } from "../recruits/recruits.service";
 import { NewsService } from "../news/news.service";
 import { NewsScraperService } from "../news/news-scraper.service";
+import { GrievancesService } from "../grievances/grievances.service";
+import { PosterCalendarService } from "../poster-calendar/poster-calendar.service";
 
 /** Logical name of the single shared queue all background jobs run on. */
 export const JOBS_QUEUE = "jobs";
@@ -24,6 +26,10 @@ export const JOB_NAMES = {
   morningBrief: "morning-brief",
   /** Scrape RSS feeds from Telugu/national news channels every 30 minutes. */
   newsScrape: "news-scrape",
+  /** Auto-poster for open civic issues older than 7 days — daily at 02:30 IST. */
+  issueAging: "issue-aging",
+  /** Push today's festival/birthday/anniversary calendar events — daily at 06:00 IST. */
+  calendarPush: "calendar-push",
 } as const;
 
 /**
@@ -47,6 +53,8 @@ export class JobsProcessor extends WorkerHost {
     private readonly recruits: RecruitsService,
     private readonly news: NewsService,
     private readonly newsScraper: NewsScraperService,
+    private readonly grievances: GrievancesService,
+    private readonly calendar: PosterCalendarService,
   ) {
     super();
   }
@@ -93,6 +101,20 @@ export class JobsProcessor extends WorkerHost {
         this.logger.log(
           `news-scrape: fetched=${result.fetched} saved=${result.saved} skipped=${result.skipped}`,
         );
+        return result;
+      }
+      case JOB_NAMES.issueAging: {
+        const result = await this.grievances.createAgingPosters();
+        if (result.posted > 0) {
+          this.logger.log(`issue-aging: posted ${result.posted}/${result.found} aging posters`);
+        }
+        return result;
+      }
+      case JOB_NAMES.calendarPush: {
+        const result = await this.calendar.sendToday();
+        if (result.sent > 0) {
+          this.logger.log(`calendar-push: sent ${result.sent}/${result.found} calendar events`);
+        }
         return result;
       }
       default:

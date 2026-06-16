@@ -32,6 +32,7 @@ import { QueueModule } from "./queue/queue.module";
 import { AiModule } from "./ai/ai.module";
 import { PushModule } from "./push/push.module";
 import { AnalyticsModule } from "./analytics/analytics.module";
+import { PosterCalendarModule } from "./poster-calendar/poster-calendar.module";
 import { AppController } from "./app.controller";
 
 @Module({
@@ -69,6 +70,7 @@ import { AppController } from "./app.controller";
     AiModule,
     PushModule,
     AnalyticsModule,
+    PosterCalendarModule,
   ],
   controllers: [AppController],
 })

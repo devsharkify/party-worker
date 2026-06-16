@@ -216,6 +216,7 @@ export default function LeaderDashboardScreen() {
   // The rich subtree rollup the API always had — now actually used.
   const stats = useApi<TeamStats>("/team/stats");
   const activity = useApi<ActivityItem[]>("/me/activity");
+  const booths = useApi<{ total: number; covered: number; uncovered: { id: string; name: string }[] }>("/org/booth-coverage");
 
   const cardRef = useRef<View>(null);
   const [sharingReport, setSharingReport] = useState(false);
@@ -330,6 +331,53 @@ export default function LeaderDashboardScreen() {
               {stats.data.childUnits.map((u, i) => (
                 <UnitRow key={u.unitId} unit={u} rank={i + 1} />
               ))}
+            </View>
+          </>
+        ) : null}
+
+        {/* Booth Coverage — election readiness */}
+        {booths.data && booths.data.total > 0 ? (
+          <>
+            <View style={s.sectionHeader}>
+              <Feather name="map-pin" size={15} color={colors.gold} />
+              <Text style={s.sectionTitle}>
+                {lang === "te" ? "బూత్ కవరేజ్" : "Booth Coverage"}
+              </Text>
+            </View>
+            <View style={s.card}>
+              <View style={s.boothRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.boothFraction}>
+                    {booths.data.covered}/{booths.data.total}
+                  </Text>
+                  <Text style={s.boothLabel}>
+                    {lang === "te" ? "బూత్‌లు కవర్ అయ్యాయి (7 రోజుల్లో)" : "booths covered (last 7 days)"}
+                  </Text>
+                </View>
+                <View style={s.boothPctWrap}>
+                  <Text style={[s.boothPct, { color: booths.data.covered / booths.data.total > 0.7 ? colors.green : "#f59e0b" }]}>
+                    {Math.round((booths.data.covered / booths.data.total) * 100)}%
+                  </Text>
+                </View>
+              </View>
+              <View style={s.boothBar}>
+                <View
+                  style={[
+                    s.boothBarFill,
+                    {
+                      width: `${Math.round((booths.data.covered / booths.data.total) * 100)}%` as `${number}%`,
+                      backgroundColor: booths.data.covered / booths.data.total > 0.7 ? colors.green : "#f59e0b",
+                    },
+                  ]}
+                />
+              </View>
+              {booths.data.uncovered.length > 0 ? (
+                <Text style={s.boothGaps} numberOfLines={2}>
+                  {lang === "te" ? "⚠️ కవర్ కాలేదు: " : "⚠️ Uncovered: "}
+                  {booths.data.uncovered.slice(0, 5).map((b) => b.name).join(", ")}
+                  {booths.data.uncovered.length > 5 ? ` +${booths.data.uncovered.length - 5}` : ""}
+                </Text>
+              ) : null}
             </View>
           </>
         ) : null}
@@ -537,6 +585,15 @@ const s = StyleSheet.create({
   activityLabel: { flex: 1, fontSize: 13, color: colors.text, fontWeight: "600", fontFamily, lineHeight: lh(13) },
   activityMeta: { fontSize: 11, color: colors.textMuted, fontWeight: "600", fontFamily, lineHeight: lh(11) },
   activityPts: { fontSize: 13, fontWeight: "700", color: colors.success, minWidth: 30, textAlign: "right", fontFamily, lineHeight: lh(13) },
+
+  boothRow: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
+  boothFraction: { fontSize: 22, fontWeight: "700", color: colors.text, fontFamily, lineHeight: lh(22) },
+  boothLabel: { fontSize: 12, color: colors.textMuted, fontWeight: "600", marginTop: 2, fontFamily, lineHeight: lh(12) },
+  boothPctWrap: { alignItems: "flex-end" },
+  boothPct: { fontSize: 28, fontWeight: "700", fontFamily, lineHeight: lh(28) },
+  boothBar: { height: 8, backgroundColor: colors.border, borderRadius: 4, marginBottom: 10 },
+  boothBarFill: { height: 8, borderRadius: 4 },
+  boothGaps: { fontSize: 12, color: "#92400e", fontWeight: "600", fontFamily, lineHeight: lh(12), backgroundColor: "#fef3c7", borderRadius: 6, padding: 8 },
 
   actionRow: { gap: 10 },
   actionBtn: {

@@ -18,6 +18,10 @@ const SCHEDULES: ReadonlyArray<{ id: string; name: string; repeat: Repeat }> = [
   { id: "morning-brief", name: JOB_NAMES.morningBrief, repeat: { pattern: "30 7 * * *", tz: "Asia/Kolkata" } },
   // News scraper — pull RSS from Telugu/national channels every 30 minutes.
   { id: "news-scrape", name: JOB_NAMES.newsScrape, repeat: { every: 30 * 60_000 } },
+  // Issue aging poster — create news items for stale open civic issues daily at 02:30 IST.
+  { id: "issue-aging", name: JOB_NAMES.issueAging, repeat: { pattern: "30 2 * * *", tz: "Asia/Kolkata" } },
+  // Calendar push — send today's festival/birthday/anniversary events at 06:00 IST.
+  { id: "calendar-push", name: JOB_NAMES.calendarPush, repeat: { pattern: "0 6 * * *", tz: "Asia/Kolkata" } },
 ];
 
 /**

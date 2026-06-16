@@ -14,4 +14,10 @@ export class OrgController {
   tree() {
     return this.org.getTree();
   }
+
+  /** Election readiness: booth coverage gaps (active last 7 days). */
+  @Get("booth-coverage")
+  boothCoverage() {
+    return this.org.getBoothCoverage();
+  }
 }

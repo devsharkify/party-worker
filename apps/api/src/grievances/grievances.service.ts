@@ -48,6 +48,100 @@ export class GrievancesService {
     };
   }
 
+  /**
+   * Daily scan: open grievances >7 days old with no aging poster yet → create
+   * a published NewsItem so the issue surfaces in the party's news feed.
+   */
+  async createAgingPosters(): Promise<{ found: number; posted: number }> {
+    const cutoff = new Date(Date.now() - 7 * 24 * 3600_000);
+    const stale = await this.prisma.grievance.findMany({
+      where: {
+        status: { in: ["open", "routed", "in_progress"] },
+        createdAt: { lt: cutoff },
+        agingPostedAt: null,
+      },
+      include: { filedBy: { include: { orgUnit: true } } },
+      take: 50,
+    });
+
+    let posted = 0;
+    for (const g of stale) {
+      const days = Math.floor((Date.now() - g.createdAt.getTime()) / 86_400_000);
+      const category = g.category ?? g.title;
+      const where = g.location ?? g.filedBy.orgUnit.name;
+      const title = `⚠️ Day ${days}: ${category} — ${where} — still unresolved`;
+      const body =
+        `TRS workers tracking civic issue in ${where}. ` +
+        `Status: ${g.status.replace("_", " ")} since ${days} days. ` +
+        `Our team is pushing for resolution. #Kavitha #TelanganaRaksha`;
+
+      await this.prisma.$transaction([
+        this.prisma.newsItem.create({
+          data: {
+            handle: "@IssueTracker",
+            title: title.slice(0, 500),
+            body: body.slice(0, 3000),
+            imageUrl: g.photoKey ? this.mediaUrl(g.photoKey) : null,
+            status: "published",
+            publishedAt: new Date(),
+          },
+        }),
+        this.prisma.grievance.update({
+          where: { id: g.id },
+          data: { agingPostedAt: new Date() },
+        }),
+      ]);
+      posted++;
+    }
+    return { found: stale.length, posted };
+  }
+
+  /** Constituency failure report — counts & oldest unresolved issues for the caller's subtree. */
+  async getReport(userId: string) {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      include: { orgUnit: true },
+    });
+    const descendantIds = await this.org.getDescendantIds(user.orgUnitId);
+    const scopeIds = [user.orgUnitId, ...descendantIds];
+
+    const workers = await this.prisma.user.findMany({
+      where: { orgUnitId: { in: scopeIds } },
+      select: { id: true },
+    });
+    const workerIds = workers.map((w) => w.id);
+
+    const issues = await this.prisma.grievance.findMany({
+      where: { filedById: { in: workerIds }, status: { not: "resolved" } },
+      orderBy: { createdAt: "asc" },
+      take: 200,
+    });
+
+    const now = Date.now();
+    const byCategory: Record<string, number> = {};
+    let oldestDays = 0;
+    for (const g of issues) {
+      const cat = g.category ?? "Other";
+      byCategory[cat] = (byCategory[cat] ?? 0) + 1;
+      const d = Math.floor((now - g.createdAt.getTime()) / 86_400_000);
+      if (d > oldestDays) oldestDays = d;
+    }
+
+    return {
+      unit: user.orgUnit.name,
+      totalOpen: issues.length,
+      oldestDays,
+      byCategory,
+      oldest: issues.slice(0, 5).map((g) => ({
+        id: g.id,
+        title: g.title,
+        location: g.location,
+        status: g.status,
+        daysOpen: Math.floor((now - g.createdAt.getTime()) / 86_400_000),
+      })),
+    };
+  }
+
   /** Grievances filed by the current worker, newest first. */
   async listMine(userId: string): Promise<GrievanceSummary[]> {
     const grievances = await this.prisma.grievance.findMany({

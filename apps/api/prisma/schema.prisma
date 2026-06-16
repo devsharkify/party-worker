@@ -491,25 +491,42 @@ model CheckIn {
 }
 
 model Grievance {
-  id           String          @id @default(cuid())
-  title        String
-  category     String?
-  description  String?
-  citizenName  String?
-  citizenPhone String?
-  location     String?
-  lat          Float?
-  lng          Float?
-  photoKey     String?
-  status      GrievanceStatus @default(open)
-  filedById   String
-  filedBy     User            @relation("GrievanceFiledBy", fields: [filedById], references: [id])
-  routedToId  String?
-  routedTo    User?           @relation("GrievanceRoutedTo", fields: [routedToId], references: [id])
-  createdAt   DateTime        @default(now())
-  resolvedAt  DateTime?
+  id              String          @id @default(cuid())
+  title           String
+  category        String?
+  description     String?
+  citizenName     String?
+  citizenPhone    String?
+  location        String?
+  lat             Float?
+  lng             Float?
+  photoKey        String?
+  status          GrievanceStatus @default(open)
+  filedById       String
+  filedBy         User            @relation("GrievanceFiledBy", fields: [filedById], references: [id])
+  routedToId      String?
+  routedTo        User?           @relation("GrievanceRoutedTo", fields: [routedToId], references: [id])
+  orgUnitId       String?
+  createdAt       DateTime        @default(now())
+  resolvedAt      DateTime?
+  agingPostedAt   DateTime?       // set when an aging auto-poster news item was created
 
   @@index([status])
+  @@index([agingPostedAt])
+}
+
+/// Festival / birthday / anniversary push events — daily cron at 06:00 IST sends each.
+model PosterCalendar {
+  id          String    @id @default(cuid())
+  date        DateTime  // day only (time stored as 00:00 UTC)
+  title       String
+  pushTitle   String
+  pushBody    String
+  creativeId  String?
+  sentAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([date])
 }
 
 model ConsentRecord {

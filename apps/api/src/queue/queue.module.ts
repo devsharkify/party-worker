@@ -5,6 +5,8 @@ import { ScoringModule } from "../scoring/scoring.module";
 import { SchedulingModule } from "../scheduling/scheduling.module";
 import { RecruitsModule } from "../recruits/recruits.module";
 import { NewsModule } from "../news/news.module";
+import { GrievancesModule } from "../grievances/grievances.module";
+import { PosterCalendarModule } from "../poster-calendar/poster-calendar.module";
 import { JOBS_QUEUE, JobsProcessor } from "./jobs.processor";
 import { QueueScheduler } from "./queue.scheduler";
 
@@ -36,6 +38,8 @@ import { QueueScheduler } from "./queue.scheduler";
     ScoringModule,
     RecruitsModule,
     NewsModule,
+    GrievancesModule,
+    PosterCalendarModule,
   ],
   providers: [JobsProcessor, QueueScheduler],
   exports: [BullModule],

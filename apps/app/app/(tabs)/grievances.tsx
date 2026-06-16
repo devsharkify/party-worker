@@ -282,7 +282,7 @@ function PhotoPicker({
 }
 
 // ---------------------------------------------------------------------------
-// GPS button (web: navigator.geolocation; native: text input)
+// GPS button (web: navigator.geolocation; native: expo-location)
 // ---------------------------------------------------------------------------
 function LocationPicker({
   location,
@@ -297,21 +297,39 @@ function LocationPicker({
 }) {
   const [locating, setLocating] = useState(false);
 
-  function getGps() {
-    if (Platform.OS !== "web" || !navigator?.geolocation) return;
+  async function getGps() {
+    if (locating) return;
     setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocating(false);
+    try {
+      if (Platform.OS === "web") {
+        if (!navigator?.geolocation) return;
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            setLocating(false);
+            onLocation({
+              text: `${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`,
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+            });
+          },
+          () => setLocating(false),
+          { enableHighAccuracy: true, timeout: 10000 },
+        );
+      } else {
+        const Location = await import("expo-location");
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") return;
+        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
         onLocation({
           text: `${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`,
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
         });
-      },
-      () => setLocating(false),
-      { enableHighAccuracy: true, timeout: 10000 },
-    );
+        setLocating(false);
+      }
+    } catch {
+      setLocating(false);
+    }
   }
 
   return (
@@ -323,19 +341,17 @@ function LocationPicker({
         placeholder="Area / street name (optional)"
         placeholderTextColor={colors.textMuted}
       />
-      {Platform.OS === "web" && (
-        <Pressable
-          style={[st.gpsBtn, locating && { opacity: 0.6 }]}
-          onPress={getGps}
-          disabled={locating}
-        >
-          {locating ? (
-            <ActivityIndicator color="#fff" size="small" />
-          ) : (
-            <Text style={st.gpsBtnText}>📍 GPS</Text>
-          )}
-        </Pressable>
-      )}
+      <Pressable
+        style={[st.gpsBtn, locating && { opacity: 0.6 }]}
+        onPress={() => { void getGps(); }}
+        disabled={locating}
+      >
+        {locating ? (
+          <ActivityIndicator color="#fff" size="small" />
+        ) : (
+          <Text style={st.gpsBtnText}>📍 GPS</Text>
+        )}
+      </Pressable>
     </View>
   );
 }

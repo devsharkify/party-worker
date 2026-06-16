@@ -51,6 +51,10 @@ const L = {
     en: "Points already earned for this poster — share again to grow reach",
   },
   downloadShare: { te: "పోస్టర్ డౌన్‌లోడ్ + క్యాప్షన్ కాపీ", en: "Download poster + copy caption" },
+  forwardPacks: { te: "ఫార్వర్డ్ పాక్స్", en: "Forward Packs" },
+  packFamily: { te: "కుటుంబ గ్రూప్", en: "Family Group" },
+  packColony: { te: "కాలనీ గ్రూప్", en: "Colony Group" },
+  packCopied: { te: "కాపీ అయింది — గ్రూప్‌లో పేస్ట్ చేయండి", en: "Copied — paste in your group" },
 };
 
 export default function ShareScreen() {
@@ -62,6 +66,7 @@ export default function ShareScreen() {
   const [error, setError] = useState<string | undefined>();
   const [copied, setCopied] = useState(false);
   const [captionToast, setCaptionToast] = useState(false);
+  const [packToast, setPackToast] = useState(false);
   const [earned, setEarned] = useState<number | null>(null);
   const [sharing, setSharing] = useState(false);
 
@@ -206,6 +211,28 @@ export default function ShareScreen() {
     await openChannel("whatsapp_status", "whatsapp://status");
   }
 
+  /** Pre-formatted pack text for a specific audience, then copy to clipboard. */
+  async function copyPack(audience: "family" | "colony") {
+    if (!data) return;
+    const title = data.caption.split("|")[0]?.trim() ?? data.caption;
+    const link = data.trackedLink;
+    let text: string;
+    if (audience === "family") {
+      text = lang === "te"
+        ? `చూడండి — ${title}\n\nమన TRS కార్యకర్తలు మీ కోసం పని చేస్తున్నారు. మీరు కూడా ఇది మీ కాంటాక్టులకు ఫార్వర్డ్ చేయండి 🙏\n${link}`
+        : `Have a look — ${title}\n\nOur TRS workers are working for you. Please forward this to your contacts 🙏\n${link}`;
+    } else {
+      text = lang === "te"
+        ? `🔔 ముఖ్యమైన సమాచారం\n\n${title}\n\nమన కాలనీ వాసులందరూ ఇది చదవండి. Kavitha గారి TRS మన హక్కుల కోసం పోరాడుతోంది.\n${link}\n#Kavitha #TelanganaRaksha #TRS`
+        : `🔔 Important Update\n\n${title}\n\nAll colony residents please read. Kavitha's TRS is fighting for our rights.\n${link}\n#Kavitha #TelanganaRaksha #TRS`;
+    }
+    try {
+      await Clipboard.setStringAsync(text);
+    } catch { /* best-effort */ }
+    setPackToast(true);
+    setTimeout(() => setPackToast(false), 2000);
+  }
+
   /** Copy the caption via expo-clipboard (works web + native). No points. */
   async function copyLink() {
     if (!data) return;
@@ -322,7 +349,29 @@ export default function ShareScreen() {
         />
       </View>
 
-      <Text style={st.capLabel}>{lang === "te" ? "క్యాప్షన్" : "Caption"}</Text>
+      {/* Forward Packs — 1-tap clipboard text for different audiences */}
+      <Text style={st.capLabel}>{L.forwardPacks[lang] ?? L.forwardPacks.en}</Text>
+      {packToast ? (
+        <Text style={st.packToast}>{L.packCopied[lang] ?? L.packCopied.en}</Text>
+      ) : null}
+      <View style={st.packRow}>
+        <Pressable
+          style={({ pressed }) => [st.packBtn, { borderColor: "#25D366" }, pressed && { opacity: 0.8 }]}
+          onPress={() => void copyPack("family")}
+        >
+          <Text style={[st.packIcon]}>👨‍👩‍👧</Text>
+          <Text style={[st.packLabel, { color: "#25D366" }]}>{L.packFamily[lang] ?? L.packFamily.en}</Text>
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [st.packBtn, { borderColor: colors.primary }, pressed && { opacity: 0.8 }]}
+          onPress={() => void copyPack("colony")}
+        >
+          <Text style={st.packIcon}>🏘️</Text>
+          <Text style={[st.packLabel, { color: colors.primary }]}>{L.packColony[lang] ?? L.packColony.en}</Text>
+        </Pressable>
+      </View>
+
+      <Text style={[st.capLabel, { marginTop: 16 }]}>{lang === "te" ? "క్యాప్షన్" : "Caption"}</Text>
       <View style={st.captionBox}>
         <Text selectable style={st.caption}>
           {data.caption}
@@ -405,4 +454,19 @@ const st = StyleSheet.create({
   capLabel: { fontWeight: "700", color: colors.textMuted, marginBottom: 6, fontFamily: fontFamily },
   captionBox: { backgroundColor: "#fff", borderRadius: radius.md, padding: 14, borderWidth: 1, borderColor: colors.border },
   caption: { color: colors.text, lineHeight: 21, fontFamily: fontFamily },
+  packRow: { flexDirection: "row", gap: 10, marginBottom: 4 },
+  packBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderWidth: 2,
+    borderRadius: radius.md,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    backgroundColor: "#fff",
+  },
+  packIcon: { fontSize: 18 },
+  packLabel: { fontWeight: "700", fontSize: 13, fontFamily: fontFamily, lineHeight: lh(13), flex: 1 },
+  packToast: { color: colors.success, fontSize: 13, fontWeight: "600", fontFamily: fontFamily, marginBottom: 6, lineHeight: lh(13) },
 });

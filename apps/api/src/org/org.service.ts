@@ -71,6 +71,31 @@ export class OrgService {
     return chain;
   }
 
+  /** Election readiness: which booths have at least 1 worker active in the last 7 days. */
+  async getBoothCoverage() {
+    const booths = await this.prisma.orgUnit.findMany({
+      where: { type: "booth" },
+      select: { id: true, name: true },
+    });
+    if (booths.length === 0) return { total: 0, covered: 0, uncovered: [] };
+
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3600_000);
+    const active = await this.prisma.user.groupBy({
+      by: ["orgUnitId"],
+      where: {
+        orgUnitId: { in: booths.map((b) => b.id) },
+        lastActiveAt: { gte: sevenDaysAgo },
+      },
+    });
+    const coveredIds = new Set(active.map((r) => r.orgUnitId));
+    const uncovered = booths.filter((b) => !coveredIds.has(b.id));
+    return {
+      total: booths.length,
+      covered: booths.length - uncovered.length,
+      uncovered: uncovered.slice(0, 30).map((b) => ({ id: b.id, name: b.name })),
+    };
+  }
+
   async getTree(): Promise<OrgUnitNode[]> {
     const all = await this.rows();
     const directChildren = new Map<string, number>();
