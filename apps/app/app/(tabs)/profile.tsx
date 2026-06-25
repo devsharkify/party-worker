@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  AppState,
   KeyboardAvoidingView,
   Linking,
   Modal,
@@ -295,6 +296,22 @@ export default function Profile() {
       setBusy(undefined);
     }
   }
+
+  // Auto-finalize when the app comes back to the foreground after the OAuth browser is closed.
+  const postizPendingRef = useRef(postizPending);
+  postizPendingRef.current = postizPending;
+  const busyRef = useRef(busy);
+  busyRef.current = busy;
+
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active" && postizPendingRef.current && !busyRef.current) {
+        void finalizeIg();
+      }
+    });
+    return () => sub.remove();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function disconnectIg() {
     setBusy("ig-disconnect");

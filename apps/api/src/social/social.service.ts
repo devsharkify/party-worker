@@ -142,7 +142,7 @@ export class SocialService {
 
   // --- Postiz org-level channel connect (postiz mode) -------------------------
 
-  /** Fetch integration IDs currently in the org Postiz workspace. */
+  /** Fetch Instagram integration IDs currently in the org Postiz workspace. */
   private async postizIntegrationIds(): Promise<string[]> {
     try {
       const res = await fetch(`${this.postizBase}/integrations`, {
@@ -150,7 +150,14 @@ export class SocialService {
       });
       const list: any = await res.json().catch(() => []);
       if (!res.ok || !Array.isArray(list)) return [];
-      return list.map((i: any) => String(i.id)).filter(Boolean);
+      // Snapshot only Instagram channels so the before/after diff is apples-to-apples.
+      return list
+        .filter((i: any) => {
+          const id = String(i.identifier ?? "");
+          return (id === "instagram" || id === "instagram_business" || id === "facebook_instagram") && !i.disabled;
+        })
+        .map((i: any) => String(i.id))
+        .filter(Boolean);
     } catch {
       return []; // snapshot failure is non-fatal; finalize will do a full-list match
     }
@@ -206,21 +213,48 @@ export class SocialService {
     }
     if (!res.ok) throw new BadRequestException("Could not fetch Postiz integrations.");
 
-    const igEntries = list.filter((i) => i.identifier === "instagram" && !i.disabled);
+    // Log ALL identifiers so we can see what Postiz actually returns (helps debug identifier mismatch).
+    const allIdentifiers = [...new Set(list.map((i) => String(i.identifier ?? "??")))].join(",");
+    this.log.log(`Postiz /integrations returned ${list.length} entries. Identifiers seen: [${allIdentifiers}]. Snapshot: [${[...snapshotIds].join(",")}]`);
 
-    // Pick the integration that appeared after the snapshot (i.e. the one the worker just authorized).
-    // Fall back to any IG entry only when the snapshot was empty (snapshot fetch failed at connect time).
+    const igEntries = list.filter((i) => {
+      const id = String(i.identifier ?? "");
+      // Accept common Instagram identifier variants returned by different Postiz versions.
+      return (id === "instagram" || id === "instagram_business" || id === "facebook_instagram") && !i.disabled;
+    });
+
+    // Prefer channels that appeared after the snapshot (truly new).
+    // Fall back to any unclaimed channel — handles the case where the user's Instagram
+    // was already in the Postiz workspace (e.g. from a prior attempt or shared FB account).
     const newEntries = igEntries.filter((i) => !snapshotIds.has(String(i.id)));
-    const match = newEntries[0] ?? (snapshotIds.size === 0 ? igEntries[0] : undefined);
+
+    // Find which entries are unclaimed by any OTHER worker.
+    const claimedIds = new Set(
+      (await this.prisma.socialAccount.findMany({
+        where: { remoteUserId: { in: igEntries.map((i) => String(i.id)) }, connected: true, userId: { not: userId } },
+        select: { remoteUserId: true },
+      })).map((r) => r.remoteUserId).filter(Boolean) as string[],
+    );
+
+    const match =
+      // 1. New channel not already claimed by anyone
+      newEntries.find((i) => !claimedIds.has(String(i.id))) ??
+      // 2. Existing channel already claimed by THIS user (reconnect scenario)
+      igEntries.find((i) => {
+        const id = String(i.id);
+        return !claimedIds.has(id) || false; // unclaimed existing
+      }) ??
+      undefined;
 
     if (!match) {
       this.log.warn(
-        `Postiz IG finalize: no new integration found. ` +
+        `Postiz IG finalize: no claimable integration found. ` +
         `Snapshot ids: ${[...snapshotIds].slice(0, 5).join(",")}. ` +
+        `Claimed by others: ${[...claimedIds].join(",")}. ` +
         `Current IG entries: ${JSON.stringify(igEntries.map((i) => ({ id: i.id, profile: i.profile, name: i.name })))}`,
       );
       throw new BadRequestException(
-        "Instagram account not found in Postiz yet. Make sure you completed the authorization on Instagram, then try again.",
+        "Instagram account not found in Postiz. Complete the Facebook login in the browser that opened, then tap 'Complete Setup'.",
       );
     }
 
@@ -228,7 +262,7 @@ export class SocialService {
 
     // Prevent two workers from claiming the same Postiz channel.
     const alreadyOwned = await this.prisma.socialAccount.findFirst({
-      where: { remoteUserId: integrationId, userId: { not: userId } },
+      where: { remoteUserId: integrationId, connected: true, userId: { not: userId } },
     });
     if (alreadyOwned) {
       this.log.warn(`Integration ${integrationId} is already claimed by another worker.`);
