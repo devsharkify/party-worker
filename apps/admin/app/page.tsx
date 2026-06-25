@@ -38,7 +38,7 @@ const AdminLangCtx = createContext<{ lang: AdminLang; toggle: () => void }>({
   lang: "en",
   toggle: () => undefined,
 });
-export function useAdminLang() { return useContext(AdminLangCtx); }
+function useAdminLang() { return useContext(AdminLangCtx); }
 
 const NAV_LABELS: Record<string, { en: string; te: string }> = {
   overview:       { en: "Overview",              te: "అవలోకనం" },
