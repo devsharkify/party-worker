@@ -27,6 +27,10 @@ const disconnectSchema = z.object({
   socialAccountId: z.string().min(1),
 });
 
+const finalizeSchema = z.object({
+  integrationId: z.string().optional(),
+});
+
 @ApiTags("social")
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -95,10 +99,19 @@ export class SocialController {
     return this.social.syncInstagram(user.id);
   }
 
-  /** Postiz mode: after worker returns from Instagram OAuth, map their channel to this worker. */
+  /** Postiz mode: list Instagram channels that appeared after this worker's OAuth, unclaimed by others. */
+  @Get("postiz/pending-channels")
+  pendingChannels(@CurrentUser() user: AuthUser) {
+    return this.social.getPendingChannels(user.id);
+  }
+
+  /** Postiz mode: after worker confirms their channel in the picker, link it to their account. */
   @Post("postiz/finalize")
-  finalizePostiz(@CurrentUser() user: AuthUser) {
-    return this.social.finalizePostizConnect(user.id);
+  finalizePostiz(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(finalizeSchema)) dto: { integrationId?: string },
+  ) {
+    return this.social.finalizePostizConnect(user.id, dto.integrationId);
   }
 }
 

@@ -95,6 +95,7 @@ export default function Profile() {
   const badges = useApi<{ key: string; label: string; earned: boolean }[]>("/scoring/badges");
   const [busy, setBusy] = useState<string | undefined>();
   const [consentBusy, setConsentBusy] = useState<ConsentPurpose | undefined>();
+  const [pendingChannels, setPendingChannels] = useState<{ id: string; handle: string | null; name: string | null }[]>([]);
 
   async function toggleConsent(purpose: ConsentPurpose, granted: boolean) {
     setConsentBusy(purpose);
@@ -277,20 +278,41 @@ export default function Profile() {
     }
   }
 
-  async function finalizeIg() {
+  async function confirmChannel(integrationId: string) {
     setBusy("ig-finalize");
     try {
-      await api("/social/postiz/finalize", { method: "POST" });
+      await api("/social/postiz/finalize", { method: "POST", body: JSON.stringify({ integrationId }) });
       setPostizPending(false);
+      setPendingChannels([]);
       await Promise.all([social.reload(), summary.reload(), refreshUser()]);
+      toast.success("Instagram connected!");
     } catch (e: unknown) {
-      toast.error(toMsg(e, "Could not complete Instagram connection. Try again."));
+      toast.error(toMsg(e, "Could not connect that channel. Try again."));
     } finally {
       setBusy(undefined);
     }
   }
 
-  // Auto-finalize when the app comes back to the foreground after the OAuth browser is closed.
+  // When the app returns to foreground after OAuth, fetch which channels appeared.
+  // If exactly 1 new channel: auto-confirm. If multiple: show picker. If 0: show manual button.
+  async function fetchAndMaybeAutoFinalize() {
+    setBusy("ig-channels");
+    try {
+      const channels = await api<{ id: string; handle: string | null; name: string | null }[]>(
+        "/social/postiz/pending-channels",
+      );
+      if (channels.length === 1) {
+        await confirmChannel(channels[0].id);
+      } else {
+        setPendingChannels(channels);
+      }
+    } catch {
+      // Network error — leave postizPending=true so worker can tap "Complete Setup" manually.
+    } finally {
+      if (busy === "ig-channels") setBusy(undefined);
+    }
+  }
+
   const postizPendingRef = useRef(postizPending);
   postizPendingRef.current = postizPending;
   const busyRef = useRef(busy);
@@ -299,7 +321,7 @@ export default function Profile() {
   useEffect(() => {
     const sub = AppState.addEventListener("change", (state) => {
       if (state === "active" && postizPendingRef.current && !busyRef.current) {
-        void finalizeIg();
+        void fetchAndMaybeAutoFinalize();
       }
     });
     return () => sub.remove();
@@ -692,15 +714,48 @@ export default function Profile() {
           </View>
         ) : postizPending ? (
           <>
-            <Text style={st.note}>
-              Open Instagram, approve the request, then come back and tap below.
-            </Text>
-            <PrimaryButton
-              title="I've Connected — Complete Setup"
-              onPress={finalizeIg}
-              loading={busy === "ig-finalize"}
-            />
-            <Pressable onPress={() => setPostizPending(false)} style={{ marginTop: 8, alignSelf: "center" }}>
+            {pendingChannels.length > 0 ? (
+              <>
+                <Text style={st.note}>
+                  {pendingChannels.length === 1
+                    ? "Found your Instagram channel. Tap to confirm."
+                    : "Multiple channels found. Tap yours to connect."}
+                </Text>
+                {pendingChannels.map((ch) => (
+                  <Pressable
+                    key={ch.id}
+                    onPress={() => confirmChannel(ch.id)}
+                    disabled={busy === "ig-finalize"}
+                    style={({ pressed }) => [st.channelRow, (pressed || busy === "ig-finalize") && { opacity: 0.6 }]}
+                  >
+                    <Feather name="instagram" size={18} color={colors.primary} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={st.channelHandle}>
+                        {ch.handle ? `@${ch.handle}` : ch.name ?? "Instagram account"}
+                      </Text>
+                    </View>
+                    <Feather name="chevron-right" size={16} color={colors.textMuted} />
+                  </Pressable>
+                ))}
+              </>
+            ) : (
+              <>
+                <Text style={st.note}>
+                  {busy === "ig-channels"
+                    ? "Looking for your Instagram channel…"
+                    : "Open Instagram, approve the request, then come back and tap below."}
+                </Text>
+                <PrimaryButton
+                  title={busy === "ig-channels" ? "Checking…" : "I've Connected — Complete Setup"}
+                  onPress={fetchAndMaybeAutoFinalize}
+                  loading={busy === "ig-channels" || busy === "ig-finalize"}
+                />
+              </>
+            )}
+            <Pressable
+              onPress={() => { setPostizPending(false); setPendingChannels([]); }}
+              style={{ marginTop: 8, alignSelf: "center" }}
+            >
               <Text style={{ color: colors.textMuted, fontSize: 12 }}>Start over</Text>
             </Pressable>
           </>
@@ -1238,6 +1293,26 @@ const st = StyleSheet.create({
   },
   recruitText: { fontSize: 14, fontWeight: "700", color: colors.text, fontFamily: fontFamily, lineHeight: lh(14) },
 
+  // Instagram channel picker row
+  channelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.md,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: colors.primary + "33",
+  },
+  channelHandle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.primaryDark,
+    fontFamily: fontFamily,
+    lineHeight: lh(15),
+  },
   // Instagram disconnect
   igConnectedBlock: { gap: 10 },
   disconnectBtn: {

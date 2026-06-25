@@ -179,20 +179,108 @@ export class SocialService {
   }
 
   /**
-   * Called after the worker has authorized on Instagram and returned to the app.
-   * Uses a snapshot diff to only claim channels that appeared after connect was
-   * initiated, and checks for duplicate ownership to prevent channel hijacking.
+   * Returns Instagram channels in Postiz that are candidates for this worker to claim.
+   * Filters by: appeared after connect was initiated (timestamp > pending.createdAt OR
+   * not in pre-connect snapshot), and not already claimed by another worker.
+   * The client shows these as a picker so the worker confirms their own handle.
    */
-  async finalizePostizConnect(userId: string): Promise<SocialAccountInfo> {
-    // Pick the most-recently-created pending row for this user.
+  async getPendingChannels(userId: string): Promise<{ id: string; handle: string | null; name: string | null }[]> {
     const pending = await this.prisma.socialAccount.findFirst({
       where: { userId, platform: "instagram", connected: false },
       orderBy: { createdAt: "desc" },
     });
-    // accessTokenEnc holds the pre-connect snapshot; absence means the flow was never started.
-    if (!pending?.accessTokenEnc) throw new BadRequestException("No pending Instagram connect found. Start again.");
+    if (!pending) return [];
 
-    // Parse the pre-connect snapshot stored in accessTokenEnc.
+    // Parse the pre-connect snapshot (fallback filter when Postiz doesn't return createdAt).
+    let snapshotIds: Set<string> = new Set();
+    try {
+      const stored = JSON.parse(pending.accessTokenEnc ?? "[]") as string[];
+      if (Array.isArray(stored)) snapshotIds = new Set(stored);
+    } catch { /* non-fatal */ }
+
+    const res = await fetch(`${this.postizBase}/integrations`, {
+      headers: { Authorization: this.env.POSTIZ_API_KEY },
+    });
+    let list: Array<Record<string, unknown>>;
+    try {
+      const raw = await res.json();
+      list = Array.isArray(raw) ? raw : [];
+    } catch {
+      return [];
+    }
+    if (!res.ok) return [];
+
+    const igEntries = list.filter((i) => {
+      const id = String(i.identifier ?? "");
+      return (id === "instagram" || id === "instagram_business" || id === "facebook_instagram") && !i.disabled;
+    });
+
+    // Primary filter: channels created after this connect was initiated (pending row's createdAt).
+    // More reliable than snapshot diff — Postiz's createdAt is monotonic; snapshot can fail silently.
+    const pendingCreatedAt = pending.createdAt;
+    const byTimestamp = igEntries.filter((i) => {
+      if (!i.createdAt) return false;
+      try { return new Date(i.createdAt as string) > pendingCreatedAt; } catch { return false; }
+    });
+
+    // Secondary filter: snapshot diff (channels not in the pre-connect snapshot).
+    const bySnapshot = igEntries.filter((i) => !snapshotIds.has(String(i.id)));
+
+    // Use timestamp candidates first, fall back to snapshot, fall back to all IG channels.
+    const candidates =
+      byTimestamp.length > 0 ? byTimestamp :
+      bySnapshot.length > 0  ? bySnapshot  :
+      igEntries;
+
+    // Remove channels already claimed by a different worker.
+    const claimedByOthers = new Set(
+      (await this.prisma.socialAccount.findMany({
+        where: { remoteUserId: { in: candidates.map((i) => String(i.id)) }, connected: true, userId: { not: userId } },
+        select: { remoteUserId: true },
+      })).map((r) => r.remoteUserId).filter(Boolean) as string[],
+    );
+
+    return candidates
+      .filter((i) => !claimedByOthers.has(String(i.id)))
+      .map((i) => ({
+        id: String(i.id),
+        handle: String(i.profile ?? "").replace(/^@/, "") || null,
+        name: String(i.name ?? "") || null,
+      }));
+  }
+
+  /**
+   * Called after the worker confirms their Instagram channel.
+   * When integrationId is provided (from the picker), the server links it directly —
+   * no guessing. Falls back to auto-detect for old clients that don't send an ID.
+   */
+  async finalizePostizConnect(userId: string, integrationId?: string): Promise<SocialAccountInfo> {
+    const pending = await this.prisma.socialAccount.findFirst({
+      where: { userId, platform: "instagram", connected: false },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!pending) throw new BadRequestException("No pending Instagram connect found. Start again.");
+
+    // --- Fast path: client told us exactly which channel to claim ---
+    if (integrationId) {
+      const res = await fetch(`${this.postizBase}/integrations`, {
+        headers: { Authorization: this.env.POSTIZ_API_KEY },
+      });
+      let list: Array<Record<string, unknown>> = [];
+      try {
+        const raw = await res.json();
+        list = Array.isArray(raw) ? raw : [];
+      } catch { /* non-fatal */ }
+
+      const match = list.find((i) => String(i.id) === integrationId);
+      if (!match) throw new BadRequestException("That Instagram channel was not found in Postiz. Try reconnecting.");
+
+      return this.claimIntegration(userId, pending, match);
+    }
+
+    // --- Fallback: auto-detect (no integrationId sent — legacy / edge case) ---
+    if (!pending.accessTokenEnc) throw new BadRequestException("No pending Instagram connect found. Start again.");
+
     let snapshotIds: Set<string>;
     try {
       const stored = JSON.parse(pending.accessTokenEnc) as string[];
@@ -214,22 +302,14 @@ export class SocialService {
     }
     if (!res.ok) throw new BadRequestException("Could not fetch Postiz integrations.");
 
-    // Log ALL identifiers so we can see what Postiz actually returns (helps debug identifier mismatch).
     const allIdentifiers = [...new Set(list.map((i) => String(i.identifier ?? "??")))].join(",");
-    this.log.log(`Postiz /integrations returned ${list.length} entries. Identifiers seen: [${allIdentifiers}]. Snapshot: [${[...snapshotIds].join(",")}]`);
+    this.log.log(`Postiz /integrations returned ${list.length} entries. Identifiers seen: [${allIdentifiers}].`);
 
     const igEntries = list.filter((i) => {
       const id = String(i.identifier ?? "");
-      // Accept common Instagram identifier variants returned by different Postiz versions.
       return (id === "instagram" || id === "instagram_business" || id === "facebook_instagram") && !i.disabled;
     });
 
-    // Prefer channels that appeared after the snapshot (truly new).
-    // Fall back to any unclaimed channel — handles the case where the user's Instagram
-    // was already in the Postiz workspace (e.g. from a prior attempt or shared FB account).
-    const newEntries = igEntries.filter((i) => !snapshotIds.has(String(i.id)));
-
-    // Find which entries are unclaimed by any OTHER worker.
     const claimedIds = new Set(
       (await this.prisma.socialAccount.findMany({
         where: { remoteUserId: { in: igEntries.map((i) => String(i.id)) }, connected: true, userId: { not: userId } },
@@ -237,45 +317,58 @@ export class SocialService {
       })).map((r) => r.remoteUserId).filter(Boolean) as string[],
     );
 
-    const match =
-      // 1. New channel not already claimed by anyone
-      newEntries.find((i) => !claimedIds.has(String(i.id))) ??
-      // 2. Existing channel already claimed by THIS user (reconnect scenario)
-      igEntries.find((i) => {
-        const id = String(i.id);
-        return !claimedIds.has(id) || false; // unclaimed existing
-      }) ??
-      undefined;
+    const newEntries = igEntries.filter((i) => !snapshotIds.has(String(i.id)));
+    const match = newEntries.find((i) => !claimedIds.has(String(i.id)));
 
     if (!match) {
-      this.log.warn(
-        `Postiz IG finalize: no claimable integration found. ` +
-        `Snapshot ids: ${[...snapshotIds].slice(0, 5).join(",")}. ` +
-        `Claimed by others: ${[...claimedIds].join(",")}. ` +
-        `Current IG entries: ${JSON.stringify(igEntries.map((i) => ({ id: i.id, profile: i.profile, name: i.name })))}`,
-      );
+      this.log.warn(`Postiz IG finalize: no claimable integration found. Claimed by others: ${[...claimedIds].join(",")}.`);
       throw new BadRequestException(
         "Instagram account not found in Postiz. Complete the Facebook login in the browser that opened, then tap 'Complete Setup'.",
       );
     }
 
+    return this.claimIntegration(userId, pending, match);
+  }
+
+  /** Shared logic: link a Postiz integration to a worker's pending row. */
+  private async claimIntegration(
+    userId: string,
+    pending: { id: string; isPrimary: boolean; createdAt: Date },
+    match: Record<string, unknown>,
+  ): Promise<SocialAccountInfo> {
     const integrationId = String(match.id);
 
-    // Prevent two workers from claiming the same Postiz channel.
+    // Check if another worker already holds this channel.
     const alreadyOwned = await this.prisma.socialAccount.findFirst({
       where: { remoteUserId: integrationId, connected: true, userId: { not: userId } },
     });
+
     if (alreadyOwned) {
-      this.log.warn(`Integration ${integrationId} is already claimed by another worker.`);
-      throw new BadRequestException(
-        "This Instagram channel is already connected to another account. If this is your account, disconnect it from the other worker first.",
+      // Force-transfer proof: the current worker just completed a fresh OAuth for this channel
+      // (pending row was created AFTER the previous owner connected it). Only the real account
+      // holder can successfully complete Facebook OAuth for that Instagram account, so a fresh
+      // pending row is sufficient proof of ownership. Transfer the channel.
+      const previousOwnerConnectedAt = alreadyOwned.createdAt ?? new Date(0);
+      const freshOAuth = pending.createdAt > previousOwnerConnectedAt;
+
+      if (!freshOAuth) {
+        throw new BadRequestException(
+          "This Instagram channel is already connected to another account. To reclaim it, tap 'Connect Instagram' and complete the Facebook login — that proves you own the account.",
+        );
+      }
+
+      // Transfer: disconnect from the previous (wrong) owner and hand it to this worker.
+      this.log.warn(
+        `Force-transfer: integration ${integrationId} moving from worker ${alreadyOwned.userId} to ${userId} (fresh OAuth proof).`,
       );
+      await this.prisma.socialAccount.update({
+        where: { id: alreadyOwned.id },
+        data: { connected: false, remoteUserId: null, handle: null },
+      });
     }
 
-    // Discover the handle directly from the Postiz integration object.
     const discoveredHandle = String(match.profile ?? match.name ?? "").replace(/^@/, "") || null;
 
-    // If this user already has a connected row for the same remoteUserId, reuse it.
     const existingConnected = await this.prisma.socialAccount.findFirst({
       where: { userId, remoteUserId: integrationId, connected: true },
     });
@@ -290,9 +383,7 @@ export class SocialService {
       });
     }
 
-    // Delete any remaining pending rows (stale connect attempts) to prevent re-finalize loops.
     await this.prisma.socialAccount.deleteMany({ where: { userId, platform: "instagram", connected: false } });
-
     return this.toInfo(a);
   }
 
