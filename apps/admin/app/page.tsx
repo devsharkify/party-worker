@@ -264,7 +264,7 @@ function Dashboard() {
         </div>
         {/* Segmented section nav (no routing — local state) */}
         <nav className="mx-auto max-w-6xl px-6">
-          <div className="mt-3 flex gap-1 overflow-x-auto" role="tablist" aria-label="Sections">
+          <div className="mt-3 flex gap-1 overflow-x-auto pb-1.5" role="tablist" aria-label="Sections">
             {NAV.map((n) => {
               const active = section === n.id;
               const label = NAV_LABELS[n.id]?.[lang] ?? n.label;
