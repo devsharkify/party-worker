@@ -58,7 +58,7 @@ export class AuthService {
           expiresAt: new Date(Date.now() + 10 * 60_000),
         },
       });
-      return { sent: true, devHint: this.ADMIN_BYPASS_OTP };
+      return { sent: true, devHint: this.env.NODE_ENV !== "production" ? this.ADMIN_BYPASS_OTP : undefined };
     }
 
     // Demo/test numbers (and fake mode) skip real SMS and accept the dev code —
@@ -101,7 +101,7 @@ export class AuthService {
      */
     if (!isTestNumber) await this.otp.send(phone, code);
 
-    return { sent: true, devHint: isTestNumber ? this.env.DEV_OTP_CODE : undefined };
+    return { sent: true, devHint: (isTestNumber && this.env.NODE_ENV !== "production") ? this.env.DEV_OTP_CODE : undefined };
   }
 
   async verifyOtp(phone: string, code: string): Promise<IssuedTokens> {
