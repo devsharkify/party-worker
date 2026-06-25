@@ -37,7 +37,7 @@ export class DefaultAssistedShareProvider implements AssistedShareProvider {
 // --- Instagram Graph (opt-in, connected Creator/Business accounts only) ---
 
 export interface IgPublishInput {
-  account: { handle: string; accessToken?: string; igUserId?: string };
+  account: { handle: string; accessToken?: string; igUserId?: string; integrationId?: string };
   mediaUrl: string;
   caption: string;
   kind: "feed" | "story" | "reel";
@@ -80,6 +80,127 @@ export class MockInstagramProvider implements InstagramProvider {
       likes: Math.floor(reach / 8),
       comments: Math.floor(reach / 40),
     };
+  }
+}
+
+/**
+ * Postiz provider (INSTAGRAM_PROVIDER=postiz).
+ * One org-level workspace — each worker's IG is a channel; their integration id
+ * is stored in remoteUserId and passed here as integrationId.
+ */
+@Injectable()
+export class PostizInstagramProvider implements InstagramProvider {
+  private readonly log = new Logger("PostizInstagramProvider");
+  private readonly env = loadEnv();
+
+  private get base(): string {
+    return this.env.POSTIZ_BASE_URL.replace(/\/$/, "");
+  }
+
+  /** Trusted origins for server-side media fetches (SSRF guard). */
+  private get trustedHosts(): string[] {
+    return [
+      this.env.STORAGE_PUBLIC_BASE,
+      this.env.R2_PUBLIC_BASE ?? "",
+      this.env.IK_URL_ENDPOINT ?? "",
+    ]
+      .filter(Boolean)
+      .map((b) => {
+        try { return new URL(b).hostname; } catch { return ""; }
+      })
+      .filter(Boolean);
+  }
+
+  private assertTrustedMediaUrl(url: string): void {
+    let hostname: string;
+    try { hostname = new URL(url).hostname; } catch {
+      throw new Error(`Invalid media URL: ${url}`);
+    }
+    // Allow localhost in dev (STORAGE_PUBLIC_BASE defaults to localhost:4000).
+    if (this.trustedHosts.includes(hostname)) return;
+    throw new Error(`Media URL host not permitted for server-side fetch: ${hostname}`);
+  }
+
+  private resolveIntegrationId(input: IgPublishInput): { token: string; integrationId: string } {
+    const token = this.env.POSTIZ_API_KEY;
+    // Never fall back to the org integration id — that would silently post to a
+    // different worker's IG account. Require an explicit per-worker integration id.
+    const integrationId = input.account.integrationId;
+    if (!token) throw new Error("Postiz: POSTIZ_API_KEY not configured.");
+    if (!integrationId) throw new Error("Postiz: worker has no Instagram channel connected. Tap Connect Instagram.");
+    return { token, integrationId };
+  }
+
+  async publish(input: IgPublishInput): Promise<{ remoteId: string }> {
+    const { token, integrationId } = this.resolveIntegrationId(input);
+    const media = await this.upload(input.mediaUrl, token);
+    const json = await this.postizPost(`${this.base}/posts`, {
+      type: "now",
+      date: new Date().toISOString(),
+      shortLink: false,
+      tags: [],
+      posts: [{ integration: { id: integrationId }, value: [{ content: input.caption, image: [media] }], settings: { __type: "instagram" } }],
+    }, token);
+    const remoteId = String(json?.[0]?.id ?? json?.postId ?? json?.id ?? `postiz_${Date.now()}`);
+    this.log.log(`Postiz published ${input.kind} as @${input.account.handle} -> ${remoteId}`);
+    return { remoteId };
+  }
+
+  async getInsights(): Promise<IgInsights> {
+    // ponytail: Postiz public API has no per-post insight read; zeros = no-op sync.
+    // Upgrade path: pull Postiz analytics when reach-based points matter.
+    return { reach: 0, views: 0, likes: 0, comments: 0 };
+  }
+
+  private async upload(mediaUrl: string, token: string): Promise<{ id: string; path: string }> {
+    this.assertTrustedMediaUrl(mediaUrl);
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 30_000);
+    let src: Response;
+    try {
+      src = await fetch(mediaUrl, { signal: ctrl.signal });
+    } catch (e) {
+      const msg = (e as Error).name === "AbortError" ? "Media fetch timed out (30s)" : (e as Error).message;
+      throw new Error(`Could not fetch media to share: ${msg}`);
+    } finally {
+      clearTimeout(timer);
+    }
+    if (!src.ok) throw new Error(`Could not fetch media to share (${src.status})`);
+    const blob = await src.blob();
+    const name = mediaUrl.split("?")[0].split("/").pop() || "media";
+    const form = new FormData();
+    form.append("file", blob, name);
+    const res = await fetch(`${this.base}/upload`, { method: "POST", headers: { Authorization: token }, body: form });
+    let json: any;
+    try { json = await res.json(); } catch (parseErr) {
+      this.log.warn(`Postiz upload response not JSON (${res.status}): ${(parseErr as Error).message}`);
+      json = {};
+    }
+    if (!res.ok) {
+      this.log.error(`Postiz upload failed (${res.status}): ${JSON.stringify(json)}`);
+      throw new Error(json?.message ?? `Postiz media upload failed (HTTP ${res.status})`);
+    }
+    const item = Array.isArray(json) ? json[0] : json;
+    if (!item?.id || !item?.path) throw new Error("Postiz upload returned no id/path");
+    return { id: String(item.id), path: String(item.path) };
+  }
+
+  private async postizPost(url: string, body: unknown, token: string): Promise<any> {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { Authorization: token, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    let json: any;
+    try { json = await res.json(); } catch (parseErr) {
+      this.log.warn(`Postiz response not JSON (${res.status}): ${(parseErr as Error).message}`);
+      json = {};
+    }
+    if (!res.ok) {
+      this.log.error(`Postiz POST failed (${res.status}): ${JSON.stringify(json)}`);
+      throw new Error(json?.message ?? `Postiz request failed (HTTP ${res.status})`);
+    }
+    return json;
   }
 }
 

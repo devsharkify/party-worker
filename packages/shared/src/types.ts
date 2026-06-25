@@ -185,10 +185,12 @@ export interface ScoreSummary {
 }
 
 export interface SocialAccountInfo {
+  id: string;
   platform: SocialPlatform;
   type: SocialAccountType;
   connected: boolean;
   handle: string | null;
+  isPrimary: boolean;
   /** false for personal/unconnected => base points only */
   insightsAvailable: boolean;
 }

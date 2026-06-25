@@ -69,7 +69,12 @@ const EnvSchema = z.object({
   FCM_SERVICE_ACCOUNT_JSON: z.string().optional(),
   // "mock"  — instant connect, no API calls (dev default)
   // "graph" — direct Meta Graph API (requires META_APP_* vars + approved by Meta)
-  INSTAGRAM_PROVIDER: z.enum(["mock", "graph"]).default("mock"),
+  INSTAGRAM_PROVIDER: z.enum(["mock", "graph", "postiz"]).default("mock"),
+  // Postiz org-level (INSTAGRAM_PROVIDER=postiz). One Postiz workspace, one API key.
+  // Each worker's IG is a channel in this workspace; remoteUserId stores their integration id.
+  POSTIZ_BASE_URL: z.string().default("https://api.postiz.com/public/v1"),
+  POSTIZ_API_KEY: z.string().default(""),
+  POSTIZ_IG_INTEGRATION_ID: z.string().default(""), // fallback if worker has no integration id yet
   META_OAUTH_REDIRECT: z.string().default("http://localhost:4000/social/instagram/callback"),
   // Meta Graph (Instagram) — used when INSTAGRAM_PROVIDER=graph. Empty in dev.
   META_APP_ID: z.string().default(""),
@@ -119,19 +124,26 @@ export function loadEnv(): Env {
   const env = EnvSchema.parse(process.env);
   // Fail fast on boot if a production deploy is still running on dev secrets,
   // or if test-login backdoors are left enabled. Better a crash than a breach.
-  if (env.NODE_ENV === "production") {
+  if (env.NODE_ENV !== "development") {
     const offenders: string[] = [];
     for (const [key, devValue] of Object.entries(DEV_DEFAULT_SECRETS)) {
       if ((env as Record<string, unknown>)[key] === devValue) offenders.push(key);
     }
     if (offenders.length) {
       throw new Error(
-        `Refusing to boot in production with dev-default secrets: ${offenders.join(", ")}. Set real values.`,
+        `Refusing to boot with dev-default secrets: ${offenders.join(", ")}. Set real values.`,
       );
     }
-    if (env.ALLOW_TEST_LOGINS === "true") {
+    if (env.NODE_ENV === "production") {
+      if (env.ALLOW_TEST_LOGINS === "true") {
+        throw new Error(
+          "ALLOW_TEST_LOGINS must not be 'true' in production — it enables OTP backdoors.",
+        );
+      }
+    }
+    if (env.INSTAGRAM_PROVIDER === "postiz" && !env.POSTIZ_API_KEY) {
       throw new Error(
-        "ALLOW_TEST_LOGINS must not be 'true' in production — it enables OTP backdoors.",
+        "INSTAGRAM_PROVIDER=postiz requires POSTIZ_API_KEY to be set.",
       );
     }
   }

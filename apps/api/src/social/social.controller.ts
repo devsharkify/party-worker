@@ -19,6 +19,12 @@ const publishSchema = z.object({
   kind: z.enum(["feed", "story", "reel"]).default("feed"),
   /** Optional override: URL of a pre-composited image (e.g. creative + worker banner). */
   mediaUrl: z.string().url().optional(),
+  /** Optional: which connected account to post from. Defaults to primary. */
+  socialAccountId: z.string().optional(),
+});
+
+const disconnectSchema = z.object({
+  socialAccountId: z.string().min(1),
 });
 
 @ApiTags("social")
@@ -59,28 +65,40 @@ export class SocialController {
   }
 
   @Post("instagram/disconnect")
-  disconnect(@CurrentUser() user: AuthUser) {
-    return this.social.disconnectInstagram(user.id);
+  disconnect(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(disconnectSchema)) dto: { socialAccountId: string },
+  ) {
+    return this.social.disconnectInstagram(user.id, dto.socialAccountId);
   }
 
   /** Alias: DELETE /social/ig/disconnect */
   @Delete("ig/disconnect")
-  disconnectIg(@CurrentUser() user: AuthUser) {
-    return this.social.disconnectInstagram(user.id);
+  disconnectIg(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(disconnectSchema)) dto: { socialAccountId: string },
+  ) {
+    return this.social.disconnectInstagram(user.id, dto.socialAccountId);
   }
 
   @Post("instagram/publish")
   publish(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(publishSchema))
-    dto: { creativeId: string; kind: "feed" | "story" | "reel"; mediaUrl?: string },
+    dto: { creativeId: string; kind: "feed" | "story" | "reel"; mediaUrl?: string; socialAccountId?: string },
   ) {
-    return this.social.publishToInstagram(user.id, dto.creativeId, dto.kind, dto.mediaUrl);
+    return this.social.publishToInstagram(user.id, dto.creativeId, dto.kind, dto.mediaUrl, dto.socialAccountId);
   }
 
   @Post("instagram/sync")
   sync(@CurrentUser() user: AuthUser) {
     return this.social.syncInstagram(user.id);
+  }
+
+  /** Postiz mode: after worker returns from Instagram OAuth, map their channel to this worker. */
+  @Post("postiz/finalize")
+  finalizePostiz(@CurrentUser() user: AuthUser) {
+    return this.social.finalizePostizConnect(user.id);
   }
 }
 

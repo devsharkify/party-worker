@@ -74,6 +74,12 @@ const CONSENT_KEY: Record<ConsentPurpose, string> = {
   location: "consent.location",
 };
 
+function toMsg(e: unknown, fallback: string): string {
+  if (e instanceof Error && e.message) return e.message;
+  if (typeof e === "string" && e) return e;
+  return fallback;
+}
+
 export default function Profile() {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
@@ -139,7 +145,7 @@ export default function Profile() {
       setEditOpen(false);
       toast.success("Profile updated");
     } catch (e: unknown) {
-      setEditError((e as Error).message ?? "Failed to save.");
+      setEditError(toMsg(e, "Failed to save."));
     } finally {
       setBusy(undefined);
     }
@@ -148,6 +154,7 @@ export default function Profile() {
   // Photo upload — picker → downscale to 512px → POST /users/me/photo.
   // Web uses a file input + canvas; native uses expo-image-picker + manipulator.
   const [photoBusy, setPhotoBusy] = useState(false);
+  const [postizPending, setPostizPending] = useState(false);
   const LP = {
     updated: { te: "ఫోటో అప్‌డేట్ అయింది", en: "Photo updated" },
     failed: { te: "ఫోటో అప్‌లోడ్ విఫలమైంది", en: "Photo upload failed" },
@@ -246,6 +253,15 @@ export default function Profile() {
 
   const ig = social.data?.find((s) => s.platform === "instagram");
 
+  // Restore pending Postiz connect state if the app was backgrounded mid-flow.
+  // A pending row has type="creator" and connected=false (set by connectInstagram).
+  const [_postizRestored, setPostizRestored] = useState(false);
+  if (!_postizRestored && social.data) {
+    setPostizRestored(true);
+    const pendingIg = social.data.find((s) => s.platform === "instagram" && !s.connected && s.type === "creator");
+    if (pendingIg) setPostizPending(true);
+  }
+
   async function connectIg() {
     setBusy("ig");
     try {
@@ -255,10 +271,26 @@ export default function Profile() {
       );
       if (result?.authorizeUrl) {
         await Linking.openURL(result.authorizeUrl);
+        setPostizPending(true);
         return;
       }
       await api("/social/instagram/sync", { method: "POST" });
       await Promise.all([social.reload(), summary.reload(), refreshUser()]);
+    } catch (e: unknown) {
+      toast.error(toMsg(e, "Could not start Instagram connection. Try again."));
+    } finally {
+      setBusy(undefined);
+    }
+  }
+
+  async function finalizeIg() {
+    setBusy("ig-finalize");
+    try {
+      await api("/social/postiz/finalize", { method: "POST" });
+      setPostizPending(false);
+      await Promise.all([social.reload(), summary.reload(), refreshUser()]);
+    } catch (e: unknown) {
+      toast.error(toMsg(e, "Could not complete Instagram connection. Try again."));
     } finally {
       setBusy(undefined);
     }
@@ -270,7 +302,7 @@ export default function Profile() {
       await api("/social/instagram/disconnect", { method: "POST" });
       await Promise.all([social.reload(), summary.reload(), refreshUser()]);
     } catch (e: unknown) {
-      toast.error((e as Error).message ?? "Failed to disconnect Instagram.");
+      toast.error(toMsg(e, "Failed to disconnect Instagram."));
     } finally {
       setBusy(undefined);
     }
@@ -648,6 +680,20 @@ export default function Profile() {
               <Text style={st.disconnectBtnText}>Disconnect</Text>
             </Pressable>
           </View>
+        ) : postizPending ? (
+          <>
+            <Text style={st.note}>
+              Open Instagram, approve the request, then come back and tap below.
+            </Text>
+            <PrimaryButton
+              title="I've Connected — Complete Setup"
+              onPress={finalizeIg}
+              loading={busy === "ig-finalize"}
+            />
+            <Pressable onPress={() => setPostizPending(false)} style={{ marginTop: 8, alignSelf: "center" }}>
+              <Text style={{ color: colors.textMuted, fontSize: 12 }}>Start over</Text>
+            </Pressable>
+          </>
         ) : (
           <>
             <Text style={st.note}>{t("profile.basePointsOnly")}</Text>
@@ -1093,6 +1139,7 @@ const st = StyleSheet.create({
   connected: { color: colors.success, fontWeight: "700", fontFamily: fontFamily },
   handle: { color: colors.textMuted, fontWeight: "600", fontFamily: fontFamily },
   note: { color: colors.textMuted, marginBottom: 12, lineHeight: 20, fontFamily: fontFamily },
+  input: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, color: colors.text, fontFamily: fontFamily, fontSize: 14, marginBottom: 10 },
   lang: {
     flex: 1,
     alignItems: "center",

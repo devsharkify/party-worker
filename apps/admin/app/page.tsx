@@ -3486,7 +3486,7 @@ function CrisisSection() {
 
   async function resolve(id: string) {
     try {
-      await api(`/crisis/${id}/resolve`, { method: "POST" });
+      await api(`/crisis/${id}/resolve`, { method: "PUT" });
       toast("Alert resolved", "success");
       void load();
     } catch (e) { toast((e as Error).message, "error"); }
@@ -3641,7 +3641,7 @@ function BoothTasksSection() {
   async function load() {
     if (!orgUnitId.trim()) return;
     setBusy(true);
-    try { setReport(await api<TaskReport>(`/booth-tasks/report?orgUnitId=${orgUnitId.trim()}`)); }
+    try { setReport(await api<TaskReport>(`/booth-tasks/report?orgUnitId=${encodeURIComponent(orgUnitId.trim())}`)); }
     catch (e) { toast((e as Error).message, "error"); }
     finally { setBusy(false); }
   }
@@ -3710,7 +3710,11 @@ function WaGroupsSection() {
     if (!orgUnitId.trim()) return;
     setBusy(true);
     try { setInfo(await api<WaGroupInfo>(`/wa-groups/${orgUnitId.trim()}`)); }
-    catch { setInfo(null); }
+    catch (e) {
+      setInfo(null);
+      const msg = (e as Error).message ?? "";
+      if (!msg.includes("404") && !msg.includes("Not Found")) toast(msg || "Failed to load group", "error");
+    }
     finally { setBusy(false); }
   }
 
@@ -3718,7 +3722,7 @@ function WaGroupsSection() {
     if (!orgUnitId.trim() || !link.trim()) return;
     setBusy(true);
     try {
-      await api("/wa-groups", { method: "POST", body: JSON.stringify({ orgUnitId: orgUnitId.trim(), link, label: label || undefined }) });
+      await api(`/wa-groups/${orgUnitId.trim()}`, { method: "PUT", body: JSON.stringify({ link, label: label || undefined }) });
       toast("Group saved", "success");
       void fetchGroup();
     } catch (e) { toast((e as Error).message, "error"); }

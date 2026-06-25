@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { captureRef } from "react-native-view-shot";
 import { useTranslation } from "react-i18next";
-import type { FeedItem } from "@pw/shared";
+import type { FeedItem, SocialAccountInfo } from "@pw/shared";
 import { useAuth } from "../auth/auth-context";
 import { WorkerBanner, BannerUser } from "./WorkerBanner";
 import { RemoteImage } from "./RemoteImage";
@@ -52,6 +52,20 @@ export function BannerShareModal({ item, visible, onClose, user }: Props) {
   const compositeRef = useRef<View>(null);
   const [status, setStatus] = useState<Status>("idle");
   const [errMsg, setErrMsg] = useState<string>("");
+  const [accounts, setAccounts] = useState<SocialAccountInfo[]>([]);
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!visible) return;
+    api<SocialAccountInfo[]>("/social/accounts")
+      .then((list) => {
+        const connected = list.filter((a) => a.connected && a.platform === "instagram");
+        setAccounts(connected);
+        const primary = connected.find((a) => a.isPrimary) ?? connected[0];
+        setSelectedAccountId(primary?.id ?? null);
+      })
+      .catch(() => {});
+  }, [visible]);
 
   // Guard: nothing to render without an item
   if (!item) return null;
@@ -110,6 +124,7 @@ export function BannerShareModal({ item, visible, onClose, user }: Props) {
           creativeId: item.creativeId,
           kind: "feed",
           ...(compositeUrl ? { mediaUrl: compositeUrl } : {}),
+          ...(selectedAccountId ? { socialAccountId: selectedAccountId } : {}),
         }),
       });
 
@@ -180,6 +195,35 @@ export function BannerShareModal({ item, visible, onClose, user }: Props) {
 
         {/* Hint */}
         <Text style={s.hint}>Your personalized banner</Text>
+
+        {/* ── Account picker (only shown when worker has multiple accounts) ── */}
+        {accounts.length > 1 && status === "idle" && (
+          <View style={s.pickerWrapper}>
+            <Text style={s.pickerLabel}>
+              {i18n.language !== "en" ? "అకౌంట్ ఎంచుకోండి" : "Post from"}
+            </Text>
+            {accounts.map((acct) => {
+              const selected = acct.id === selectedAccountId;
+              return (
+                <Pressable
+                  key={acct.id}
+                  style={[s.accountRow, selected && s.accountRowSelected]}
+                  onPress={() => setSelectedAccountId(acct.id)}
+                >
+                  <View style={[s.radioCircle, selected && s.radioCircleSelected]} />
+                  <Text style={[s.accountHandle, selected && s.accountHandleSelected]}>
+                    @{acct.handle ?? acct.id.slice(-6)}
+                  </Text>
+                  {acct.isPrimary && (
+                    <Text style={s.primaryBadge}>
+                      {i18n.language !== "en" ? "ప్రాథమిక" : "Primary"}
+                    </Text>
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
 
         {/* ── Share button ─────────────────────────────────────────────── */}
         {status !== "done" && (
@@ -306,6 +350,71 @@ const s = StyleSheet.create({
     fontWeight: fontWeight.regular,
     lineHeight: lh(13),
     textAlign: "center",
+  },
+
+  /* Account picker */
+  pickerWrapper: {
+    width: "100%",
+    marginBottom: 20,
+    gap: 8,
+  },
+  pickerLabel: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontFamily,
+    fontWeight: fontWeight.semibold,
+    lineHeight: lh(12),
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 4,
+  },
+  accountRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: radius.sm,
+    borderWidth: 1.5,
+    borderColor: colors.border ?? "#e5e7eb",
+    backgroundColor: colors.surface ?? "#ffffff",
+  },
+  accountRowSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryLight ?? "#eff6ff",
+  },
+  radioCircle: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: colors.textMuted,
+  },
+  radioCircleSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  accountHandle: {
+    flex: 1,
+    color: colors.text ?? "#111827",
+    fontSize: 14,
+    fontFamily,
+    fontWeight: fontWeight.semibold,
+    lineHeight: lh(14),
+  },
+  accountHandleSelected: {
+    color: colors.primary,
+  },
+  primaryBadge: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontFamily,
+    fontWeight: fontWeight.regular,
+    lineHeight: lh(11),
+    backgroundColor: colors.bg,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
 
   /* Share button */

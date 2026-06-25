@@ -268,13 +268,12 @@ model SocialAccount {
   type            SocialAccountType @default(personal)
   handle          String?
   connected       Boolean           @default(false)
+  isPrimary       Boolean           @default(false)
   remoteUserId    String?           // IG Business/Creator account id (Graph API)
   accessTokenEnc  String?
   refreshTokenEnc String?
   tokenExpiresAt  DateTime?
   createdAt       DateTime          @default(now())
-
-  @@unique([userId, platform])
 }
 
 // ---------------------------------------------------------------------------

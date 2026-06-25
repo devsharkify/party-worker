@@ -13,8 +13,8 @@ import { INSTAGRAM_PROVIDER, type InstagramProvider } from "../providers/posting
 import { decryptSecret, encryptSecret, sha256 } from "../auth/crypto.util";
 
 export type ConnectInstagramResult = SocialAccountInfo & {
-  /** "mock" = instantly connected (dev). "graph" = direct Meta OAuth. */
-  mode: "mock" | "graph";
+  /** "mock" = instantly connected (dev). "graph" = direct Meta OAuth. "postiz" = via Postiz channel. */
+  mode: "mock" | "graph" | "postiz";
   authorizeUrl?: string;
 };
 
@@ -40,21 +40,33 @@ export class SocialService {
     return this.env.INSTAGRAM_PROVIDER === "graph";
   }
 
+  private get postizMode(): boolean {
+    return this.env.INSTAGRAM_PROVIDER === "postiz";
+  }
+
+  private get postizBase(): string {
+    return this.env.POSTIZ_BASE_URL.replace(/\/$/, "");
+  }
+
   private get graphBase(): string {
     return `https://graph.facebook.com/${this.env.META_GRAPH_VERSION}`;
   }
 
   private toInfo(a: {
+    id: string;
     platform: string;
     type: string;
     connected: boolean;
     handle: string | null;
+    isPrimary: boolean;
   }): SocialAccountInfo {
     return {
+      id: a.id,
       platform: a.platform as SocialPlatform,
       type: a.type as SocialAccountType,
       connected: a.connected,
       handle: a.handle,
+      isPrimary: a.isPrimary,
       insightsAvailable: a.connected && a.type !== "personal",
     };
   }
@@ -75,31 +87,40 @@ export class SocialService {
   ): Promise<ConnectInstagramResult> {
     if (this.graphMode) {
       return {
+        id: "",
         platform: "instagram",
         type: "creator",
         connected: false,
         handle: null,
+        isPrimary: false,
         insightsAvailable: false,
         mode: "graph",
         authorizeUrl: this.getAuthorizeUrl(userId),
       };
     }
 
+    if (this.postizMode) {
+      // Snapshot current integration IDs so finalize can identify the newly-added
+      // channel without requiring the worker to type their handle.
+      const snapshot = await this.postizIntegrationIds();
+      const existing = await this.prisma.socialAccount.count({ where: { userId, platform: "instagram", connected: true } });
+      await this.prisma.socialAccount.create({
+        data: { userId, platform: "instagram", type: "creator", connected: false, isPrimary: existing === 0, handle: null, accessTokenEnc: JSON.stringify(snapshot) },
+      });
+      const url = await this.postizConnectUrl();
+      return { id: "", platform: "instagram", type: "creator", connected: false, handle: null, isPrimary: existing === 0, insightsAvailable: false, mode: "postiz", authorizeUrl: url };
+    }
+
     const connected = type !== "personal";
     const resolvedHandle = handle ?? `worker_${userId.slice(-5)}`;
-    const a = await this.prisma.socialAccount.upsert({
-      where: { userId_platform: { userId, platform: "instagram" } },
-      create: {
+    const existing = await this.prisma.socialAccount.count({ where: { userId, platform: "instagram", connected: true } });
+    const a = await this.prisma.socialAccount.create({
+      data: {
         userId,
         platform: "instagram",
         type,
         connected,
-        handle: connected ? resolvedHandle : null,
-        accessTokenEnc: connected ? "mock-encrypted-oauth-token" : null,
-      },
-      update: {
-        type,
-        connected,
+        isPrimary: existing === 0 && connected,
         handle: connected ? resolvedHandle : null,
         accessTokenEnc: connected ? "mock-encrypted-oauth-token" : null,
       },
@@ -107,19 +128,121 @@ export class SocialService {
     return { ...this.toInfo(a), mode: "mock" };
   }
 
-  async disconnectInstagram(userId: string): Promise<SocialAccountInfo> {
-    const a = await this.prisma.socialAccount.upsert({
-      where: { userId_platform: { userId, platform: "instagram" } },
-      create: { userId, platform: "instagram", type: "personal", connected: false },
-      update: {
-        type: "personal",
-        connected: false,
-        handle: null,
-        accessTokenEnc: null,
-        refreshTokenEnc: null,
-        remoteUserId: null,
-        tokenExpiresAt: null,
-      },
+  async disconnectInstagram(userId: string, accountId: string): Promise<{ id: string }> {
+    const acct = await this.prisma.socialAccount.findFirst({ where: { id: accountId, userId } });
+    if (!acct) throw new NotFoundException("Social account not found.");
+    await this.prisma.socialAccount.delete({ where: { id: accountId } });
+    // If the deleted account was primary, promote the oldest remaining connected one.
+    if (acct.isPrimary) {
+      const next = await this.prisma.socialAccount.findFirst({ where: { userId, platform: "instagram", connected: true }, orderBy: { createdAt: "asc" } });
+      if (next) await this.prisma.socialAccount.update({ where: { id: next.id }, data: { isPrimary: true } });
+    }
+    return { id: accountId };
+  }
+
+  // --- Postiz org-level channel connect (postiz mode) -------------------------
+
+  /** Fetch integration IDs currently in the org Postiz workspace. */
+  private async postizIntegrationIds(): Promise<string[]> {
+    try {
+      const res = await fetch(`${this.postizBase}/integrations`, {
+        headers: { Authorization: this.env.POSTIZ_API_KEY },
+      });
+      const list: any = await res.json().catch(() => []);
+      if (!res.ok || !Array.isArray(list)) return [];
+      return list.map((i: any) => String(i.id)).filter(Boolean);
+    } catch {
+      return []; // snapshot failure is non-fatal; finalize will do a full-list match
+    }
+  }
+
+  /** Call Postiz to get the Instagram OAuth URL that adds a channel to our org workspace. */
+  private async postizConnectUrl(): Promise<string> {
+    const res = await fetch(`${this.postizBase}/social/instagram`, {
+      headers: { Authorization: this.env.POSTIZ_API_KEY },
+    });
+    let json: any;
+    try { json = await res.json(); } catch (parseErr) {
+      this.log.warn(`Postiz connect URL response not JSON (${res.status}): ${(parseErr as Error).message}`);
+      throw new BadRequestException("Could not reach Postiz to start Instagram connect.");
+    }
+    if (!res.ok || !json?.url) throw new BadRequestException("Could not reach Postiz to start Instagram connect.");
+    return String(json.url);
+  }
+
+  /**
+   * Called after the worker has authorized on Instagram and returned to the app.
+   * Uses a snapshot diff to only claim channels that appeared after connect was
+   * initiated, and checks for duplicate ownership to prevent channel hijacking.
+   */
+  async finalizePostizConnect(userId: string): Promise<SocialAccountInfo> {
+    // Pick the most-recently-created pending row for this user.
+    const pending = await this.prisma.socialAccount.findFirst({
+      where: { userId, platform: "instagram", connected: false },
+      orderBy: { createdAt: "desc" },
+    });
+    // accessTokenEnc holds the pre-connect snapshot; absence means the flow was never started.
+    if (!pending?.accessTokenEnc) throw new BadRequestException("No pending Instagram connect found. Start again.");
+
+    // Parse the pre-connect snapshot stored in accessTokenEnc.
+    let snapshotIds: Set<string>;
+    try {
+      const stored = JSON.parse(pending.accessTokenEnc) as string[];
+      snapshotIds = new Set(Array.isArray(stored) ? stored : []);
+    } catch {
+      snapshotIds = new Set();
+    }
+
+    const res = await fetch(`${this.postizBase}/integrations`, {
+      headers: { Authorization: this.env.POSTIZ_API_KEY },
+    });
+    let list: Array<Record<string, unknown>>;
+    try {
+      const raw = await res.json();
+      list = Array.isArray(raw) ? raw : [];
+    } catch (parseErr) {
+      this.log.error(`Postiz integrations parse failed (${res.status}): ${(parseErr as Error).message}`);
+      throw new BadRequestException("Could not fetch Postiz integrations (unexpected response format).");
+    }
+    if (!res.ok) throw new BadRequestException("Could not fetch Postiz integrations.");
+
+    const igEntries = list.filter((i) => i.identifier === "instagram" && !i.disabled);
+
+    // Pick the integration that appeared after the snapshot (i.e. the one the worker just authorized).
+    // Fall back to any IG entry only when the snapshot was empty (snapshot fetch failed at connect time).
+    const newEntries = igEntries.filter((i) => !snapshotIds.has(String(i.id)));
+    const match = newEntries[0] ?? (snapshotIds.size === 0 ? igEntries[0] : undefined);
+
+    if (!match) {
+      this.log.warn(
+        `Postiz IG finalize: no new integration found. ` +
+        `Snapshot ids: ${[...snapshotIds].slice(0, 5).join(",")}. ` +
+        `Current IG entries: ${JSON.stringify(igEntries.map((i) => ({ id: i.id, profile: i.profile, name: i.name })))}`,
+      );
+      throw new BadRequestException(
+        "Instagram account not found in Postiz yet. Make sure you completed the authorization on Instagram, then try again.",
+      );
+    }
+
+    const integrationId = String(match.id);
+
+    // Prevent two workers from claiming the same Postiz channel.
+    const alreadyOwned = await this.prisma.socialAccount.findFirst({
+      where: { remoteUserId: integrationId, userId: { not: userId } },
+    });
+    if (alreadyOwned) {
+      this.log.warn(`Integration ${integrationId} is already claimed by another worker.`);
+      throw new BadRequestException(
+        "This Instagram channel is already connected to another account. If this is your account, disconnect it from the other worker first.",
+      );
+    }
+
+    // Discover the handle directly from the Postiz integration object.
+    const discoveredHandle = String(match.profile ?? match.name ?? "").replace(/^@/, "") || null;
+
+    const a = await this.prisma.socialAccount.update({
+      where: { id: pending.id },
+      data: { connected: true, remoteUserId: integrationId, handle: discoveredHandle, accessTokenEnc: null },
     });
     return this.toInfo(a);
   }
@@ -161,27 +284,18 @@ export class SocialService {
       const account = await this.discoverIgAccount(longTok.token);
       if (!account) return { redirectUrl: fail("No Instagram Business account linked to a Page") };
 
-      await this.prisma.socialAccount.upsert({
-        where: { userId_platform: { userId, platform: "instagram" } },
-        create: {
-          userId,
-          platform: "instagram",
-          type: "business",
-          connected: true,
-          handle: account.username,
-          remoteUserId: account.igUserId,
-          accessTokenEnc: encryptSecret(account.pageToken, this.env.SOCIAL_TOKEN_ENC_KEY),
-          tokenExpiresAt: longTok.expiresAt,
-        },
-        update: {
-          type: "business",
-          connected: true,
-          handle: account.username,
-          remoteUserId: account.igUserId,
-          accessTokenEnc: encryptSecret(account.pageToken, this.env.SOCIAL_TOKEN_ENC_KEY),
-          tokenExpiresAt: longTok.expiresAt,
-        },
-      });
+      const existingGraph = await this.prisma.socialAccount.findFirst({ where: { userId, platform: "instagram", remoteUserId: account.igUserId } });
+      const noneConnected = (await this.prisma.socialAccount.count({ where: { userId, platform: "instagram", connected: true } })) === 0;
+      if (existingGraph) {
+        await this.prisma.socialAccount.update({
+          where: { id: existingGraph.id },
+          data: { type: "business", connected: true, handle: account.username, remoteUserId: account.igUserId, accessTokenEnc: encryptSecret(account.pageToken, this.env.SOCIAL_TOKEN_ENC_KEY), tokenExpiresAt: longTok.expiresAt },
+        });
+      } else {
+        await this.prisma.socialAccount.create({
+          data: { userId, platform: "instagram", type: "business", connected: true, isPrimary: noneConnected, handle: account.username, remoteUserId: account.igUserId, accessTokenEnc: encryptSecret(account.pageToken, this.env.SOCIAL_TOKEN_ENC_KEY), tokenExpiresAt: longTok.expiresAt },
+        });
+      }
       return { redirectUrl: `${this.env.SOCIAL_CONNECT_RETURN_URL}?ig=connected` };
     } catch (e) {
       this.log.error(`IG OAuth callback failed: ${(e as Error).message}`);
@@ -256,6 +370,7 @@ export class SocialService {
     creativeId: string,
     kind: "feed" | "story" | "reel" = "feed",
     mediaUrlOverride?: string,
+    socialAccountId?: string,
   ): Promise<{ published: boolean; remoteId: string }> {
     const creative = await this.prisma.creative.findUnique({ where: { id: creativeId } });
     if (!creative) throw new NotFoundException("Creative not found.");
@@ -266,9 +381,10 @@ export class SocialService {
     const mediaUrl = mediaUrlOverride ?? render?.cachedUrl ?? creative.sourceKey;
     const caption = this.captionFor(creative.captionVariants, user.preferredLanguage);
 
-    const acct = await this.prisma.socialAccount.findFirst({
-      where: { userId, platform: "instagram" },
-    });
+    const acct = socialAccountId
+      ? await this.prisma.socialAccount.findFirst({ where: { id: socialAccountId, userId } })
+      : await this.prisma.socialAccount.findFirst({ where: { userId, platform: "instagram", isPrimary: true, connected: true } })
+        ?? await this.prisma.socialAccount.findFirst({ where: { userId, platform: "instagram", connected: true } });
     if (!acct || !acct.connected || acct.type === "personal") {
       throw new ForbiddenException("Connect a Creator/Business Instagram account first.");
     }
@@ -278,8 +394,9 @@ export class SocialService {
       ({ remoteId } = await this.ig.publish({
         account: {
           handle: acct.handle ?? "",
-          accessToken: this.tokenFor(acct),
-          igUserId: acct.remoteUserId ?? undefined,
+          accessToken: this.postizMode ? undefined : this.tokenFor(acct),
+          igUserId: this.postizMode ? undefined : acct.remoteUserId ?? undefined,
+          integrationId: this.postizMode ? acct.remoteUserId ?? undefined : undefined,
         },
         mediaUrl,
         caption,

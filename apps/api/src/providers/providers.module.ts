@@ -13,6 +13,7 @@ import {
   INSTAGRAM_PROVIDER,
   InstagramGraphProvider,
   MockInstagramProvider,
+  PostizInstagramProvider,
 } from "./posting.provider";
 import { MockPaymentProvider, PAYMENT_PROVIDER } from "./payment.provider";
 import { RazorpayPaymentProvider } from "./razorpay.provider";
@@ -39,7 +40,7 @@ function selectPushProvider() {
  * OTP:     fake (default) | authkey | whatsapp
  * Push:    mock (default) | expo | firebase   [PUSH_PROVIDER]
  * Payment: mock (default) | razorpay   [PAYMENT_PROVIDER=razorpay]
- * IG:      mock (default) | graph      [INSTAGRAM_PROVIDER=graph]
+ * IG:      mock (default) | graph | postiz   [INSTAGRAM_PROVIDER]
  */
 const providers: Provider[] = [
   { provide: OTP_PROVIDER, useClass: selectOtpProvider() },
@@ -54,7 +55,10 @@ const providers: Provider[] = [
   { provide: ASSISTED_SHARE, useClass: DefaultAssistedShareProvider },
   {
     provide: INSTAGRAM_PROVIDER,
-    useClass: env.INSTAGRAM_PROVIDER === "graph" ? InstagramGraphProvider : MockInstagramProvider,
+    useClass:
+      env.INSTAGRAM_PROVIDER === "graph" ? InstagramGraphProvider :
+      env.INSTAGRAM_PROVIDER === "postiz" ? PostizInstagramProvider :
+      MockInstagramProvider,
   },
   { provide: PAYMENT_PROVIDER, useClass: env.PAYMENT_PROVIDER === "razorpay" ? RazorpayPaymentProvider : MockPaymentProvider },
 ];

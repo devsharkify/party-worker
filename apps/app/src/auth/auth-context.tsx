@@ -88,8 +88,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ...opts,
         credentials: "include",
         headers: {
-          // Skip Content-Type for FormData — the fetch impl sets multipart+boundary automatically.
-          ...(!(opts.body instanceof FormData) ? { "Content-Type": "application/json" } : {}),
+          // Set Content-Type only when there is a body — skip for FormData (browser sets multipart+boundary)
+          // and for bodyless POSTs/DELETEs to avoid NestJS rejecting empty JSON bodies.
+          ...(opts.body != null && !(opts.body instanceof FormData) ? { "Content-Type": "application/json" } : {}),
           "bypass-tunnel-reminder": "true",
           ...(opts.headers ?? {}),
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
