@@ -5,7 +5,7 @@
     "buildCommand": "pnpm --filter @pw/shared build && pnpm --filter @pw/api exec prisma generate && pnpm --filter @pw/api build"
   },
   "deploy": {
-    "startCommand": "node apps/api/dist/src/main.js",
+    "startCommand": "pnpm --filter @pw/api exec prisma db push --skip-generate && node apps/api/dist/src/main.js",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 3
   }
