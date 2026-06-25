@@ -254,14 +254,7 @@ export default function Profile() {
 
   const ig = social.data?.find((s) => s.platform === "instagram");
 
-  // Restore pending Postiz connect state if the app was backgrounded mid-flow.
-  // A pending row has type="creator" and connected=false (set by connectInstagram).
-  const [_postizRestored, setPostizRestored] = useState(false);
-  if (!_postizRestored && social.data) {
-    setPostizRestored(true);
-    const pendingIg = social.data.find((s) => s.platform === "instagram" && !s.connected && s.type === "creator");
-    if (pendingIg) setPostizPending(true);
-  }
+
 
   async function connectIg() {
     setBusy("ig");
