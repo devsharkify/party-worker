@@ -65,22 +65,17 @@ export class AiService {
    * Telugu variants are translated via Sarvam; English are returned directly.
    */
   async generateCaptionVariants(creativeTitle: string, lang: "te" | "en"): Promise<string[]> {
-    const englishVariants = [
+    if (lang === "te") {
+      return [
+        `${creativeTitle} | మన TRS కుటుంబం రోజురోజుకూ బలపడుతోంది. మీ కాంటాక్టులతో షేర్ చేసి తెలంగాణ నిర్మాణంలో భాగం అవ్వండి. 🙏 #TelanganaForward #TRS`,
+        `చూడండి! ${creativeTitle}. మన ప్రజల కోసం మనం చేస్తున్న పని ఫలిస్తోంది. మీ గ్రూపులకు ఫార్వర్డ్ చేయండి! 💪 #TRS`,
+        `ముఖ్యమైన సమాచారం: ${creativeTitle}. మీ ఒక్కో షేర్ మన లక్ష్యానికి దగ్గర చేస్తుంది. వెంటనే మీ కాంటాక్టులందరికీ పంపండి. 🚨 #Telangana #TRS`,
+      ];
+    }
+    return [
       `${creativeTitle} | Our TRS family is growing stronger every day. Share this with your contacts and help us build Telangana together. 🙏 #TelanganaForward #TRS`,
       `Hey! Look at this — ${creativeTitle}. We're making real progress for our people. Forward this to your groups and spread the word! 💪 #TRS`,
       `IMPORTANT: ${creativeTitle}. Every share from your side brings us closer to our goal. Please share this right away with all your contacts. 🚨 #Telangana #TRS`,
     ];
-
-    if (lang === "en") {
-      return englishVariants;
-    }
-
-    // Translate all 3 in parallel — fall back to English on any individual failure
-    const results = await Promise.all(
-      englishVariants.map((v) =>
-        this.translate(v, "en-IN", "te-IN").catch(() => v),
-      ),
-    );
-    return results;
   }
 }
