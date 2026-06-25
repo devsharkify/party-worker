@@ -72,7 +72,7 @@ export class SocialService {
   }
 
   async list(userId: string): Promise<SocialAccountInfo[]> {
-    const accounts = await this.prisma.socialAccount.findMany({ where: { userId } });
+    const accounts = await this.prisma.socialAccount.findMany({ where: { userId, connected: true } });
     return accounts.map((a) => this.toInfo(a));
   }
 
@@ -100,8 +100,9 @@ export class SocialService {
     }
 
     if (this.postizMode) {
-      // Snapshot current integration IDs so finalize can identify the newly-added
-      // channel without requiring the worker to type their handle.
+      // Remove stale pending rows so finalize always operates on exactly one.
+      await this.prisma.socialAccount.deleteMany({ where: { userId, platform: "instagram", connected: false } });
+      // Snapshot current integration IDs so finalize can identify the newly-added channel.
       const snapshot = await this.postizIntegrationIds();
       const existing = await this.prisma.socialAccount.count({ where: { userId, platform: "instagram", connected: true } });
       await this.prisma.socialAccount.create({
@@ -274,10 +275,24 @@ export class SocialService {
     // Discover the handle directly from the Postiz integration object.
     const discoveredHandle = String(match.profile ?? match.name ?? "").replace(/^@/, "") || null;
 
-    const a = await this.prisma.socialAccount.update({
-      where: { id: pending.id },
-      data: { connected: true, remoteUserId: integrationId, handle: discoveredHandle, accessTokenEnc: null },
+    // If this user already has a connected row for the same remoteUserId, reuse it.
+    const existingConnected = await this.prisma.socialAccount.findFirst({
+      where: { userId, remoteUserId: integrationId, connected: true },
     });
+
+    let a;
+    if (existingConnected) {
+      a = existingConnected;
+    } else {
+      a = await this.prisma.socialAccount.update({
+        where: { id: pending.id },
+        data: { connected: true, remoteUserId: integrationId, handle: discoveredHandle, accessTokenEnc: null },
+      });
+    }
+
+    // Delete any remaining pending rows (stale connect attempts) to prevent re-finalize loops.
+    await this.prisma.socialAccount.deleteMany({ where: { userId, platform: "instagram", connected: false } });
+
     return this.toInfo(a);
   }
 
