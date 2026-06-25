@@ -8,6 +8,7 @@ import type {
   GrievanceStatus,
   OrgUnitType,
   Role,
+  WorkerSkillRow,
   Tier,
 } from "@pw/shared";
 import { Prisma } from "@prisma/client";
@@ -326,5 +327,56 @@ export class AdminService {
    */
   listOrgUnits() {
     return this.org.getTree();
+  }
+
+  /**
+   * Search workers by skill and/or language for task assignment.
+   * At least one of skill or lang must be provided; returns up to 100 matches.
+   */
+  async searchWorkersBySkill(opts: {
+    skill?: string;
+    lang?: string;
+    availability?: string;
+    orgUnitId?: string;
+  }): Promise<WorkerSkillRow[]> {
+    const profileWhere: Record<string, unknown> = {};
+    if (opts.skill) {
+      profileWhere.skills = { has: opts.skill };
+    }
+    if (opts.lang) {
+      profileWhere.languages = { has: opts.lang };
+    }
+    if (opts.availability) {
+      profileWhere.availability = opts.availability;
+    }
+
+    const orgUnitIds = opts.orgUnitId ? await this.getSubtreeIds(opts.orgUnitId) : undefined;
+
+    const users = await this.prisma.user.findMany({
+      where: {
+        workerProfile: { is: profileWhere as Prisma.WorkerProfileWhereInput },
+        ...(orgUnitIds ? { orgUnitId: { in: orgUnitIds } } : {}),
+      },
+      include: {
+        orgUnit: { select: { name: true } },
+        workerProfile: true,
+      },
+      orderBy: { name: "asc" },
+      take: 100,
+    });
+
+    return users.map((u) => ({
+      userId: u.id,
+      name: u.name,
+      phone: u.phone,
+      photoUrl: u.photoUrl ?? null,
+      role: u.role as Role,
+      orgUnitId: u.orgUnitId,
+      orgUnitName: u.orgUnit?.name ?? "",
+      skills: u.workerProfile?.skills ?? [],
+      languages: u.workerProfile?.languages ?? [],
+      availability: u.workerProfile?.availability ?? "weekends",
+      bio: u.workerProfile?.bio ?? null,
+    }));
   }
 }

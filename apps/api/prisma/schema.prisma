@@ -164,9 +164,11 @@ model OrgUnit {
   contacts     Contact[]
   crisisAlerts CrisisAlert[]
   boothTasks   BoothTask[]
+  canvassRoutes CanvassRoute[]
   waGroup      WaGroup?
   pools     LeaderboardPool[]
   newsItems NewsItem[]
+  voterContacts VoterContact[] @relation("BoothVoterContacts")
   createdAt DateTime    @default(now())
 
   @@index([parentId])
@@ -220,6 +222,7 @@ model User {
   pollVotes          PollVote[]
   contactsRegistered Contact[]
   tasksAssigned      BoothTask[]           @relation("TaskAssignedTo")
+  assignedRoutes     CanvassRoute[]        @relation("AssignedRoutes")
   taskCompletions    BoothTaskCompletion[]
   grievancesFiled  Grievance[]          @relation("GrievanceFiledBy")
   grievancesRouted Grievance[]          @relation("GrievanceRoutedTo")
@@ -227,11 +230,26 @@ model User {
   creativesSubmitted Creative[]         @relation("CreativeSubmittedBy")
   templatesCreated Template[]           @relation("TemplateCreatedBy")
   deviceTokens     DeviceToken[]
+  voterContacts    VoterContact[]   @relation("WorkerContacts")
+  workerProfile    WorkerProfile?
 
   createdAt DateTime @default(now())
 
   @@index([orgUnitId])
   @@index([role])
+}
+
+model WorkerProfile {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id])
+  skills       String[]
+  languages    String[]
+  availability String   @default("weekends")
+  bio          String?
+  updatedAt    DateTime @updatedAt
+
+  @@index([skills])
 }
 
 model RefreshToken {
@@ -747,6 +765,26 @@ model OppositionItem {
   @@index([createdAt])
 }
 
+/// Structured activity feed — admins log opposition events with factual counter-points.
+model OppositionActivity {
+  id           String   @id @default(cuid())
+  partyName    String   // "BJP" | "Congress" | "BJP-Congress" | "Other"
+  activityType String   // "rally" | "statement" | "controversy" | "policy_attack" | "fake_news"
+  title        String
+  description  String
+  counterPoint String
+  mediaUrl     String?
+  location     String?
+  occurredAt   DateTime
+  createdById  String
+  createdAt    DateTime @default(now())
+
+  @@index([occurredAt])
+  @@index([partyName])
+  @@index([activityType])
+  @@index([createdAt])
+}
+
 /// Booth leader-assigned ground task (door knocking, pamphlet, meeting attendance).
 model BoothTask {
   id          String    @id @default(cuid())
@@ -789,3 +827,58 @@ model WaGroup {
   createdAt DateTime @default(now())
 }
 
+/// Door-to-door voter contacts logged by party workers.
+model VoterContact {
+  id          String   @id @default(cuid())
+  workerId    String
+  worker      User     @relation("WorkerContacts", fields: [workerId], references: [id])
+  boothId     String
+  booth       OrgUnit  @relation("BoothVoterContacts", fields: [boothId], references: [id])
+  voterName   String
+  voterPhone  String?
+  address     String?
+  sentiment   String
+  issue       String?
+  notes       String?
+  contactedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([workerId])
+  @@index([boothId])
+}
+
+/// Party manifesto promise with live status tracking visible to all workers.
+model ManifestoItem {
+  id          String    @id @default(cuid())
+  title       String
+  description String
+  category    String    // "infrastructure" | "welfare" | "education" | "health" | "economy"
+  status      String    @default("promised") // "promised" | "in_progress" | "completed" | "delayed"
+  progressPct Int       @default(0)
+  targetDate  DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([category])
+  @@index([status])
+}
+
+/// Canvassing route for a booth — ordered list of addresses/areas a worker follows door-to-door.
+/// Modelled after MiniVAN (US Democrats) and BJP Shakti portal route assignment.
+model CanvassRoute {
+  id          String    @id @default(cuid())
+  boothId     String
+  orgUnit     OrgUnit   @relation(fields: [boothId], references: [id])
+  name        String    // e.g. "Sector 4 North Block"
+  areas       Json      // Array of { address: string, landmark?: string, priority: number }
+  assignedTo  String?
+  worker      User?     @relation("AssignedRoutes", fields: [assignedTo], references: [id])
+  status      String    @default("unassigned") // "unassigned" | "assigned" | "in_progress" | "completed"
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([boothId])
+  @@index([assignedTo])
+  @@index([status])
+}

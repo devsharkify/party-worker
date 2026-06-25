@@ -58,6 +58,7 @@ const NAV_LABELS: Record<string, { en: string; te: string }> = {
   opposition:     { en: "Opposition",             te: "ప్రతిపక్షం" },
   boothtasks:     { en: "Booth Tasks",            te: "బూత్ టాస్క్లు" },
   wagroups:       { en: "WA Groups",              te: "WA గ్రూపులు" },
+  canvassing:     { en: "Canvassing",             te: "క్యాన్వాసింగ్" },
 };
 
 export default function Page() {
@@ -205,7 +206,8 @@ type Section =
   | "crisis"
   | "opposition"
   | "boothtasks"
-  | "wagroups";
+  | "wagroups"
+  | "canvassing";
 
 const NAV: { id: Section; label: string }[] = [
   { id: "overview", label: "Overview" },
@@ -225,6 +227,7 @@ const NAV: { id: Section; label: string }[] = [
   { id: "opposition", label: "Opposition" },
   { id: "boothtasks", label: "Booth Tasks" },
   { id: "wagroups", label: "WA Groups" },
+  { id: "canvassing", label: "Canvassing" },
 ];
 
 function Dashboard() {
@@ -309,6 +312,7 @@ function Dashboard() {
         {section === "opposition" ? <OppositionSection /> : null}
         {section === "boothtasks" ? <BoothTasksSection /> : null}
         {section === "wagroups" ? <WaGroupsSection /> : null}
+        {section === "canvassing" ? <CanvassingSection /> : null}
       </main>
     </div>
     </AdminLangCtx.Provider>
@@ -3745,6 +3749,185 @@ function WaGroupsSection() {
           <button disabled={busy || !orgUnitId.trim() || !link.trim()} onClick={upsert} className="rounded-md bg-green-600 px-6 py-2 text-sm font-bold text-white transition hover:brightness-110 disabled:opacity-50">
             {busy ? "Saving…" : "Save Group"}
           </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+/* ================================================================== */
+/* Canvassing — voter contact statistics                               */
+/* ================================================================== */
+
+type VoterContactSentiment = "positive" | "neutral" | "negative" | "undecided";
+
+interface VoterContactRow {
+  id: string;
+  voterName: string;
+  boothId: string;
+  sentiment: VoterContactSentiment;
+  issue?: string;
+  createdAt: string;
+}
+
+interface CanvassingStats {
+  total: number;
+  positive: number;
+  neutral: number;
+  negative: number;
+  undecided: number;
+  recentContacts: VoterContactRow[];
+  boothCoverage: { boothId: string; count: number }[];
+}
+
+const SENTIMENT_META: {
+  key: VoterContactSentiment;
+  label: string;
+  dot: string;
+  card: string;
+}[] = [
+  { key: "positive",  label: "Positive",  dot: "bg-green-500",  card: "border-green-200 bg-green-50" },
+  { key: "neutral",   label: "Neutral",   dot: "bg-slate-400",  card: "border-slate-200 bg-slate-50" },
+  { key: "negative",  label: "Negative",  dot: "bg-rose-500",   card: "border-rose-200 bg-rose-50" },
+  { key: "undecided", label: "Undecided", dot: "bg-amber-400",  card: "border-amber-200 bg-amber-50" },
+];
+
+function CanvassingSection() {
+  const { api } = useAdmin();
+  const { toast } = useToast();
+  const [stats, setStats] = useState<CanvassingStats | null>(null);
+  const loading = stats === null;
+
+  const load = useCallback(async () => {
+    try {
+      setStats(await api<CanvassingStats>("/admin/canvassing/stats"));
+    } catch {
+      // Endpoint may not exist yet — fall back to a graceful empty state
+      setStats({
+        total: 0,
+        positive: 0,
+        neutral: 0,
+        negative: 0,
+        undecided: 0,
+        recentContacts: [],
+        boothCoverage: [],
+      });
+      toast("Canvassing stats unavailable — endpoint not yet deployed", "error");
+    }
+  }, [api, toast]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  function pct(n: number) {
+    if (!stats || stats.total === 0) return "0%";
+    return `${Math.round((n / stats.total) * 100)}%`;
+  }
+
+  return (
+    <div className="space-y-8">
+      {/* Total counter */}
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-2xl border border-navy/20 bg-navy p-5 text-white shadow-sm lg:col-span-4">
+          <p className="text-sm font-semibold uppercase tracking-widest text-white/60">Total contacts logged</p>
+          {loading
+            ? <div className="mt-2 h-9 w-24 animate-pulse rounded bg-white/20" />
+            : <p className="mt-1 text-4xl font-extrabold">{stats.total.toLocaleString()}</p>}
+        </div>
+      </section>
+
+      {/* Sentiment breakdown */}
+      <section>
+        <SectionHeader title="Sentiment breakdown" count={loading ? undefined : stats.total} />
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {SENTIMENT_META.map(({ key, label, dot, card }) => {
+            const count = stats?.[key] ?? 0;
+            return (
+              <div key={key} className={`rounded-xl border p-4 shadow-sm ${card}`}>
+                <div className="flex items-center gap-2">
+                  <span className={`h-2.5 w-2.5 rounded-full ${dot}`} />
+                  <span className="text-xs font-bold uppercase tracking-wide text-slate-500">{label}</span>
+                </div>
+                {loading
+                  ? <div className="mt-2 h-8 w-16 animate-pulse rounded bg-slate-200" />
+                  : <>
+                      <p className="mt-2 text-3xl font-extrabold text-slate-800">{count.toLocaleString()}</p>
+                      <p className="text-sm font-semibold text-slate-500">{pct(count)} of total</p>
+                    </>}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Recent contacts table */}
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <SectionHeader title="Recent contacts" count={loading ? undefined : stats.recentContacts.length} />
+        <div className="mt-4 overflow-x-auto">
+          {loading ? (
+            <div className="space-y-2">{[0, 1, 2, 3, 4].map(i => <SkeletonRow key={i} />)}</div>
+          ) : stats.recentContacts.length === 0 ? (
+            <EmptyState glyph="📋" title="No contacts logged yet" />
+          ) : (
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 text-left text-xs font-bold uppercase tracking-wide text-slate-400">
+                  <th className="pb-2 pr-4">Voter</th>
+                  <th className="pb-2 pr-4">Booth</th>
+                  <th className="pb-2 pr-4">Sentiment</th>
+                  <th className="pb-2 pr-4">Issue</th>
+                  <th className="pb-2">Time</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {stats.recentContacts.map(c => {
+                  const meta = SENTIMENT_META.find(m => m.key === c.sentiment);
+                  return (
+                    <tr key={c.id} className="hover:bg-slate-50">
+                      <td className="py-2.5 pr-4 font-semibold text-slate-800">{c.voterName}</td>
+                      <td className="py-2.5 pr-4 text-slate-500">{c.boothId}</td>
+                      <td className="py-2.5 pr-4">
+                        <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold">
+                          <span className={`h-2 w-2 rounded-full ${meta?.dot ?? "bg-slate-300"}`} />
+                          {meta?.label ?? c.sentiment}
+                        </span>
+                      </td>
+                      <td className="py-2.5 pr-4 text-slate-500">{c.issue ?? "—"}</td>
+                      <td className="py-2.5 text-slate-400">{formatDate(c.createdAt)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </section>
+
+      {/* Booth coverage */}
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <SectionHeader title="Booth coverage" count={loading ? undefined : stats.boothCoverage.length} />
+        <div className="mt-4 overflow-x-auto">
+          {loading ? (
+            <div className="space-y-2">{[0, 1, 2].map(i => <SkeletonRow key={i} />)}</div>
+          ) : stats.boothCoverage.length === 0 ? (
+            <EmptyState glyph="🗺️" title="No booth data yet" />
+          ) : (
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 text-left text-xs font-bold uppercase tracking-wide text-slate-400">
+                  <th className="pb-2 pr-4">Booth ID</th>
+                  <th className="pb-2">Contacts</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {stats.boothCoverage.map(b => (
+                  <tr key={b.boothId} className="hover:bg-slate-50">
+                    <td className="py-2.5 pr-4 font-semibold text-slate-800">{b.boothId}</td>
+                    <td className="py-2.5 text-slate-600">{b.count.toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </section>
     </div>

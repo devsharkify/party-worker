@@ -275,6 +275,38 @@ export const adminUpdateUserSchema = z.object({
 });
 export type AdminUpdateUserDto = z.infer<typeof adminUpdateUserSchema>;
 
+// --- Worker skill profile ---
+export const VALID_SKILLS = [
+  "social_media",
+  "speaking",
+  "data_entry",
+  "driving",
+  "canvassing",
+  "design",
+  "video_editing",
+  "photography",
+  "event_management",
+  "translation",
+] as const;
+export type WorkerSkill = (typeof VALID_SKILLS)[number];
+
+export const VALID_AVAILABILITIES = ["full_time", "weekends", "evenings", "flexible"] as const;
+export type WorkerAvailability = (typeof VALID_AVAILABILITIES)[number];
+
+export const upsertWorkerProfileSchema = z.object({
+  skills: z
+    .array(z.enum(VALID_SKILLS))
+    .max(10, "At most 10 skills")
+    .optional(),
+  languages: z
+    .array(z.string().min(1).max(40))
+    .max(10, "At most 10 languages")
+    .optional(),
+  availability: z.enum(VALID_AVAILABILITIES).optional(),
+  bio: z.string().max(500).nullable().optional(),
+});
+export type UpsertWorkerProfileDto = z.infer<typeof upsertWorkerProfileSchema>;
+
 // --- Admin news management ---
 export const adminCreateNewsSchema = z.object({
   title: z.string().min(1).max(200),

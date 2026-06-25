@@ -113,4 +113,19 @@ export class AdminController {
   listOrgUnits() {
     return this.admin.listOrgUnits();
   }
+
+  /**
+   * Search workers by skill and/or language for task assignment.
+   * At least one query param (skill, lang, or availability) is recommended.
+   * Optional: orgUnitId to scope to a subtree.
+   */
+  @Get("workers/skills-search")
+  searchWorkersBySkill(
+    @Query("skill") skill?: string,
+    @Query("lang") lang?: string,
+    @Query("availability") availability?: string,
+    @Query("orgUnitId") orgUnitId?: string,
+  ) {
+    return this.admin.searchWorkersBySkill({ skill, lang, availability, orgUnitId });
+  }
 }

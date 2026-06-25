@@ -399,6 +399,34 @@ export interface AdminCreativeRow {
   createdAt: string;
 }
 
+// ---------------------------------------------------------------------------
+// Worker skill profile
+// ---------------------------------------------------------------------------
+
+export interface WorkerProfileView {
+  userId: string;
+  skills: string[];
+  languages: string[];
+  availability: string;
+  bio: string | null;
+  updatedAt: string;
+}
+
+/** A row returned from the admin skills-search endpoint. */
+export interface WorkerSkillRow {
+  userId: string;
+  name: string;
+  phone: string;
+  photoUrl: string | null;
+  role: Role;
+  orgUnitId: string;
+  orgUnitName: string;
+  skills: string[];
+  languages: string[];
+  availability: string;
+  bio: string | null;
+}
+
 /** A news item shown in the worker app */
 export interface NewsItem {
   id: string;

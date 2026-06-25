@@ -5,7 +5,9 @@ import {
   type MembershipCard,
   type Role,
   type UpdateProfileDto,
+  type UpsertWorkerProfileDto,
   type UserPublic,
+  type WorkerProfileView,
 } from "@pw/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { STORAGE_PROVIDER, type StorageProvider } from "../providers/storage.provider";
@@ -78,6 +80,46 @@ export class UsersService {
     const { url } = await this.storage.put(key, buffer, contentType);
     await this.prisma.user.update({ where: { id: userId }, data: { photoUrl: url } });
     return this.toPublic(userId);
+  }
+
+  async upsertWorkerProfile(userId: string, dto: UpsertWorkerProfileDto): Promise<WorkerProfileView> {
+    const profile = await this.prisma.workerProfile.upsert({
+      where: { userId },
+      update: {
+        ...(dto.skills !== undefined ? { skills: dto.skills } : {}),
+        ...(dto.languages !== undefined ? { languages: dto.languages } : {}),
+        ...(dto.availability !== undefined ? { availability: dto.availability } : {}),
+        ...(dto.bio !== undefined ? { bio: dto.bio } : {}),
+      },
+      create: {
+        userId,
+        skills: dto.skills ?? [],
+        languages: dto.languages ?? [],
+        availability: dto.availability ?? "weekends",
+        bio: dto.bio ?? null,
+      },
+    });
+    return {
+      userId: profile.userId,
+      skills: profile.skills,
+      languages: profile.languages,
+      availability: profile.availability,
+      bio: profile.bio,
+      updatedAt: profile.updatedAt.toISOString(),
+    };
+  }
+
+  async getWorkerProfile(userId: string): Promise<WorkerProfileView | null> {
+    const profile = await this.prisma.workerProfile.findUnique({ where: { userId } });
+    if (!profile) return null;
+    return {
+      userId: profile.userId,
+      skills: profile.skills,
+      languages: profile.languages,
+      availability: profile.availability,
+      bio: profile.bio,
+      updatedAt: profile.updatedAt.toISOString(),
+    };
   }
 
   async getMembershipCard(userId: string): Promise<MembershipCard> {

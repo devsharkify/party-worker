@@ -38,7 +38,10 @@ import { ContactsModule } from "./contacts/contacts.module";
 import { CrisisModule } from "./crisis/crisis.module";
 import { OppositionModule } from "./opposition/opposition.module";
 import { BoothTasksModule } from "./boothtasks/boothtasks.module";
+import { CanvassRoutesModule } from "./canvass-routes/canvass-routes.module";
 import { WaGroupsModule } from "./wagroups/wagroups.module";
+import { VoterContactsModule } from "./voter-contacts/voter-contacts.module";
+import { ManifestoModule } from "./manifesto/manifesto.module";
 import { AppController } from "./app.controller";
 
 @Module({
@@ -82,7 +85,10 @@ import { AppController } from "./app.controller";
     CrisisModule,
     OppositionModule,
     BoothTasksModule,
+    CanvassRoutesModule,
     WaGroupsModule,
+    VoterContactsModule,
+    ManifestoModule,
   ],
   controllers: [AppController],
 })
