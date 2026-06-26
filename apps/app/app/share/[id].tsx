@@ -109,12 +109,19 @@ export default function ShareScreen() {
     setIgPublishing(true);
     setIgToast(null);
     try {
-      await api<{ published: boolean }>("/social/instagram/publish", {
-        method: "POST",
-        body: JSON.stringify({ creativeId: id }),
-      });
+      // Publish feed post + story simultaneously
+      await Promise.all([
+        api<{ published: boolean }>("/social/instagram/publish", {
+          method: "POST",
+          body: JSON.stringify({ creativeId: id, kind: "feed" }),
+        }),
+        api<{ published: boolean }>("/social/instagram/publish", {
+          method: "POST",
+          body: JSON.stringify({ creativeId: id, kind: "story" }),
+        }),
+      ]);
       await confirmShare("instagram_feed");
-      setIgToast(lang === "te" ? "ఇన్‌స్టాగ్రామ్‌లో పోస్ట్ అయింది! ✓" : "Posted to Instagram! ✓");
+      setIgToast(lang === "te" ? "ఫీడ్ + స్టోరీ పోస్ట్ అయింది! ✓" : "Posted to feed + story! ✓");
     } catch (e) {
       setIgToast((e as Error).message ?? (lang === "te" ? "పోస్ట్ విఫలమైంది" : "Post failed"));
     } finally {
