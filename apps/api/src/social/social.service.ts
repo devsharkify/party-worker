@@ -10,11 +10,13 @@ import { APP_ENV, type Env } from "../config/env";
 import { PrismaService } from "../prisma/prisma.service";
 import { ScoringService } from "../scoring/scoring.service";
 import { INSTAGRAM_PROVIDER, type InstagramProvider } from "../providers/posting.provider";
+import { STORAGE_PROVIDER, type StorageProvider } from "../providers/storage.provider";
 import { decryptSecret, encryptSecret, sha256 } from "../auth/crypto.util";
 import { RedisRateLimitStore } from "../common/redis-ratelimit.store";
 
-const IG_CONNECT_LOCK_KEY = "social:instagram:connect:lock";
-const YT_CONNECT_LOCK_KEY = "social:youtube:connect:lock";
+// ponytail: per-user lock keys so one worker's in-progress connect doesn't 409 everyone else.
+const igConnectLockKey = (userId: string) => `social:instagram:connect:lock:${userId}`;
+const ytConnectLockKey = (userId: string) => `social:youtube:connect:lock:${userId}`;
 const IG_CONNECT_LOCK_TTL = 120;
 
 export type ConnectInstagramResult = SocialAccountInfo & {
@@ -40,7 +42,22 @@ export class SocialService {
     @Inject(INSTAGRAM_PROVIDER) private readonly ig: InstagramProvider,
     @Inject(APP_ENV) private readonly env: Env,
     private readonly lock: RedisRateLimitStore,
+    @Inject(STORAGE_PROVIDER) private readonly storage: StorageProvider,
   ) {}
+
+  /**
+   * Turn a stored value into an absolute media URL. Overrides and cached render
+   * URLs are already absolute; a bare storage key (e.g. "uploads/x.jpg") must be
+   * resolved via the storage provider, else the SSRF guard rejects it as invalid.
+   */
+  private resolveMediaUrl(raw: string): string {
+    try {
+      new URL(raw);
+      return raw;
+    } catch {
+      return this.storage.publicUrl(raw);
+    }
+  }
 
   private get graphMode(): boolean {
     return this.env.INSTAGRAM_PROVIDER === "graph";
@@ -106,9 +123,9 @@ export class SocialService {
     }
 
     if (this.postizMode) {
-      const acquired = await this.lock.acquireLock(IG_CONNECT_LOCK_KEY, IG_CONNECT_LOCK_TTL);
+      const acquired = await this.lock.acquireLock(igConnectLockKey(userId), IG_CONNECT_LOCK_TTL);
       if (!acquired) {
-        const remaining = await this.lock.lockTtl(IG_CONNECT_LOCK_KEY);
+        const remaining = await this.lock.lockTtl(igConnectLockKey(userId));
         throw new ConflictException(
           `Another Instagram connection is already in progress. Try again in ${Math.ceil(remaining / 60)} minute(s).`,
         );
@@ -348,7 +365,7 @@ export class SocialService {
 
     return this.claimIntegration(userId, pending, match);
     } finally {
-      await this.lock.releaseLock(IG_CONNECT_LOCK_KEY);
+      await this.lock.releaseLock(igConnectLockKey(userId));
     }
   }
 
@@ -412,9 +429,9 @@ export class SocialService {
   // --- YouTube (postiz mode) ---------------------------------------------------
 
   async connectYoutube(userId: string): Promise<{ authorizeUrl: string; mode: string }> {
-    const acquired = await this.lock.acquireLock(YT_CONNECT_LOCK_KEY, IG_CONNECT_LOCK_TTL);
+    const acquired = await this.lock.acquireLock(ytConnectLockKey(userId), IG_CONNECT_LOCK_TTL);
     if (!acquired) {
-      const remaining = await this.lock.lockTtl(YT_CONNECT_LOCK_KEY);
+      const remaining = await this.lock.lockTtl(ytConnectLockKey(userId));
       throw new ConflictException(
         `Another YouTube connection is in progress. Try again in ${Math.ceil(remaining / 60)} minute(s).`,
       );
@@ -495,7 +512,7 @@ export class SocialService {
       await this.prisma.socialAccount.deleteMany({ where: { userId, platform: "youtube", connected: false } });
       return this.toInfo(a);
     } finally {
-      await this.lock.releaseLock(YT_CONNECT_LOCK_KEY);
+      await this.lock.releaseLock(ytConnectLockKey(userId));
     }
   }
 
@@ -509,7 +526,7 @@ export class SocialService {
     if (!creative) throw new NotFoundException("Creative not found.");
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     const render = await this.prisma.personalizedRender.findUnique({ where: { userId_creativeId: { userId, creativeId } } });
-    const mediaUrl = mediaUrlOverride ?? render?.cachedUrl ?? creative.sourceKey;
+    const mediaUrl = this.resolveMediaUrl(mediaUrlOverride ?? render?.cachedUrl ?? creative.sourceKey);
     const caption = this.captionFor(creative.captionVariants, user.preferredLanguage);
     const acct = socialAccountId
       ? await this.prisma.socialAccount.findFirst({ where: { id: socialAccountId, userId } })
@@ -693,7 +710,7 @@ export class SocialService {
     const render = await this.prisma.personalizedRender.findUnique({
       where: { userId_creativeId: { userId, creativeId } },
     });
-    const mediaUrl = mediaUrlOverride ?? render?.cachedUrl ?? creative.sourceKey;
+    const mediaUrl = this.resolveMediaUrl(mediaUrlOverride ?? render?.cachedUrl ?? creative.sourceKey);
     const caption = this.captionFor(creative.captionVariants, user.preferredLanguage);
 
     const acct = socialAccountId

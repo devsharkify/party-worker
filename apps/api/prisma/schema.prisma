@@ -79,6 +79,7 @@ enum ShareChannel {
   instagram_story
   instagram_feed
   facebook
+  youtube
   copy_link
   other
 }

@@ -333,9 +333,12 @@ export default function Profile() {
   }, []);
 
   async function disconnectIg() {
+    if (!ig) return;
     setBusy("ig-disconnect");
     try {
-      await api("/social/instagram/disconnect", { method: "POST" });
+      // socialAccountId is required by the API (disconnectSchema); without it the
+      // request 400s and disconnect silently fails. Mirror disconnectYt below.
+      await api("/social/instagram/disconnect", { method: "POST", body: JSON.stringify({ socialAccountId: ig.id }) });
       await Promise.all([social.reload(), summary.reload(), refreshUser()]);
     } catch (e: unknown) {
       toast.error(toMsg(e, "Failed to disconnect Instagram."));
