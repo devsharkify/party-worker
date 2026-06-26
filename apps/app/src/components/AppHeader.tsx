@@ -2,6 +2,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../auth/auth-context";
 import { useDrawer } from "../context/drawer-context";
 import { RemoteImage } from "./RemoteImage";
@@ -59,9 +60,12 @@ function HeaderContent({ title }: { title?: string }) {
 }
 
 export function AppHeader({ title }: { title?: string }) {
+  const { top } = useSafeAreaInsets();
+  const topPad = Platform.OS !== "web" ? top : 0;
+
   if (Platform.OS !== "web") {
     return (
-      <BlurView tint="dark" intensity={80} style={[st.bar, { overflow: "hidden" }]}>
+      <BlurView tint="dark" intensity={80} style={[st.bar, { overflow: "hidden", paddingTop: topPad + 8 }]}>
         <View style={st.navyOverlay} pointerEvents="none" />
         <HeaderContent title={title} />
       </BlurView>
