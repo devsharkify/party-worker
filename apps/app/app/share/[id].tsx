@@ -69,6 +69,9 @@ export default function ShareScreen() {
   const [packToast, setPackToast] = useState(false);
   const [earned, setEarned] = useState<number | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [igConnected, setIgConnected] = useState(false);
+  const [igPublishing, setIgPublishing] = useState(false);
+  const [igToast, setIgToast] = useState<string | null>(null);
 
   // Celebratory pop on the points banner — fires only once points are earned.
   const pop = useRef(new Animated.Value(0.8)).current;
@@ -82,12 +85,15 @@ export default function ShareScreen() {
     setError(undefined);
     setData(null);
     try {
-      setData(
-        await api<ShareResponse>("/share", {
+      const [shareData, accounts] = await Promise.all([
+        api<ShareResponse>("/share", {
           method: "POST",
           body: JSON.stringify({ creativeId: id }),
         }),
-      );
+        api<Array<{ platform: string; connected: boolean; type: string }>>("/social/accounts").catch(() => []),
+      ]);
+      setData(shareData);
+      setIgConnected(accounts.some((a) => a.platform === "instagram" && a.connected && a.type !== "personal"));
     } catch (e) {
       setError((e as Error).message);
     }
@@ -97,6 +103,25 @@ export default function ShareScreen() {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [api, id]);
+
+  async function publishToInstagram() {
+    if (!data || igPublishing) return;
+    setIgPublishing(true);
+    setIgToast(null);
+    try {
+      await api<{ published: boolean }>("/social/instagram/publish", {
+        method: "POST",
+        body: JSON.stringify({ creativeId: id }),
+      });
+      await confirmShare("instagram_feed");
+      setIgToast(lang === "te" ? "ఇన్‌స్టాగ్రామ్‌లో పోస్ట్ అయింది! ✓" : "Posted to Instagram! ✓");
+    } catch (e) {
+      setIgToast((e as Error).message ?? (lang === "te" ? "పోస్ట్ విఫలమైంది" : "Post failed"));
+    } finally {
+      setIgPublishing(false);
+      setTimeout(() => setIgToast(null), 3000);
+    }
+  }
 
   /** Tell the API a real share happened; credits the base point once. */
   async function confirmShare(channel: ShareChannel) {
@@ -327,11 +352,18 @@ export default function ShareScreen() {
           color="#075e54"
           onPress={() => void shareToWaStatus()}
         />
+        {igToast ? (
+          <Text style={st.igToast}>{igToast}</Text>
+        ) : null}
         <Channel
-          label={t("share.instagram")}
-          icon="instagram"
+          label={igPublishing ? (lang === "te" ? "పోస్ట్ అవుతోంది…" : "Posting…") : t("share.instagram")}
+          icon={igPublishing ? "loader" : "instagram"}
           color="#E1306C"
-          onPress={() => void openChannel("instagram_story", data.deepLinks.instagram)}
+          disabled={igPublishing}
+          onPress={igConnected
+            ? () => void publishToInstagram()
+            : () => void openChannel("instagram_story", data.deepLinks.instagram)
+          }
         />
         {Platform.OS === "web" ? (
           <Channel
@@ -388,16 +420,19 @@ function Channel({
   color,
   icon,
   onPress,
+  disabled,
 }: {
   label: string;
   color: string;
   icon: FeatherName;
   onPress: () => void;
+  disabled?: boolean;
 }) {
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [st.channel, { borderColor: color }, pressed && { opacity: 0.85 }]}
+      disabled={disabled}
+      style={({ pressed }) => [st.channel, { borderColor: color }, (pressed || disabled) && { opacity: 0.6 }]}
     >
       <Feather name={icon} size={20} color={color} />
       <Text style={[st.channelText, { color }]}>{label}</Text>
@@ -469,4 +504,5 @@ const st = StyleSheet.create({
   packIcon: { fontSize: 18 },
   packLabel: { fontWeight: "700", fontSize: 13, fontFamily: fontFamily, lineHeight: lh(13), flex: 1 },
   packToast: { color: colors.success, fontSize: 13, fontWeight: "600", fontFamily: fontFamily, marginBottom: 6, lineHeight: lh(13) },
+  igToast: { color: "#E1306C", fontSize: 13, fontWeight: "600", fontFamily: fontFamily, marginBottom: 6, lineHeight: lh(13), textAlign: "center" },
 });
