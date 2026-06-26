@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import {
   computeSharePoints,
   type CaptionVariants,
@@ -11,6 +11,10 @@ import { PrismaService } from "../prisma/prisma.service";
 import { ScoringService } from "../scoring/scoring.service";
 import { INSTAGRAM_PROVIDER, type InstagramProvider } from "../providers/posting.provider";
 import { decryptSecret, encryptSecret, sha256 } from "../auth/crypto.util";
+import { RedisRateLimitStore } from "../common/redis-ratelimit.store";
+
+const IG_CONNECT_LOCK_KEY = "social:instagram:connect:lock";
+const IG_CONNECT_LOCK_TTL = 120;
 
 export type ConnectInstagramResult = SocialAccountInfo & {
   /** "mock" = instantly connected (dev). "graph" = direct Meta OAuth. "postiz" = via Postiz channel. */
@@ -34,6 +38,7 @@ export class SocialService {
     private readonly scoring: ScoringService,
     @Inject(INSTAGRAM_PROVIDER) private readonly ig: InstagramProvider,
     @Inject(APP_ENV) private readonly env: Env,
+    private readonly lock: RedisRateLimitStore,
   ) {}
 
   private get graphMode(): boolean {
@@ -100,6 +105,14 @@ export class SocialService {
     }
 
     if (this.postizMode) {
+      const acquired = await this.lock.acquireLock(IG_CONNECT_LOCK_KEY, IG_CONNECT_LOCK_TTL);
+      if (!acquired) {
+        const remaining = await this.lock.lockTtl(IG_CONNECT_LOCK_KEY);
+        throw new ConflictException(
+          `Another Instagram connection is already in progress. Try again in ${Math.ceil(remaining / 60)} minute(s).`,
+        );
+      }
+
       // Remove stale pending rows so finalize always operates on exactly one.
       await this.prisma.socialAccount.deleteMany({ where: { userId, platform: "instagram", connected: false } });
       // Snapshot current integration IDs so finalize can identify the newly-added channel.
@@ -261,6 +274,11 @@ export class SocialService {
     });
     if (!pending) throw new BadRequestException("No pending Instagram connect found. Start again.");
 
+    // Always release the global connect lock — success or failure.
+    // Lock was acquired in connectInstagram (postiz mode). If the flow was
+    // never started (no pending row), release is a no-op.
+    try {
+
     // --- Fast path: client told us exactly which channel to claim ---
     if (integrationId) {
       const res = await fetch(`${this.postizBase}/integrations`, {
@@ -328,6 +346,9 @@ export class SocialService {
     }
 
     return this.claimIntegration(userId, pending, match);
+    } finally {
+      await this.lock.releaseLock(IG_CONNECT_LOCK_KEY);
+    }
   }
 
   /** Shared logic: link a Postiz integration to a worker's pending row. */

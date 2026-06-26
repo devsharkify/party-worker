@@ -107,6 +107,45 @@ export class RedisRateLimitStore implements OnModuleDestroy {
     return ts.length;
   }
 
+  // ── Distributed lock (used by social connect flows) ──────────────────────
+
+  /** SET key value EX ttl NX — returns true if lock was acquired. */
+  async acquireLock(key: string, ttlSeconds: number): Promise<boolean> {
+    if (this.redis && this.redisHealthy) {
+      try {
+        const result = await this.redis.set(key, "1", "EX", ttlSeconds, "NX");
+        return result === "OK";
+      } catch (e) {
+        this.log.warn(`Lock acquire failed (${key}): ${(e as Error).message}`);
+      }
+    }
+    // no Redis → allow (non-blocking degradation)
+    return true;
+  }
+
+  /** DEL key — releases the lock immediately. */
+  async releaseLock(key: string): Promise<void> {
+    if (this.redis && this.redisHealthy) {
+      try {
+        await this.redis.del(key);
+      } catch (e) {
+        this.log.warn(`Lock release failed (${key}): ${(e as Error).message}`);
+      }
+    }
+  }
+
+  /** TTL in seconds for a lock key (for Retry-After header). */
+  async lockTtl(key: string): Promise<number> {
+    if (this.redis && this.redisHealthy) {
+      try {
+        return await this.redis.ttl(key);
+      } catch {
+        /* best-effort */
+      }
+    }
+    return 120;
+  }
+
   private maybeSweep(now: number, windowMs: number): void {
     if (now - this.lastSweep < 60_000) return;
     this.lastSweep = now;
