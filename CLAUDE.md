@@ -28,7 +28,10 @@ before another session's commit.
 - Monorepo: pnpm 9.15.9 + turbo; apps/{api,app,admin,cf-redirect}.
 - Run: API `pnpm --filter @pw/api dev` (:4000) · worker web :8081 · admin :3000.
 - Dev OTP 000000; logins +919000000001 (hq_admin), +919000000004 (worker).
-- Deploys: API = Railway `railway up --detach`; worker = `vercel deploy --prod
-  --prebuilt` + alias mytrs-worker-app.vercel.app; admin = static export from
-  apps/admin then alias admin-zeta-gold-53.vercel.app.
+- Deploys: API = `railway up --detach` run from MONOREPO ROOT (`/party-worker/`,
+  NOT from `apps/api/`) — root has `railway.json` (forces NIXPACKS) and
+  `pnpm-lock.yaml` (forces pnpm); running from `apps/api/` uses railpack+npm
+  and fails with `EUNSUPPORTEDPROTOCOL workspace:*`; worker = `vercel deploy
+  --prod --prebuilt` + alias mytrs-worker-app.vercel.app; admin = static export
+  from apps/admin then alias admin-zeta-gold-53.vercel.app.
 - Disk is ~96% full — avoid heavy installs; check `df -h /System/Volumes/Data`.
