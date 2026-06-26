@@ -91,7 +91,7 @@ export default function Login() {
                   value={digits}
                   onChangeText={(v) => setDigits(v.replace(/\D/g, "").slice(0, 10))}
                   keyboardType="number-pad"
-                  placeholder="10-digit number"
+                  placeholder={t("auth.phonePlaceholder")}
                   placeholderTextColor="#94a3b8"
                   style={[st.input, st.phoneInput]}
                   maxLength={10}
