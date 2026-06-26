@@ -157,6 +157,8 @@ export default function Profile() {
   // Web uses a file input + canvas; native uses expo-image-picker + manipulator.
   const [photoBusy, setPhotoBusy] = useState(false);
   const [postizPending, setPostizPending] = useState(false);
+  const [ytPostizPending, setYtPostizPending] = useState(false);
+  const [ytPendingChannels, setYtPendingChannels] = useState<{ id: string; handle: string | null; name: string | null }[]>([]);
   const LP = {
     updated: { te: "ఫోటో అప్‌డేట్ అయింది", en: "Photo updated" },
     failed: { te: "ఫోటో అప్‌లోడ్ విఫలమైంది", en: "Photo upload failed" },
@@ -315,14 +317,16 @@ export default function Profile() {
 
   const postizPendingRef = useRef(postizPending);
   postizPendingRef.current = postizPending;
+  const ytPostizPendingRef = useRef(ytPostizPending);
+  ytPostizPendingRef.current = ytPostizPending;
   const busyRef = useRef(busy);
   busyRef.current = busy;
 
   useEffect(() => {
     const sub = AppState.addEventListener("change", (state) => {
-      if (state === "active" && postizPendingRef.current && !busyRef.current) {
-        void fetchAndMaybeAutoFinalize();
-      }
+      if (state !== "active" || busyRef.current) return;
+      if (postizPendingRef.current) void fetchAndMaybeAutoFinalize();
+      if (ytPostizPendingRef.current) void fetchAndMaybeAutoFinalizeYt();
     });
     return () => sub.remove();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -335,6 +339,72 @@ export default function Profile() {
       await Promise.all([social.reload(), summary.reload(), refreshUser()]);
     } catch (e: unknown) {
       toast.error(toMsg(e, "Failed to disconnect Instagram."));
+    } finally {
+      setBusy(undefined);
+    }
+  }
+
+  const yt = social.data?.find((s) => s.platform === "youtube");
+
+  async function connectYt() {
+    setBusy("yt");
+    try {
+      const result = await api<{ authorizeUrl?: string; mode?: string }>(
+        "/social/youtube/connect",
+        { method: "POST" },
+      );
+      if (result?.authorizeUrl) {
+        await Linking.openURL(result.authorizeUrl);
+        setYtPostizPending(true);
+      }
+    } catch (e: unknown) {
+      toast.error(toMsg(e, "Could not start YouTube connection. Try again."));
+    } finally {
+      setBusy(undefined);
+    }
+  }
+
+  async function confirmYtChannel(integrationId: string) {
+    setBusy("yt-finalize");
+    try {
+      await api("/social/youtube/finalize", { method: "POST", body: JSON.stringify({ integrationId }) });
+      setYtPostizPending(false);
+      setYtPendingChannels([]);
+      await Promise.all([social.reload(), summary.reload(), refreshUser()]);
+      toast.success("YouTube connected!");
+    } catch (e: unknown) {
+      toast.error(toMsg(e, "Could not connect that channel. Try again."));
+    } finally {
+      setBusy(undefined);
+    }
+  }
+
+  async function fetchAndMaybeAutoFinalizeYt() {
+    setBusy("yt-channels");
+    try {
+      const channels = await api<{ id: string; handle: string | null; name: string | null }[]>(
+        "/social/youtube/pending-channels",
+      );
+      if (channels.length === 1) {
+        await confirmYtChannel(channels[0].id);
+      } else {
+        setYtPendingChannels(channels);
+      }
+    } catch {
+      // leave ytPostizPending=true so worker can tap manually
+    } finally {
+      if (busy === "yt-channels") setBusy(undefined);
+    }
+  }
+
+  async function disconnectYt() {
+    if (!yt) return;
+    setBusy("yt-disconnect");
+    try {
+      await api("/social/youtube/disconnect", { method: "POST", body: JSON.stringify({ socialAccountId: yt.id }) });
+      await Promise.all([social.reload(), summary.reload(), refreshUser()]);
+    } catch (e: unknown) {
+      toast.error(toMsg(e, "Failed to disconnect YouTube."));
     } finally {
       setBusy(undefined);
     }
@@ -766,6 +836,90 @@ export default function Profile() {
               title={t("profile.connectInstagram")}
               onPress={connectIg}
               loading={busy === "ig"}
+            />
+          </>
+        )}
+      </View>
+
+      {/* ===== YouTube ===== */}
+      <View style={st.section}>
+        <Text style={st.sectionTitle}>YouTube</Text>
+        {yt?.connected ? (
+          <View style={st.igConnectedBlock}>
+            <View style={st.connectedRow}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Feather name="check" size={14} color={colors.success} />
+                <Text style={st.connected}>{t("profile.connected")}</Text>
+              </View>
+              {yt.handle ? <Text style={st.handle}>@{yt.handle}</Text> : null}
+            </View>
+            <Pressable
+              onPress={disconnectYt}
+              style={({ pressed }) => [st.disconnectBtn, busy === "yt-disconnect" && { opacity: 0.5 }, pressed && { opacity: 0.75 }]}
+              disabled={busy === "yt-disconnect"}
+            >
+              <Feather name="x" size={13} color={colors.danger} />
+              <Text style={st.disconnectBtnText}>Disconnect</Text>
+            </Pressable>
+          </View>
+        ) : ytPostizPending ? (
+          <>
+            {ytPendingChannels.length > 0 ? (
+              <>
+                <Text style={st.note}>
+                  {ytPendingChannels.length === 1
+                    ? "Found your YouTube channel. Tap to confirm."
+                    : "Multiple channels found. Tap yours to connect."}
+                </Text>
+                {ytPendingChannels.map((ch) => (
+                  <Pressable
+                    key={ch.id}
+                    onPress={() => confirmYtChannel(ch.id)}
+                    disabled={busy === "yt-finalize"}
+                    style={({ pressed }) => [st.channelRow, (pressed || busy === "yt-finalize") && { opacity: 0.6 }]}
+                  >
+                    <Feather name="youtube" size={18} color="#FF0000" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={st.channelHandle}>
+                        {ch.handle ? `@${ch.handle}` : ch.name ?? "YouTube channel"}
+                      </Text>
+                    </View>
+                    <Feather name="chevron-right" size={16} color={colors.textMuted} />
+                  </Pressable>
+                ))}
+              </>
+            ) : (
+              <>
+                <Text style={st.note}>
+                  {busy === "yt-channels"
+                    ? "Looking for your YouTube channel…"
+                    : "Approve access in the browser, then come back and tap below."}
+                </Text>
+                <PrimaryButton
+                  title={busy === "yt-channels" ? "Checking…" : "I've Connected — Complete Setup"}
+                  onPress={fetchAndMaybeAutoFinalizeYt}
+                  loading={busy === "yt-channels" || busy === "yt-finalize"}
+                />
+              </>
+            )}
+            <Pressable
+              onPress={() => { setYtPostizPending(false); setYtPendingChannels([]); }}
+              style={{ marginTop: 8, alignSelf: "center" }}
+            >
+              <Text style={{ color: colors.textMuted, fontSize: 12 }}>Start over</Text>
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <Text style={st.note}>
+              {lang === "te"
+                ? "YouTube చానెల్ కనెక్ట్ చేయండి — నేరుగా పోస్ట్ చేయండి"
+                : "Connect your YouTube channel to post directly"}
+            </Text>
+            <PrimaryButton
+              title={lang === "te" ? "YouTube కనెక్ట్ చేయండి" : "Connect YouTube"}
+              onPress={connectYt}
+              loading={busy === "yt"}
             />
           </>
         )}

@@ -113,6 +113,43 @@ export class SocialController {
   ) {
     return this.social.finalizePostizConnect(user.id, dto.integrationId);
   }
+
+  // --- YouTube endpoints -------------------------------------------------------
+
+  @Post("youtube/connect")
+  connectYoutube(@CurrentUser() user: AuthUser) {
+    return this.social.connectYoutube(user.id);
+  }
+
+  @Post("youtube/disconnect")
+  disconnectYoutube(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(disconnectSchema)) dto: { socialAccountId: string },
+  ) {
+    return this.social.disconnectYoutube(user.id, dto.socialAccountId);
+  }
+
+  @Post("youtube/publish")
+  publishYoutube(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(z.object({ creativeId: z.string().min(1), mediaUrl: z.string().url().optional(), socialAccountId: z.string().optional() })))
+    dto: { creativeId: string; mediaUrl?: string; socialAccountId?: string },
+  ) {
+    return this.social.publishToYoutube(user.id, dto.creativeId, dto.mediaUrl, dto.socialAccountId);
+  }
+
+  @Get("youtube/pending-channels")
+  youtubePendingChannels(@CurrentUser() user: AuthUser) {
+    return this.social.getPendingYoutubeChannels(user.id);
+  }
+
+  @Post("youtube/finalize")
+  finalizeYoutube(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(finalizeSchema)) dto: { integrationId?: string },
+  ) {
+    return this.social.finalizeYoutubeConnect(user.id, dto.integrationId);
+  }
 }
 
 /**

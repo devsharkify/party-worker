@@ -49,6 +49,7 @@ export const ShareChannel = z.enum([
   "whatsapp",
   "instagram_story",
   "instagram_feed",
+  "youtube",
   "facebook",
   "copy_link",
   "other",

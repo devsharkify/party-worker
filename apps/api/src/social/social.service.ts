@@ -14,6 +14,7 @@ import { decryptSecret, encryptSecret, sha256 } from "../auth/crypto.util";
 import { RedisRateLimitStore } from "../common/redis-ratelimit.store";
 
 const IG_CONNECT_LOCK_KEY = "social:instagram:connect:lock";
+const YT_CONNECT_LOCK_KEY = "social:youtube:connect:lock";
 const IG_CONNECT_LOCK_TTL = 120;
 
 export type ConnectInstagramResult = SocialAccountInfo & {
@@ -406,6 +407,159 @@ export class SocialService {
 
     await this.prisma.socialAccount.deleteMany({ where: { userId, platform: "instagram", connected: false } });
     return this.toInfo(a);
+  }
+
+  // --- YouTube (postiz mode) ---------------------------------------------------
+
+  async connectYoutube(userId: string): Promise<{ authorizeUrl: string; mode: string }> {
+    const acquired = await this.lock.acquireLock(YT_CONNECT_LOCK_KEY, IG_CONNECT_LOCK_TTL);
+    if (!acquired) {
+      const remaining = await this.lock.lockTtl(YT_CONNECT_LOCK_KEY);
+      throw new ConflictException(
+        `Another YouTube connection is in progress. Try again in ${Math.ceil(remaining / 60)} minute(s).`,
+      );
+    }
+    await this.prisma.socialAccount.deleteMany({ where: { userId, platform: "youtube", connected: false } });
+    const snapshot = await this.postizYoutubeIntegrationIds();
+    const existing = await this.prisma.socialAccount.count({ where: { userId, platform: "youtube", connected: true } });
+    await this.prisma.socialAccount.create({
+      data: { userId, platform: "youtube", type: "creator", connected: false, isPrimary: existing === 0, handle: null, accessTokenEnc: JSON.stringify(snapshot) },
+    });
+    const url = await this.postizYoutubeConnectUrl();
+    return { authorizeUrl: url, mode: "postiz" };
+  }
+
+  async disconnectYoutube(userId: string, accountId: string): Promise<{ id: string }> {
+    const acct = await this.prisma.socialAccount.findFirst({ where: { id: accountId, userId } });
+    if (!acct) throw new NotFoundException("Social account not found.");
+    await this.prisma.socialAccount.delete({ where: { id: accountId } });
+    if (acct.isPrimary) {
+      const next = await this.prisma.socialAccount.findFirst({ where: { userId, platform: "youtube", connected: true }, orderBy: { createdAt: "asc" } });
+      if (next) await this.prisma.socialAccount.update({ where: { id: next.id }, data: { isPrimary: true } });
+    }
+    return { id: accountId };
+  }
+
+  async getPendingYoutubeChannels(userId: string): Promise<{ id: string; handle: string | null; name: string | null }[]> {
+    const pending = await this.prisma.socialAccount.findFirst({
+      where: { userId, platform: "youtube", connected: false },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!pending) return [];
+    let snapshotIds: Set<string> = new Set();
+    try {
+      const stored = JSON.parse(pending.accessTokenEnc ?? "[]") as string[];
+      if (Array.isArray(stored)) snapshotIds = new Set(stored);
+    } catch { /* non-fatal */ }
+    const res = await fetch(`${this.postizBase}/integrations`, { headers: { Authorization: this.env.POSTIZ_API_KEY } });
+    let list: Array<Record<string, unknown>> = [];
+    try { const raw = await res.json(); list = Array.isArray(raw) ? raw : []; } catch { return []; }
+    if (!res.ok) return [];
+    const ytEntries = list.filter((i) => String(i.identifier ?? "").includes("youtube") && !i.disabled);
+    const pendingCreatedAt = pending.createdAt;
+    const byTimestamp = ytEntries.filter((i) => {
+      if (!i.createdAt) return false;
+      try { return new Date(i.createdAt as string) > pendingCreatedAt; } catch { return false; }
+    });
+    const bySnapshot = ytEntries.filter((i) => !snapshotIds.has(String(i.id)));
+    const candidates = byTimestamp.length > 0 ? byTimestamp : bySnapshot.length > 0 ? bySnapshot : ytEntries;
+    const claimedByOthers = new Set(
+      (await this.prisma.socialAccount.findMany({
+        where: { remoteUserId: { in: candidates.map((i) => String(i.id)) }, connected: true, userId: { not: userId } },
+        select: { remoteUserId: true },
+      })).map((r) => r.remoteUserId).filter(Boolean) as string[],
+    );
+    return candidates
+      .filter((i) => !claimedByOthers.has(String(i.id)))
+      .map((i) => ({ id: String(i.id), handle: String(i.profile ?? "").replace(/^@/, "") || null, name: String(i.name ?? "") || null }));
+  }
+
+  async finalizeYoutubeConnect(userId: string, integrationId?: string): Promise<SocialAccountInfo> {
+    const pending = await this.prisma.socialAccount.findFirst({
+      where: { userId, platform: "youtube", connected: false },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!pending) throw new BadRequestException("No pending YouTube connect found. Start again.");
+    try {
+      if (!integrationId) throw new BadRequestException("No YouTube channel selected.");
+      const res = await fetch(`${this.postizBase}/integrations`, { headers: { Authorization: this.env.POSTIZ_API_KEY } });
+      let list: Array<Record<string, unknown>> = [];
+      try { const raw = await res.json(); list = Array.isArray(raw) ? raw : []; } catch { /* non-fatal */ }
+      const match = list.find((i) => String(i.id) === integrationId);
+      if (!match) throw new BadRequestException("That YouTube channel was not found in Postiz. Try reconnecting.");
+      const handle = String(match.profile ?? match.name ?? "").replace(/^@/, "") || null;
+      const a = await this.prisma.socialAccount.update({
+        where: { id: pending.id },
+        data: { connected: true, remoteUserId: integrationId, handle, accessTokenEnc: null },
+      });
+      await this.prisma.socialAccount.deleteMany({ where: { userId, platform: "youtube", connected: false } });
+      return this.toInfo(a);
+    } finally {
+      await this.lock.releaseLock(YT_CONNECT_LOCK_KEY);
+    }
+  }
+
+  async publishToYoutube(
+    userId: string,
+    creativeId: string,
+    mediaUrlOverride?: string,
+    socialAccountId?: string,
+  ): Promise<{ published: boolean; remoteId: string }> {
+    const creative = await this.prisma.creative.findUnique({ where: { id: creativeId } });
+    if (!creative) throw new NotFoundException("Creative not found.");
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const render = await this.prisma.personalizedRender.findUnique({ where: { userId_creativeId: { userId, creativeId } } });
+    const mediaUrl = mediaUrlOverride ?? render?.cachedUrl ?? creative.sourceKey;
+    const caption = this.captionFor(creative.captionVariants, user.preferredLanguage);
+    const acct = socialAccountId
+      ? await this.prisma.socialAccount.findFirst({ where: { id: socialAccountId, userId } })
+      : await this.prisma.socialAccount.findFirst({ where: { userId, platform: "youtube", isPrimary: true, connected: true } })
+        ?? await this.prisma.socialAccount.findFirst({ where: { userId, platform: "youtube", connected: true } });
+    if (!acct || !acct.connected) throw new ForbiddenException("Connect a YouTube channel first.");
+    const integrationId = acct.remoteUserId;
+    if (!integrationId) throw new ForbiddenException("YouTube channel not linked. Reconnect.");
+    const mediaRes = await fetch(`${this.postizBase}/media`, {
+      method: "POST",
+      headers: { Authorization: this.env.POSTIZ_API_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ url: mediaUrl }),
+    });
+    let media: any;
+    try { media = await mediaRes.json(); } catch { media = {}; }
+    const publishRes = await fetch(`${this.postizBase}/posts`, {
+      method: "POST",
+      headers: { Authorization: this.env.POSTIZ_API_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "now",
+        date: new Date().toISOString(),
+        shortLink: false,
+        tags: [],
+        posts: [{ integration: { id: integrationId }, value: [{ content: caption, image: [media] }], settings: { __type: "youtube" } }],
+      }),
+    });
+    let json: any;
+    try { json = await publishRes.json(); } catch { json = {}; }
+    if (!publishRes.ok) throw new BadRequestException(`YouTube publish failed: ${json?.message ?? publishRes.status}`);
+    const remoteId = String(json?.[0]?.id ?? json?.postId ?? json?.id ?? `yt_${Date.now()}`);
+    return { published: true, remoteId };
+  }
+
+  private async postizYoutubeIntegrationIds(): Promise<string[]> {
+    try {
+      const res = await fetch(`${this.postizBase}/integrations`, { headers: { Authorization: this.env.POSTIZ_API_KEY } });
+      const list: any = await res.json().catch(() => []);
+      if (!res.ok || !Array.isArray(list)) return [];
+      return list.filter((i: any) => String(i.identifier ?? "").includes("youtube") && !i.disabled).map((i: any) => String(i.id)).filter(Boolean);
+    } catch { return []; }
+  }
+
+  private async postizYoutubeConnectUrl(): Promise<string> {
+    const res = await fetch(`${this.postizBase}/social/youtube`, { headers: { Authorization: this.env.POSTIZ_API_KEY } });
+    let json: any;
+    try { json = await res.json(); } catch {
+      throw new BadRequestException("Could not reach Postiz to start YouTube connect.");
+    }
+    if (!res.ok || !json?.url) throw new BadRequestException("Could not reach Postiz to start YouTube connect.");
+    return String(json.url);
   }
 
   // --- Meta OAuth (graph mode) -------------------------------------------------

@@ -33,6 +33,7 @@ type ShareChannel =
   | "whatsapp"
   | "instagram_story"
   | "instagram_feed"
+  | "youtube"
   | "facebook"
   | "copy_link"
   | "other";
@@ -72,6 +73,9 @@ export default function ShareScreen() {
   const [igConnected, setIgConnected] = useState(false);
   const [igPublishing, setIgPublishing] = useState(false);
   const [igToast, setIgToast] = useState<string | null>(null);
+  const [ytConnected, setYtConnected] = useState(false);
+  const [ytPublishing, setYtPublishing] = useState(false);
+  const [ytToast, setYtToast] = useState<string | null>(null);
 
   // Celebratory pop on the points banner — fires only once points are earned.
   const pop = useRef(new Animated.Value(0.8)).current;
@@ -94,6 +98,7 @@ export default function ShareScreen() {
       ]);
       setData(shareData);
       setIgConnected(accounts.some((a) => a.platform === "instagram" && a.connected && a.type !== "personal"));
+      setYtConnected(accounts.some((a) => a.platform === "youtube" && a.connected));
     } catch (e) {
       setError((e as Error).message);
     }
@@ -127,6 +132,25 @@ export default function ShareScreen() {
     } finally {
       setIgPublishing(false);
       setTimeout(() => setIgToast(null), 3000);
+    }
+  }
+
+  async function publishToYoutube() {
+    if (!data || ytPublishing) return;
+    setYtPublishing(true);
+    setYtToast(null);
+    try {
+      await api<{ published: boolean }>("/social/youtube/publish", {
+        method: "POST",
+        body: JSON.stringify({ creativeId: id }),
+      });
+      await confirmShare("youtube");
+      setYtToast(lang === "te" ? "YouTube లో పోస్ట్ అయింది! ✓" : "Posted to YouTube! ✓");
+    } catch (e) {
+      setYtToast((e as Error).message ?? (lang === "te" ? "పోస్ట్ విఫలమైంది" : "Post failed"));
+    } finally {
+      setYtPublishing(false);
+      setTimeout(() => setYtToast(null), 3000);
     }
   }
 
@@ -372,6 +396,17 @@ export default function ShareScreen() {
             : () => void openChannel("instagram_story", data.deepLinks.instagram)
           }
         />
+        {ytToast ? <Text style={st.ytToast}>{ytToast}</Text> : null}
+        <Channel
+          label={ytPublishing ? (lang === "te" ? "పోస్ట్ అవుతోంది…" : "Posting…") : "YouTube"}
+          icon={ytPublishing ? "loader" : "youtube"}
+          color="#FF0000"
+          disabled={ytPublishing}
+          onPress={ytConnected
+            ? () => void publishToYoutube()
+            : () => void openChannel("youtube", data.deepLinks.youtube ?? "https://studio.youtube.com")
+          }
+        />
         {Platform.OS === "web" ? (
           <Channel
             label={L.downloadShare[lang] ?? L.downloadShare.en}
@@ -512,4 +547,5 @@ const st = StyleSheet.create({
   packLabel: { fontWeight: "700", fontSize: 13, fontFamily: fontFamily, lineHeight: lh(13), flex: 1 },
   packToast: { color: colors.success, fontSize: 13, fontWeight: "600", fontFamily: fontFamily, marginBottom: 6, lineHeight: lh(13) },
   igToast: { color: "#E1306C", fontSize: 13, fontWeight: "600", fontFamily: fontFamily, marginBottom: 6, lineHeight: lh(13), textAlign: "center" },
+  ytToast: { color: "#FF0000", fontSize: 13, fontWeight: "600", fontFamily: fontFamily, marginBottom: 6, lineHeight: lh(13), textAlign: "center" },
 });
