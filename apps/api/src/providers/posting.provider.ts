@@ -134,12 +134,15 @@ export class PostizInstagramProvider implements InstagramProvider {
   async publish(input: IgPublishInput): Promise<{ remoteId: string }> {
     const { token, integrationId } = this.resolveIntegrationId(input);
     const media = await this.upload(input.mediaUrl, token);
+    // Postiz requires settings.post_type ("post" | "story") for Instagram, else
+    // it 400s with "post_type must be one of the following values: post, story".
+    const postType = input.kind === "story" ? "story" : "post";
     const json = await this.postizPost(`${this.base}/posts`, {
       type: "now",
       date: new Date().toISOString(),
       shortLink: false,
       tags: [],
-      posts: [{ integration: { id: integrationId }, value: [{ content: input.caption, image: [media] }], settings: { __type: "instagram" } }],
+      posts: [{ integration: { id: integrationId }, value: [{ content: input.caption, image: [media] }], settings: { __type: "instagram", post_type: postType } }],
     }, token);
     const remoteId = String(json?.[0]?.id ?? json?.postId ?? json?.id ?? `postiz_${Date.now()}`);
     this.log.log(`Postiz published ${input.kind} as @${input.account.handle} -> ${remoteId}`);
