@@ -377,11 +377,11 @@ const s = StyleSheet.create({
     borderRadius: radius.sm,
     borderWidth: 1.5,
     borderColor: colors.border ?? "#e5e7eb",
-    backgroundColor: colors.surface ?? "#ffffff",
+    backgroundColor: colors.bgElevated ?? "#ffffff",
   },
   accountRowSelected: {
     borderColor: colors.primary,
-    backgroundColor: colors.primaryLight ?? "#eff6ff",
+    backgroundColor: colors.primarySoft ?? "#eff6ff",
   },
   radioCircle: {
     width: 16,

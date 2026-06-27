@@ -68,6 +68,8 @@ export default function Personalize() {
   const { data: item, loading, error, reload } = useApi<FeedItem>(`/feed/${id}`);
   const [reported, setReported] = useState(false);
   const canvasRef = useRef<View>(null);
+  // Banner strip view — captured as a PNG and sent to the server to overlay onto video.
+  const bannerStripRef = useRef<View>(null);
 
   // Banner customisation state (pre-filled from profile, user can edit)
   const [bannerName, setBannerName] = useState("");
@@ -155,6 +157,11 @@ export default function Personalize() {
           }),
         }).catch(() => undefined);
       }
+      // Native video: if the worker didn't tap "Personalise this video", bake the
+      // banner now so the reel never goes out without it.
+      if (item?.type === "video" && Platform.OS !== "web" && !videoDone && !videoCapturing) {
+        await handleCaptureVideoNative();
+      }
     } finally {
       setSharePrepBusy(false);
       router.push(`/share/${id}`);
@@ -189,6 +196,40 @@ export default function Personalize() {
       } else {
         setVideoError(true);
       }
+    } catch {
+      setVideoError(true);
+    } finally {
+      setVideoCapturing(false);
+    }
+  }
+
+  // Native: capture the banner strip as a PNG, upload it, and have the server
+  // ffmpeg-overlay it onto the video (RN can't composite video on-device).
+  async function handleCaptureVideoNative() {
+    if (!item || videoCapturing) return;
+    setVideoCapturing(true);
+    setVideoProgress(0.1);
+    setVideoError(false);
+    setVideoDone(false);
+    try {
+      const { captureRef } = await import("react-native-view-shot");
+      // Let the photo/logo settle before snapshot.
+      await new Promise((r) => setTimeout(r, 400));
+      const fileUri = await captureRef(bannerStripRef as never, { format: "png", quality: 1, result: "tmpfile" });
+      setVideoProgress(0.35);
+
+      const fd = new FormData();
+      fd.append("file", { uri: fileUri, name: "banner.png", type: "image/png" } as unknown as Blob);
+      const { key } = await api<{ key: string; url: string }>("/creatives/upload", { method: "POST", body: fd });
+      setVideoProgress(0.6);
+
+      const { videoUrl } = await api<{ videoUrl: string }>(`/feed/${id}/render-video`, {
+        method: "POST",
+        body: JSON.stringify({ bannerKey: key }),
+      });
+      setVideoProgress(1);
+      setPersonalizedVideoUrl(videoUrl);
+      setVideoDone(true);
     } catch {
       setVideoError(true);
     } finally {
@@ -302,7 +343,7 @@ export default function Personalize() {
 
       {/* Strip banner — exactly what gets attached below the creative on share */}
       {user && (
-        <View style={pb.stripWrap}>
+        <View ref={bannerStripRef} collapsable={false} style={pb.stripWrap}>
           <WorkerBanner
             user={{
               id: user.id,
@@ -320,12 +361,12 @@ export default function Personalize() {
 
       <Text style={st.fallbackNote}>
         {isVideo
-          ? "Your banner is attached below the video when shared."
+          ? "Tap “Personalise this video” to bake your banner onto the video, then share."
           : t("personalize.fallbackNote")}
       </Text>
 
-      {/* ── Video capture (web only) ── */}
-      {isVideo && Platform.OS === "web" && (
+      {/* ── Video capture: web composites on-device; native uses server ffmpeg ── */}
+      {isVideo && (
         <View style={st.captureWrap}>
           {videoCapturing ? (
             <View style={st.progressWrap}>
@@ -341,7 +382,7 @@ export default function Personalize() {
             </View>
           ) : (
             <Pressable
-              onPress={handleCaptureVideo}
+              onPress={Platform.OS === "web" ? handleCaptureVideo : handleCaptureVideoNative}
               style={({ pressed }) => [st.captureBtn, { opacity: pressed ? 0.75 : 1 }]}
             >
               <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
