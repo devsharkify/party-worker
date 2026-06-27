@@ -15,6 +15,10 @@ const reportRenderBody = z.object({
   usedServerFallback: z.boolean().default(false),
 });
 
+const renderVideoBody = z.object({
+  bannerKey: z.string().min(1),
+});
+
 @ApiTags("feed")
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -47,5 +51,18 @@ export class FeedController {
     dto: { deviceTier: z.infer<typeof DeviceTier>; dataUrl?: string; videoDataUrl?: string; usedServerFallback: boolean },
   ) {
     return this.feed.reportRender(user.id, creativeId, dto);
+  }
+
+  /**
+   * Server-side video banner overlay (native can't composite video on-device).
+   * Client uploads the banner PNG via /creatives/upload, then sends its key here.
+   */
+  @Post(":creativeId/render-video")
+  renderVideo(
+    @CurrentUser() user: AuthUser,
+    @Param("creativeId") creativeId: string,
+    @Body(new ZodValidationPipe(renderVideoBody)) dto: { bannerKey: string },
+  ) {
+    return this.feed.renderPersonalizedVideo(user.id, creativeId, dto.bannerKey);
   }
 }

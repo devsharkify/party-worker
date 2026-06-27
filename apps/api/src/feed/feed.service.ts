@@ -1,9 +1,10 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import type { CaptionVariants, FeedItem, PersonalizedRenderInfo } from "@pw/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { OrgService } from "../org/org.service";
 import { STORAGE_PROVIDER, type StorageProvider } from "../providers/storage.provider";
 import type { DeviceTier } from "@pw/shared";
+import { overlayBannerOnVideo } from "./video-banner";
 
 const NEW_WINDOW_MS = 48 * 3600_000;
 
@@ -123,6 +124,47 @@ export class FeedService {
       cachedUrl: render.cachedUrl,
       usedServerFallback: render.usedServerFallback,
     };
+  }
+
+  /**
+   * Server-side video personalization: native RN can't composite the banner onto
+   * a video on-device, so the client uploads a banner PNG (rendered by the real
+   * WorkerBanner component) and we overlay it with ffmpeg. Result is cached as
+   * the worker's personalized video for this creative.
+   */
+  async renderPersonalizedVideo(
+    userId: string,
+    creativeId: string,
+    bannerKey: string,
+  ): Promise<{ videoUrl: string }> {
+    const creative = await this.prisma.creative.findUnique({ where: { id: creativeId } });
+    if (!creative) throw new NotFoundException("Creative not found.");
+    if (creative.type !== "video") throw new BadRequestException("Creative is not a video.");
+
+    const [videoBuf, bannerBuf] = await Promise.all([
+      this.fetchBuffer(this.mediaUrl(creative.sourceKey)),
+      this.fetchBuffer(this.mediaUrl(bannerKey)),
+    ]);
+
+    const outBuf = await overlayBannerOnVideo(videoBuf, bannerBuf);
+    const { url } = await this.storage.put(
+      `renders/${userId}/${creativeId}_video.mp4`,
+      outBuf,
+      "video/mp4",
+    );
+
+    await this.prisma.personalizedRender.upsert({
+      where: { userId_creativeId: { userId, creativeId } },
+      create: { userId, creativeId, cachedVideoUrl: url, usedServerFallback: true },
+      update: { cachedVideoUrl: url, usedServerFallback: true },
+    });
+    return { videoUrl: url };
+  }
+
+  private async fetchBuffer(url: string): Promise<Buffer> {
+    const res = await fetch(url);
+    if (!res.ok) throw new BadRequestException(`Could not fetch media (${res.status}).`);
+    return Buffer.from(await res.arrayBuffer());
   }
 
   async getMyRenders(userId: string) {

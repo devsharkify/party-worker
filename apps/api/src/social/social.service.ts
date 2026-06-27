@@ -710,7 +710,9 @@ export class SocialService {
     const render = await this.prisma.personalizedRender.findUnique({
       where: { userId_creativeId: { userId, creativeId } },
     });
-    const mediaUrl = this.resolveMediaUrl(mediaUrlOverride ?? render?.cachedUrl ?? creative.sourceKey);
+    // For videos, prefer the server-composited banner video; images use cachedUrl.
+    const personalized = creative.type === "video" ? render?.cachedVideoUrl : render?.cachedUrl;
+    const mediaUrl = this.resolveMediaUrl(mediaUrlOverride ?? personalized ?? creative.sourceKey);
     const caption = this.captionFor(creative.captionVariants, user.preferredLanguage);
 
     const acct = socialAccountId
