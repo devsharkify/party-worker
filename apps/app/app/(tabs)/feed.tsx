@@ -200,6 +200,7 @@ export default function Feed() {
     designation: user.designation,
     photoUrl: user.photoUrl,
     tier: user.tier,
+    area: user.area,
     boothName: user.boothName,
     orgUnitName: user.orgUnitName,
     weeklyLeaguePoints: user.weeklyLeaguePoints,
