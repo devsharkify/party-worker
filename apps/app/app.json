@@ -67,12 +67,6 @@
           "locationWhenInUsePermission": "myTRS needs your location to verify you are present at the event venue."
         }
       ],
-      [
-        "ffmpeg-kit-react-native",
-        {
-          "package": "min"
-        }
-      ]
     ],
     "experiments": {
       "typedRoutes": false
