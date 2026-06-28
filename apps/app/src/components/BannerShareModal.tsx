@@ -329,7 +329,7 @@ const s = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
-    bottom: Math.round(PORTRAIT_H * 0.30),
+    bottom: Math.round(PORTRAIT_H * 0.20),
     shadowColor: "#000",
     shadowOpacity: 0.3,
     shadowRadius: 8,
