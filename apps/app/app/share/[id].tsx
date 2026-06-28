@@ -84,6 +84,8 @@ export default function ShareScreen() {
   const [ytToast, setYtToast] = useState<string | null>(null);
   // True while on-device ffmpeg compositing is running
   const [compositing, setCompositing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveToast, setSaveToast] = useState<string | null>(null);
 
   // Hidden WorkerBanner rendered off-screen for view-shot capture
   const bannerRef = useRef<View>(null);
@@ -406,6 +408,45 @@ export default function ShareScreen() {
     setTimeout(() => setPackToast(false), 2000);
   }
 
+  /** Save composited video (or image) to the device gallery. */
+  async function saveToDevice() {
+    if (!data || saving) return;
+    setSaving(true);
+    setSaveToast(null);
+    try {
+      const MediaLibrary = await import("expo-media-library");
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== "granted") {
+        setSaveToast(lang === "te" ? "గ్యాలరీ అనుమతి లేదు" : "Gallery permission denied");
+        setTimeout(() => setSaveToast(null), 2500);
+        return;
+      }
+
+      let localPath: string;
+      if (isVideo) {
+        setCompositing(true);
+        localPath = await getCompositedVideoPath(data.personalizedUrl ?? data.mediaUrl);
+        setCompositing(false);
+      } else {
+        const FileSystem = await import("expo-file-system/legacy");
+        const url = data.personalizedUrl ?? data.mediaUrl;
+        const ext = url.includes(".jpg") || url.includes(".jpeg") ? "jpg" : "png";
+        localPath = `${FileSystem.cacheDirectory}save-${data.shareEventId}.${ext}`;
+        await FileSystem.downloadAsync(url, localPath);
+      }
+
+      await MediaLibrary.saveToLibraryAsync(localPath);
+      setSaveToast(lang === "te" ? "గ్యాలరీలో సేవ్ అయింది ✓" : "Saved to gallery ✓");
+      setTimeout(() => setSaveToast(null), 2500);
+    } catch (e) {
+      setCompositing(false);
+      setSaveToast((e as Error).message ?? (lang === "te" ? "సేవ్ విఫలమైంది" : "Save failed"));
+      setTimeout(() => setSaveToast(null), 2500);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   // Build BannerUser from auth context
   const bannerUser: BannerUser | null = user
     ? {
@@ -586,6 +627,21 @@ export default function ShareScreen() {
           color={copied ? colors.success : "#475569"}
           onPress={() => void copyLink()}
         />
+
+        {Platform.OS !== "web" ? (
+          <>
+            {saveToast ? <Text style={st.saveToast}>{saveToast}</Text> : null}
+            <Channel
+              label={saving
+                ? (lang === "te" ? "సేవ్ అవుతోంది…" : "Saving…")
+                : (lang === "te" ? "గ్యాలరీలో సేవ్ చేయండి" : "Save to Gallery")}
+              icon={saving ? "loader" : "download"}
+              color="#6366f1"
+              disabled={saving}
+              onPress={() => void saveToDevice()}
+            />
+          </>
+        ) : null}
       </View>
 
       {/* Forward Packs */}
@@ -730,4 +786,5 @@ const st = StyleSheet.create({
   packToast: { color: colors.success, fontSize: 13, fontWeight: "600", fontFamily, marginBottom: 6, lineHeight: lh(13) },
   igToast: { color: "#E1306C", fontSize: 13, fontWeight: "600", fontFamily, marginBottom: 6, lineHeight: lh(13), textAlign: "center" },
   ytToast: { color: "#FF0000", fontSize: 13, fontWeight: "600", fontFamily, marginBottom: 6, lineHeight: lh(13), textAlign: "center" },
+  saveToast: { color: "#6366f1", fontSize: 13, fontWeight: "600", fontFamily, marginBottom: 6, lineHeight: lh(13), textAlign: "center" },
 });
