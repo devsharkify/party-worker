@@ -36,7 +36,7 @@ type Status = "idle" | "capturing" | "uploading" | "posting" | "done" | "error";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const COMPOSITE_W = 280; // dp — composite width (scales the 1080 design)
+const COMPOSITE_W = 340; // dp — composite width (scales the 1080 design)
 const STRIP_H = Math.round(COMPOSITE_W * (240 / 1080)); // banner height
 // Images share as a square (1080×1080 + strip below = 1080×1320).
 const SQUARE_H = COMPOSITE_W;
