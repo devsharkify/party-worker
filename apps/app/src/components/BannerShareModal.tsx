@@ -326,13 +326,10 @@ const s = StyleSheet.create({
     overflow: "hidden",
   },
   stripOverlay: {
-    // Edge-to-edge, shifted up to sit directly over the channel's red
-    // lower-third strip (~15% from the bottom on this 9:16 footage) so the
-    // TRS banner fully covers the original news headline.
     position: "absolute",
     left: 0,
     right: 0,
-    bottom: Math.round(PORTRAIT_H * 0.155),
+    bottom: 0,
     shadowColor: "#000",
     shadowOpacity: 0.3,
     shadowRadius: 8,
