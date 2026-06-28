@@ -310,6 +310,7 @@ export default function Personalize() {
               designation: user.designation,
               photoUrl: user.photoUrl,
               tier: user.tier,
+              area: user.area,
               boothName: user.boothName,
               orgUnitName: user.orgUnitName,
             }}
