@@ -113,6 +113,7 @@ export function WorkerBanner({ user, prefs = {}, width = BANNER_W }: Props) {
               height: s(170),
               borderRadius: s(85),
               borderWidth: Math.max(1, s(5)),
+              marginRight: s(16),
             },
           ]}
         >

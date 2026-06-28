@@ -81,6 +81,7 @@ export class ShareService {
       basePointsAwarded: share.basePointsAwarded,
       personalizedUrl: render?.cachedUrl ?? null,
       mediaUrl,
+      type: creative.type,
       deepLinks,
     };
   }

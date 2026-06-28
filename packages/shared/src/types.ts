@@ -138,6 +138,8 @@ export interface ShareResult {
   personalizedUrl: string | null;
   /** original creative media — the share fallback when no render exists */
   mediaUrl: string;
+  /** 'image' | 'video' — drives on-device banner compositing logic */
+  type: CreativeType;
 }
 
 export interface ShareConfirmResult {

@@ -34,6 +34,7 @@
     "expo-sharing": "~14.0.8",
     "expo-status-bar": "~3.0.0",
     "expo-updates": "^29.0.18",
+    "ffmpeg-kit-react-native": "^6.0.2",
     "i18next": "^24.2.0",
     "moti": "^0.30.0",
     "phosphor-react-native": "^3.0.6",
