@@ -145,6 +145,7 @@ enum ScoreReason {
   poll_vote
   contact_register
   task_complete
+  voter_survey
 }
 
 // ---------------------------------------------------------------------------
@@ -170,6 +171,9 @@ model OrgUnit {
   pools     LeaderboardPool[]
   newsItems NewsItem[]
   voterContacts VoterContact[] @relation("BoothVoterContacts")
+  voters        Voter[]        @relation("BoothVoters")
+  voterSurveys  VoterSurvey[]  @relation("BoothVoterSurveys")
+  voterImports  VoterImport[]  @relation("BoothVoterImports")
   createdAt DateTime    @default(now())
 
   @@index([parentId])
@@ -233,6 +237,13 @@ model User {
   deviceTokens     DeviceToken[]
   voterContacts    VoterContact[]   @relation("WorkerContacts")
   workerProfile    WorkerProfile?
+
+  // Voter-roll access is backend-gated: admins/leaders toggle per member.
+  voterAccessEnabled Boolean          @default(false)
+  voterUpdates       Voter[]          @relation("VoterUpdates")
+  voterSurveys       VoterSurvey[]    @relation("WorkerSurveys")
+  voterImports       VoterImport[]    @relation("VoterImportsBy")
+  voterAccessLogs    VoterAccessLog[] @relation("VoterAccessLogs")
 
   createdAt DateTime @default(now())
 
@@ -882,4 +893,122 @@ model CanvassRoute {
   @@index([boothId])
   @@index([assignedTo])
   @@index([status])
+}
+
+// ---------------------------------------------------------------------------
+// Voter roll (electoral roll engine — full voter_connect port, org-scoped)
+// ---------------------------------------------------------------------------
+
+/// One electoral-roll voter, imported from CSV and pinned to a polling-booth
+/// org unit. That single boothId FK is what drives all hierarchy scoping:
+/// a leader sees exactly the voters under their org subtree.
+model Voter {
+  id           String  @id @default(cuid())
+  epicNo       String? // ECI EPIC card number
+  serialNo     Int?    // serial within the part
+  nameEn       String
+  nameTe       String? // regional-language name from the roll (V1)
+  relationName String? // father/husband name on the roll
+  relationType String? // "father" | "husband" | "mother" | "guardian" | "other"
+  gender       String? // "M" | "F" | "O"
+  age          Int?
+  houseNo      String?
+  address      String?
+  mobile       String?
+  partNo       Int?    // ECI part number
+  sectionNo    Int?
+  acNo         Int?    // assembly constituency number
+
+  boothId String
+  booth   OrgUnit @relation("BoothVoters", fields: [boothId], references: [id])
+
+  votingStatus String    @default("unmarked") // "unmarked" | "green" (support) | "yellow" (neutral) | "red" (opposed)
+  isVoted      Boolean   @default(false) // election-day turnout mark
+  votedAt      DateTime?
+  notes        String?
+
+  updatedById String?
+  updatedBy   User?   @relation("VoterUpdates", fields: [updatedById], references: [id])
+
+  importId String?
+  import   VoterImport? @relation(fields: [importId], references: [id])
+
+  surveys VoterSurvey[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([boothId, epicNo])
+  @@index([boothId, partNo, serialNo])
+  @@index([boothId, houseNo])
+  @@index([boothId, votingStatus])
+  @@index([nameEn])
+}
+
+/// One CSV import batch — the audit anchor for where roll data came from.
+model VoterImport {
+  id           String  @id @default(cuid())
+  boothId      String
+  booth        OrgUnit @relation("BoothVoterImports", fields: [boothId], references: [id])
+  uploadedById String
+  uploadedBy   User    @relation("VoterImportsBy", fields: [uploadedById], references: [id])
+  filename     String?
+  totalRows    Int
+  imported     Int
+  skipped      Int
+  errors       Json?
+  voters       Voter[]
+  createdAt    DateTime @default(now())
+
+  @@index([boothId])
+}
+
+/// Door-to-door household survey (voter_connect FormData port).
+model VoterSurvey {
+  id       String  @id @default(cuid())
+  workerId String
+  worker   User    @relation("WorkerSurveys", fields: [workerId], references: [id])
+  boothId  String
+  booth    OrgUnit @relation("BoothVoterSurveys", fields: [boothId], references: [id])
+  voterId  String?
+  voter    Voter?  @relation(fields: [voterId], references: [id])
+
+  householdName      String
+  mobile             String?
+  address            String?
+  religion           String?
+  caste              String?
+  familyMembersCount Int     @default(1)
+  familyDetails      Json?   // [{ name, age, gender, relation, isVoter, epicNo? }]
+  knowsLocalLeader   Boolean?
+  currentPartySupport String? // party name
+  supportLevel       String?  // "strong" | "leaning" | "neutral" | "opposed"
+  servicesReceived   String?
+  incomeRange        String?  // "<10k" | "10-25k" | "25-50k" | "50k+"
+  mainOccupation     String?
+  housingType        String?  // "owned" | "rented" | "other"
+  issues             String?
+  latitude           Float?
+  longitude          Float?
+  visitDate          DateTime @default(now())
+  createdAt          DateTime @default(now())
+
+  @@index([workerId])
+  @@index([boothId])
+  @@index([voterId])
+}
+
+/// Every voter-data touch is logged — DPDP accountability + worker protection.
+model VoterAccessLog {
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation("VoterAccessLogs", fields: [userId], references: [id])
+  action    String  // "list" | "search" | "view" | "update" | "bulk_update" | "import" | "stats" | "grant" | "revoke" | "survey_list"
+  orgUnitId String?
+  voterId   String?
+  detail    String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
 }

@@ -41,6 +41,7 @@ import { BoothTasksModule } from "./boothtasks/boothtasks.module";
 import { CanvassRoutesModule } from "./canvass-routes/canvass-routes.module";
 import { WaGroupsModule } from "./wagroups/wagroups.module";
 import { VoterContactsModule } from "./voter-contacts/voter-contacts.module";
+import { VotersModule } from "./voters/voters.module";
 import { ManifestoModule } from "./manifesto/manifesto.module";
 import { AppController } from "./app.controller";
 
@@ -88,6 +89,7 @@ import { AppController } from "./app.controller";
     CanvassRoutesModule,
     WaGroupsModule,
     VoterContactsModule,
+    VotersModule,
     ManifestoModule,
   ],
   controllers: [AppController],

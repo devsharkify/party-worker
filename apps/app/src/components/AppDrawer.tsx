@@ -29,6 +29,7 @@ interface DrawerItem {
 const ITEMS: DrawerItem[] = [
   { label: "Updates", labelTe: "అప్‌డేట్లు", icon: "bell", href: "/(tabs)/updates" },
   { label: "Grievances", labelTe: "ఫిర్యాదులు", icon: "alert-circle", href: "/(tabs)/grievances" },
+  { label: "Voter Roll", labelTe: "ఓటర్ల జాబితా", icon: "users", href: "/voters" },
   { label: "My Videos", labelTe: "నా వీడియోలు", icon: "film", href: "/my-videos" },
   { label: "Submit Content", labelTe: "కంటెంట్ పంపండి", icon: "upload", href: "/submit-content" },
   { label: "My Submissions", labelTe: "నా సమర్పణలు", icon: "inbox", href: "/my-submissions" },
