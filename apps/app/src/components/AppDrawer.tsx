@@ -40,6 +40,7 @@ const ITEMS: DrawerItem[] = [
 const LEADER_ITEMS: DrawerItem[] = [
   { label: "Review Submissions", labelTe: "సమర్పణల సమీక్ష", icon: "check-square", href: "/review-submissions" },
   { label: "Invite via Link", labelTe: "లింక్ ద్వారా ఆహ్వానం", icon: "user-plus", href: "/invite" },
+  { label: "Field Team", labelTe: "క్షేత్ర బృందం", icon: "map-pin", href: "/field-team" },
 ];
 
 const REVIEWER_ROLES = new Set([

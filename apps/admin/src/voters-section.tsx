@@ -1,11 +1,11 @@
 "use client";
 /**
  * VotersSection — HQ voter-roll management.
- * Five tabs: Roll · Import · Stats · Surveys · Access.
- * Roll lives here; Import is in voters-import.tsx and
- * Stats/Surveys/Access are in voters-insights.tsx.
+ * Six tabs: Roll · Field · Import · Stats · Surveys · Access.
+ * Roll lives here; Field is in voters-field.tsx, Import is in
+ * voters-import.tsx and Stats/Surveys/Access are in voters-insights.tsx.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAdmin } from "./admin-auth";
 import { EmptyState, SkeletonRow, useToast } from "./ui";
 import {
@@ -15,7 +15,10 @@ import {
   type VoterUnit,
   type VotersAccess,
   type VotingStatus,
+  type VoterHistoryEntry,
+  type VoterHistoryResponse,
   buildQuery,
+  formatDateTime,
   Pager,
   STATUS_LABEL,
   STATUS_OPTIONS,
@@ -24,6 +27,7 @@ import {
 } from "./voters-shared";
 import { VoterAccessTab, VoterStatsTab, VoterSurveysTab } from "./voters-insights";
 import { VoterImportTab } from "./voters-import";
+import { VoterFieldTab } from "./voters-field";
 
 const PAGE_SIZE = 50;
 const SEARCH_DEBOUNCE_MS = 400;
@@ -32,7 +36,7 @@ const SEARCH_DEBOUNCE_MS = 400;
 /* Section shell + tab bar                                             */
 /* ================================================================== */
 
-type VoterTab = "roll" | "import" | "stats" | "surveys" | "access";
+type VoterTab = "roll" | "field" | "import" | "stats" | "surveys" | "access";
 
 export function VotersSection() {
   const { api } = useAdmin();
@@ -65,6 +69,7 @@ export function VotersSection() {
   const tabs = useMemo(() => {
     const all: { id: VoterTab; label: string }[] = [
       { id: "roll", label: "Roll" },
+      { id: "field", label: "Field" },
       { id: "import", label: "Import" },
       { id: "stats", label: "Stats" },
       { id: "surveys", label: "Surveys" },
@@ -116,6 +121,7 @@ export function VotersSection() {
       </div>
 
       {tab === "roll" ? <RollTab api={api} units={units} /> : null}
+      {tab === "field" ? <VoterFieldTab api={api} /> : null}
       {tab === "import" ? <VoterImportTab api={api} units={units} /> : null}
       {tab === "stats" ? <VoterStatsTab api={api} /> : null}
       {tab === "surveys" ? <VoterSurveysTab api={api} /> : null}
@@ -141,6 +147,12 @@ function RollTab({ api, units }: { api: ApiFn; units: VoterUnit[] | null }) {
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [bulkStatus, setBulkStatus] = useState<VotingStatus>("green");
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [expandedVoterId, setExpandedVoterId] = useState<string | null>(null);
+  const [historyCache, setHistoryCache] = useState<Readonly<Record<string, VoterHistoryEntry[]>>>(
+    {},
+  );
+  const [historyError, setHistoryError] = useState<Readonly<Record<string, string>>>({});
+  const [historyLoadingId, setHistoryLoadingId] = useState<string | null>(null);
   const seq = useRef(0);
 
   const selectedUnitId = selectedUnit?.id;
@@ -149,6 +161,7 @@ function RollTab({ api, units }: { api: ApiFn; units: VoterUnit[] | null }) {
   useEffect(() => {
     setPage(1);
     setSelected(new Set());
+    setExpandedVoterId(null);
   }, [selectedUnitId, q, status, gender]);
 
   const load = useCallback(async () => {
@@ -207,6 +220,37 @@ function RollTab({ api, units }: { api: ApiFn; units: VoterUnit[] | null }) {
     } finally {
       setBulkBusy(false);
     }
+  }
+
+  const loadHistory = useCallback(
+    async (id: string) => {
+      setHistoryLoadingId(id);
+      setHistoryError((prev) => {
+        if (!(id in prev)) return prev;
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      try {
+        const res = await api<VoterHistoryResponse>(`/voters/detail/${id}/history`);
+        setHistoryCache((prev) => ({ ...prev, [id]: res.items }));
+      } catch (e) {
+        setHistoryError((prev) => ({ ...prev, [id]: (e as Error).message }));
+      } finally {
+        setHistoryLoadingId((prev) => (prev === id ? null : prev));
+      }
+    },
+    [api],
+  );
+
+  function toggleHistory(id: string) {
+    if (expandedVoterId === id) {
+      setExpandedVoterId(null);
+      return;
+    }
+    setExpandedVoterId(id);
+    // Cached results are reused; only fetch on first expand (or after an error).
+    if (!historyCache[id] && historyLoadingId !== id) void loadHistory(id);
   }
 
   function toggleRow(id: string) {
@@ -342,8 +386,8 @@ function RollTab({ api, units }: { api: ApiFn; units: VoterUnit[] | null }) {
                 </thead>
                 <tbody>
                   {data.items.map((v) => (
+                    <Fragment key={v.id}>
                     <tr
-                      key={v.id}
                       className="border-b border-slate-100 transition last:border-b-0 hover:bg-slate-50"
                     >
                       <td className="px-3 py-2.5">
@@ -359,11 +403,22 @@ function RollTab({ api, units }: { api: ApiFn; units: VoterUnit[] | null }) {
                         {v.partNo != null ? ` / P${v.partNo}` : ""}
                       </td>
                       <td className="px-3 py-2.5">
-                        <div className="font-bold text-slate-900">{v.nameEn}</div>
-                        {v.nameTe ? <div className="text-xs text-slate-500">{v.nameTe}</div> : null}
-                        {v.relationName ? (
-                          <div className="text-xs text-slate-400">r/o {v.relationName}</div>
-                        ) : null}
+                        <button
+                          onClick={() => toggleHistory(v.id)}
+                          aria-expanded={expandedVoterId === v.id}
+                          title="View change history"
+                          className="block text-left"
+                        >
+                          <div className="font-bold text-slate-900 hover:text-navy hover:underline">
+                            {v.nameEn}
+                          </div>
+                          {v.nameTe ? (
+                            <div className="text-xs text-slate-500">{v.nameTe}</div>
+                          ) : null}
+                          {v.relationName ? (
+                            <div className="text-xs text-slate-400">r/o {v.relationName}</div>
+                          ) : null}
+                        </button>
                       </td>
                       <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">
                         {v.age ?? "—"} · {v.gender ?? "—"}
@@ -399,6 +454,19 @@ function RollTab({ api, units }: { api: ApiFn; units: VoterUnit[] | null }) {
                         />
                       </td>
                     </tr>
+                    {expandedVoterId === v.id ? (
+                      <tr className="border-b border-slate-100 bg-slate-50/70 last:border-b-0">
+                        <td colSpan={9} className="px-6 py-3">
+                          <VoterHistoryPanel
+                            entries={historyCache[v.id]}
+                            loading={historyLoadingId === v.id}
+                            error={historyError[v.id]}
+                            onRetry={() => void loadHistory(v.id)}
+                          />
+                        </td>
+                      </tr>
+                    ) : null}
+                    </Fragment>
                   ))}
                 </tbody>
               </table>
@@ -414,6 +482,61 @@ function RollTab({ api, units }: { api: ApiFn; units: VoterUnit[] | null }) {
         )}
       </div>
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Per-voter change history (inline expansion row)                     */
+/* ------------------------------------------------------------------ */
+
+function VoterHistoryPanel({
+  entries,
+  loading,
+  error,
+  onRetry,
+}: {
+  entries: VoterHistoryEntry[] | undefined;
+  loading: boolean;
+  error: string | undefined;
+  onRetry: () => void;
+}) {
+  if (loading && !entries) {
+    return <p className="text-xs font-semibold text-slate-400">Loading history…</p>;
+  }
+  if (error && !entries) {
+    return (
+      <p className="text-xs font-semibold text-rose-600">
+        Could not load history: {error}{" "}
+        <button onClick={onRetry} className="font-bold text-navy hover:underline">
+          Retry
+        </button>
+      </p>
+    );
+  }
+  if (!entries || entries.length === 0) {
+    return <p className="text-xs text-slate-400">No changes recorded for this voter yet.</p>;
+  }
+  return (
+    <ul className="space-y-2">
+      {entries.map((h) => (
+        <li key={h.id} className="text-xs">
+          <span className="font-semibold text-slate-500">{formatDateTime(h.createdAt)}</span>
+          <span className="mx-1.5 text-slate-300">—</span>
+          <span className="font-bold text-slate-800">{h.user.name}</span>
+          <span className="text-slate-400">:</span>
+          <div className="mt-0.5 space-y-0.5 pl-4">
+            {h.changes.map((c, i) => (
+              <div key={`${h.id}-${c.field}-${i}`} className="text-slate-600">
+                <span className="font-semibold">{c.field}</span>{" "}
+                <span className="text-slate-400">{c.from ?? "—"}</span>
+                <span className="mx-1 text-slate-300">→</span>
+                <span className="font-semibold text-slate-700">{c.to ?? "—"}</span>
+              </div>
+            ))}
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }
 

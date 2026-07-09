@@ -30,6 +30,7 @@ interface ListQuery {
   status?: string;
   gender?: string;
   q?: string;
+  voted?: string | boolean;
   page?: number;
   pageSize?: number;
 }
@@ -160,6 +161,9 @@ export class VotersService {
       where.votingStatus = q.status;
     }
     if (q.gender) where.gender = q.gender;
+    if (q.voted !== undefined && q.voted !== "") {
+      where.isVoted = q.voted === true || q.voted === "true";
+    }
     if (q.q?.trim()) {
       const term = q.q.trim();
       where.OR = [
@@ -231,20 +235,39 @@ export class VotersService {
     await this.assertUnitInScope(actor, voter.boothId);
 
     const data: Record<string, unknown> = { updatedById: actor.id };
+    const diffs: Array<{ field: string; from: unknown; to: unknown }> = [];
     if (dto.votingStatus !== undefined) {
       if (!VOTING_STATUSES.includes(dto.votingStatus as VotingStatus)) {
         throw new BadRequestException("votingStatus must be unmarked|green|yellow|red.");
       }
       data.votingStatus = dto.votingStatus;
+      if (dto.votingStatus !== voter.votingStatus) {
+        diffs.push({ field: "votingStatus", from: voter.votingStatus, to: dto.votingStatus });
+      }
     }
-    if (dto.mobile !== undefined) data.mobile = dto.mobile?.trim() || null;
-    if (dto.notes !== undefined) data.notes = dto.notes?.trim() || null;
+    if (dto.mobile !== undefined) {
+      data.mobile = dto.mobile?.trim() || null;
+      if (data.mobile !== voter.mobile) diffs.push({ field: "mobile", from: voter.mobile, to: data.mobile });
+    }
+    if (dto.notes !== undefined) {
+      data.notes = dto.notes?.trim() || null;
+      if (data.notes !== voter.notes) diffs.push({ field: "notes", from: voter.notes, to: data.notes });
+    }
     if (dto.isVoted !== undefined) {
       data.isVoted = dto.isVoted;
       data.votedAt = dto.isVoted ? new Date() : null;
+      if (dto.isVoted !== voter.isVoted) diffs.push({ field: "isVoted", from: voter.isVoted, to: dto.isVoted });
     }
 
     const updated = await this.prisma.voter.update({ where: { id }, data });
+    if (diffs.length > 0) {
+      // Best-effort history row — never fail the edit over bookkeeping.
+      void this.prisma.voterChange
+        .create({
+          data: { voterId: id, userId: actor.id, changes: diffs as unknown as Prisma.InputJsonValue },
+        })
+        .catch(() => undefined);
+    }
     this.log(actor.id, "update", {
       voterId: id,
       orgUnitId: voter.boothId,
@@ -577,6 +600,32 @@ export class VotersService {
       if (r.housingType) housingType[r.housingType] = (housingType[r.housingType] ?? 0) + 1;
     }
     return { total: rows.length, supportLevel, partySupport, incomeRange, housingType };
+  }
+
+  // -------------------------------------------------------------------------
+  // Change history
+  // -------------------------------------------------------------------------
+
+  changesMine(actor: AuthUser) {
+    return this.prisma.voterChange.findMany({
+      where: { userId: actor.id },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+      include: { voter: { select: { id: true, nameEn: true, nameTe: true } } },
+    });
+  }
+
+  async history(actor: AuthUser, voterId: string) {
+    const voter = await this.prisma.voter.findUnique({ where: { id: voterId } });
+    if (!voter) throw new NotFoundException("Voter not found.");
+    await this.assertUnitInScope(actor, voter.boothId);
+    const items = await this.prisma.voterChange.findMany({
+      where: { voterId },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+      include: { user: { select: { id: true, name: true } } },
+    });
+    return { items };
   }
 
   // -------------------------------------------------------------------------

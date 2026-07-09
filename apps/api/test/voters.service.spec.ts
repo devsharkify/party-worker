@@ -233,3 +233,42 @@ describe("voter CSV parser", () => {
     expect(errors[0].reason).toContain("name column");
   });
 });
+
+describe("VotersService change history", () => {
+  it("records a diff row on status change and none on no-op", async () => {
+    const prisma = makePrisma();
+    prisma.voter.findUnique.mockResolvedValue({
+      id: "v1", boothId: "booth-1", votingStatus: "unmarked", mobile: null, notes: null, isVoted: false,
+    });
+    prisma.voterChange = { create: vi.fn().mockResolvedValue({}), findMany: vi.fn().mockResolvedValue([]) } as any;
+    const { svc } = make(prisma);
+    await svc.update(hq, "v1", { votingStatus: "green" });
+    await new Promise((r) => setTimeout(r, 0));
+    expect((prisma as any).voterChange.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          voterId: "v1",
+          changes: [{ field: "votingStatus", from: "unmarked", to: "green" }],
+        }),
+      }),
+    );
+    (prisma as any).voterChange.create.mockClear();
+    await svc.update(hq, "v1", { votingStatus: "unmarked" });
+    await new Promise((r) => setTimeout(r, 0));
+    expect((prisma as any).voterChange.create).not.toHaveBeenCalled();
+  });
+
+  it("history respects subtree scope", async () => {
+    const prisma = makePrisma();
+    prisma.voter.findUnique.mockResolvedValue({ id: "v9", boothId: "enemy-booth" });
+    (prisma as any).voterChange = { findMany: vi.fn().mockResolvedValue([]) };
+    const { svc } = make(prisma);
+    await expect(svc.history(leader, "v9")).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("voted filter narrows the list query", async () => {
+    const { svc, prisma } = make();
+    await svc.list(hq, { voted: "false" });
+    expect(prisma.voter.findMany.mock.calls[0][0].where.isVoted).toBe(false);
+  });
+});

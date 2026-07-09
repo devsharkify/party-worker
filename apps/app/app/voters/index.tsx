@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "../../src/auth/auth-context";
 import { StateView } from "../../src/components/StateView";
 import { SkeletonBlock } from "../../src/components/Skeleton";
+import { FieldDutyCard } from "../../src/components/FieldDutyCard";
 import { colors, fontFamily, lh, radius, shadow } from "../../src/theme";
 import {
   UNIT_TYPE_LABELS,
@@ -182,6 +183,21 @@ export default function VotersHub() {
               onPress={() => router.push("/voters/survey")}
             />
           </View>
+          <View style={st.actionRow}>
+            <ActionTile
+              icon="check-square"
+              label={lang === "te" ? "పోలింగ్ రోజు" : "Polling Day"}
+              onPress={() => router.push("/voters/polling-day")}
+            />
+            <ActionTile
+              icon="edit-3"
+              label={lang === "te" ? "నా మార్పులు" : "My Changes"}
+              onPress={() => router.push("/voters/my-changes")}
+            />
+          </View>
+
+          {/* Field duty — live location sharing while on the ground */}
+          <FieldDutyCard />
 
           {/* Drill-down breadcrumb */}
           <View style={st.crumbRow}>

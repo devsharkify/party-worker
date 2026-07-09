@@ -244,6 +244,8 @@ model User {
   voterSurveys       VoterSurvey[]    @relation("WorkerSurveys")
   voterImports       VoterImport[]    @relation("VoterImportsBy")
   voterAccessLogs    VoterAccessLog[] @relation("VoterAccessLogs")
+  voterChanges       VoterChange[]    @relation("VoterChanges")
+  fieldLocation      FieldLocation?   @relation("FieldLocation")
 
   createdAt DateTime @default(now())
 
@@ -934,6 +936,7 @@ model Voter {
   import   VoterImport? @relation(fields: [importId], references: [id])
 
   surveys VoterSurvey[]
+  changes VoterChange[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1011,4 +1014,34 @@ model VoterAccessLog {
 
   @@index([userId, createdAt])
   @@index([createdAt])
+}
+
+/// Latest known field position per worker — one row per user, upserted by the
+/// duty heartbeat. Consent-gated (ConsentPurpose.location) and honest: only
+/// updates while the app is open and duty is on.
+model FieldLocation {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation("FieldLocation", fields: [userId], references: [id], onDelete: Cascade)
+  latitude  Float
+  longitude Float
+  accuracy  Float?
+  onDuty    Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+
+  @@index([onDuty])
+}
+
+/// Per-voter edit trail (voter_connect change-log port): what changed, by whom.
+model VoterChange {
+  id        String   @id @default(cuid())
+  voterId   String
+  voter     Voter    @relation(fields: [voterId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation("VoterChanges", fields: [userId], references: [id])
+  changes   Json     // [{ field, from, to }]
+  createdAt DateTime @default(now())
+
+  @@index([voterId, createdAt])
+  @@index([userId, createdAt])
 }

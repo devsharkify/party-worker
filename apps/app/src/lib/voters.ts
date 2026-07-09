@@ -91,6 +91,29 @@ export interface VoterStats {
   }>;
 }
 
+/** One field change inside an edit-history entry. */
+export interface VoterChange {
+  field: string;
+  from: string | null;
+  to: string | null;
+}
+
+/** GET /voters/changes/mine — one row of my edit history. */
+export interface MyChangeEntry {
+  id: string;
+  createdAt: string;
+  changes: VoterChange[];
+  voter: { id: string; nameEn: string; nameTe: string | null };
+}
+
+/** GET /voters/detail/:id/history — one row of a voter's edit history. */
+export interface VoterHistoryEntry {
+  id: string;
+  createdAt: string;
+  changes: VoterChange[];
+  user: { id: string; name: string };
+}
+
 /** Status → dot / bar color (spec-mandated palette). */
 export const STATUS_COLORS: Record<VotingStatus, string> = {
   green: "#2B8A3E",

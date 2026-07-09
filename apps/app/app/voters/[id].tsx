@@ -18,13 +18,16 @@ import { useAuth } from "../../src/auth/auth-context";
 import { StateView } from "../../src/components/StateView";
 import { SkeletonBlock } from "../../src/components/Skeleton";
 import { VoterRow } from "../../src/components/VoterRow";
+import { ChangeChips } from "../../src/components/ChangeChips";
 import { colors, fontFamily, lh, radius, shadow } from "../../src/theme";
+import { timeAgo } from "../../src/lib/field";
 import {
   STATUS_COLORS,
   STATUS_LABELS,
   voterName,
   type Voter,
   type VoterDetail,
+  type VoterHistoryEntry,
   type VotingStatus,
 } from "../../src/lib/voters";
 
@@ -40,6 +43,7 @@ export default function VoterDetailScreen() {
 
   const [voter, setVoter] = useState<Voter | null>(null);
   const [family, setFamily] = useState<Voter[]>([]);
+  const [history, setHistory] = useState<VoterHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,6 +64,13 @@ export default function VoterDetailScreen() {
         setFamily(res.family);
         setMobile(res.voter.mobile ?? "");
         setNotes(res.voter.notes ?? "");
+        // History is supplementary — never block the detail view on it.
+        try {
+          const h = await api<{ items: VoterHistoryEntry[] }>(`/voters/detail/${id}/history`);
+          setHistory(h.items);
+        } catch {
+          setHistory([]);
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
@@ -289,6 +300,29 @@ export default function VoterDetailScreen() {
             ))
           )}
 
+          {/* Edit history */}
+          <Text style={st.sectionTitle}>
+            {lang === "te" ? "మార్పుల చరిత్ర" : "History"}
+            {history.length > 0 ? ` (${history.length})` : ""}
+          </Text>
+          {history.length === 0 ? (
+            <Text style={st.emptyFamily}>
+              {lang === "te" ? "ఇంకా మార్పులు జరగలేదు" : "No changes yet"}
+            </Text>
+          ) : (
+            history.map((h) => (
+              <View key={h.id} style={st.historyCard}>
+                <View style={st.historyTop}>
+                  <Text style={st.historyUser} numberOfLines={1}>
+                    {h.user.name}
+                  </Text>
+                  <Text style={st.historyTime}>{timeAgo(h.createdAt, lang)}</Text>
+                </View>
+                <ChangeChips changes={h.changes} />
+              </View>
+            ))
+          )}
+
           {/* Household survey */}
           <Pressable onPress={openSurvey} style={({ pressed }) => [st.surveyBtn, pressed && { opacity: 0.85 }]}>
             <Feather name="clipboard" size={18} color="#fff" />
@@ -383,6 +417,16 @@ const st = StyleSheet.create({
   saveBtnText: { color: "#fff", fontWeight: "700", fontSize: 15, fontFamily, lineHeight: lh(15) },
 
   emptyFamily: { fontSize: 13, color: colors.textMuted, fontFamily, lineHeight: lh(13) },
+
+  historyCard: {
+    backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.md, padding: 12, marginBottom: 8,
+  },
+  historyTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
+  historyUser: {
+    flexShrink: 1, fontSize: 14, fontWeight: "700", color: colors.text, fontFamily, lineHeight: lh(14),
+  },
+  historyTime: { fontSize: 12, color: colors.textMuted, fontFamily, lineHeight: lh(12) },
 
   surveyBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10,

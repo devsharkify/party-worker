@@ -129,6 +129,36 @@ export interface ImportResultData {
   errors: Array<{ row: number; reason: string }>;
 }
 
+export interface FieldTeamMember {
+  userId: string;
+  name: string;
+  role: string;
+  phone: string;
+  unitName: string;
+  latitude: number | null;
+  longitude: number | null;
+  accuracy: number | null;
+  onDuty: boolean;
+  updatedAt: string;
+}
+
+export interface VoterHistoryChange {
+  field: string;
+  from: string | null;
+  to: string | null;
+}
+
+export interface VoterHistoryEntry {
+  id: string;
+  createdAt: string;
+  changes: VoterHistoryChange[];
+  user: { id: string; name: string };
+}
+
+export interface VoterHistoryResponse {
+  items: VoterHistoryEntry[];
+}
+
 export interface ImportHistoryRow {
   id: string;
   filename: string | null;

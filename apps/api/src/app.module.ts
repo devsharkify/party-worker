@@ -42,6 +42,7 @@ import { CanvassRoutesModule } from "./canvass-routes/canvass-routes.module";
 import { WaGroupsModule } from "./wagroups/wagroups.module";
 import { VoterContactsModule } from "./voter-contacts/voter-contacts.module";
 import { VotersModule } from "./voters/voters.module";
+import { FieldModule } from "./field/field.module";
 import { ManifestoModule } from "./manifesto/manifesto.module";
 import { AppController } from "./app.controller";
 
@@ -90,6 +91,7 @@ import { AppController } from "./app.controller";
     WaGroupsModule,
     VoterContactsModule,
     VotersModule,
+    FieldModule,
     ManifestoModule,
   ],
   controllers: [AppController],

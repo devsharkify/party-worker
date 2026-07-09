@@ -111,6 +111,18 @@ export class VotersController {
     return this.voters.accessLogs(user, q);
   }
 
+  // ---- change history -------------------------------------------------------
+
+  @Get("changes/mine")
+  changesMine(@CurrentUser() user: AuthUser) {
+    return this.voters.changesMine(user);
+  }
+
+  @Get("detail/:id/history")
+  history(@CurrentUser() user: AuthUser, @Param("id") id: string) {
+    return this.voters.history(user, id);
+  }
+
   // ---- detail last (parameterized) -----------------------------------------
 
   @Get("detail/:id")
