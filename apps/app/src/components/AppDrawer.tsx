@@ -39,6 +39,7 @@ const ITEMS: DrawerItem[] = [
 
 /** Leader-only drawer entries (shown when the role can review). */
 const LEADER_ITEMS: DrawerItem[] = [
+  { label: "Booth Health", labelTe: "బూత్ హెల్త్", icon: "activity", href: "/booth-health" },
   { label: "Panna Coverage", labelTe: "పన్నా కవరేజ్", icon: "grid", href: "/panna/coverage" },
   { label: "Assign Voters", labelTe: "ఓటర్లు కేటాయించు", icon: "user-check", href: "/panna/assign" },
   { label: "Review Submissions", labelTe: "సమర్పణల సమీక్ష", icon: "check-square", href: "/review-submissions" },

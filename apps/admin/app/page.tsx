@@ -30,6 +30,7 @@ import { SubmissionsSection } from "../src/submissions-section";
 import { TRSLogo } from "../src/TRSLogo";
 import { BulkImport } from "../src/bulk-import";
 import { VotersSection } from "../src/voters-section";
+import { BoothHealthSection } from "../src/booth-health-section";
 
 /* ------------------------------------------------------------------ */
 /* Admin language context (te / en toggle)                            */
@@ -61,6 +62,7 @@ const NAV_LABELS: Record<string, { en: string; te: string }> = {
   wagroups:       { en: "WA Groups",              te: "WA గ్రూపులు" },
   canvassing:     { en: "Canvassing",             te: "క్యాన్వాసింగ్" },
   voters:         { en: "Voters",                 te: "ఓటర్లు" },
+  boothhealth:    { en: "Booth Health",            te: "బూత్ హెల్త్" },
 };
 
 export default function Page() {
@@ -210,7 +212,8 @@ type Section =
   | "boothtasks"
   | "wagroups"
   | "canvassing"
-  | "voters";
+  | "voters"
+  | "boothhealth";
 
 const NAV: { id: Section; label: string }[] = [
   { id: "overview", label: "Overview" },
@@ -232,6 +235,7 @@ const NAV: { id: Section; label: string }[] = [
   { id: "wagroups", label: "WA Groups" },
   { id: "canvassing", label: "Canvassing" },
   { id: "voters", label: "Voters" },
+  { id: "boothhealth", label: "Booth Health" },
 ];
 
 function Dashboard() {
@@ -318,6 +322,7 @@ function Dashboard() {
         {section === "wagroups" ? <WaGroupsSection /> : null}
         {section === "canvassing" ? <CanvassingSection /> : null}
         {section === "voters" ? <VotersSection /> : null}
+        {section === "boothhealth" ? <BoothHealthSection /> : null}
       </main>
     </div>
     </AdminLangCtx.Provider>
