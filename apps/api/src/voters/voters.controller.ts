@@ -134,7 +134,15 @@ export class VotersController {
   update(
     @CurrentUser() user: AuthUser,
     @Param("id") id: string,
-    @Body() body: { votingStatus?: string; mobile?: string; notes?: string; isVoted?: boolean },
+    @Body()
+    body: {
+      votingStatus?: string;
+      mobile?: string;
+      notes?: string;
+      isVoted?: boolean;
+      latitude?: number;
+      longitude?: number;
+    },
   ) {
     return this.voters.update(user, id, body);
   }

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Platform,
   Pressable,
   StyleSheet,
   Switch,
@@ -14,46 +13,7 @@ import type { ConsentState } from "@pw/shared";
 import { useAuth } from "../auth/auth-context";
 import { colors, fontFamily, lh, radius, shadow } from "../theme";
 import { DUTY_PING_INTERVAL_MS, timeAgo, type FieldMe } from "../lib/field";
-
-interface Position {
-  latitude: number;
-  longitude: number;
-  accuracy?: number;
-}
-
-const PERMISSION_DENIED = "permission-denied";
-
-/** Current position — web: navigator.geolocation; native: expo-location. */
-async function getPosition(): Promise<Position> {
-  if (Platform.OS === "web") {
-    return new Promise<Position>((resolve, reject) => {
-      if (!navigator?.geolocation) {
-        reject(new Error(PERMISSION_DENIED));
-        return;
-      }
-      navigator.geolocation.getCurrentPosition(
-        (pos) =>
-          resolve({
-            latitude: pos.coords.latitude,
-            longitude: pos.coords.longitude,
-            accuracy: pos.coords.accuracy ?? undefined,
-          }),
-        (err) =>
-          reject(new Error(err?.code === 1 ? PERMISSION_DENIED : err?.message || "geolocation failed")),
-        { enableHighAccuracy: true, timeout: 15000 },
-      );
-    });
-  }
-  const Location = await import("expo-location");
-  const { status } = await Location.requestForegroundPermissionsAsync();
-  if (status !== "granted") throw new Error(PERMISSION_DENIED);
-  const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-  return {
-    latitude: pos.coords.latitude,
-    longitude: pos.coords.longitude,
-    accuracy: pos.coords.accuracy ?? undefined,
-  };
-}
+import { PERMISSION_DENIED, getPosition } from "../lib/location";
 
 /**
  * Field-duty toggle card (voters hub) — shares my live position with my

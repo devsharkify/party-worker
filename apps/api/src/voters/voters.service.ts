@@ -228,7 +228,14 @@ export class VotersService {
   async update(
     actor: AuthUser,
     id: string,
-    dto: { votingStatus?: string; mobile?: string; notes?: string; isVoted?: boolean },
+    dto: {
+      votingStatus?: string;
+      mobile?: string;
+      notes?: string;
+      isVoted?: boolean;
+      latitude?: number;
+      longitude?: number;
+    },
   ) {
     const voter = await this.prisma.voter.findUnique({ where: { id } });
     if (!voter) throw new NotFoundException("Voter not found.");
@@ -257,6 +264,18 @@ export class VotersService {
       data.isVoted = dto.isVoted;
       data.votedAt = dto.isVoted ? new Date() : null;
       if (dto.isVoted !== voter.isVoted) diffs.push({ field: "isVoted", from: voter.isVoted, to: dto.isVoted });
+    }
+    if (dto.latitude !== undefined && dto.longitude !== undefined) {
+      const lat = Number(dto.latitude);
+      const lng = Number(dto.longitude);
+      if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lng) || lng < -180 || lng > 180) {
+        throw new BadRequestException("latitude/longitude out of range.");
+      }
+      data.latitude = lat;
+      data.longitude = lng;
+      if (lat !== voter.latitude || lng !== voter.longitude) {
+        diffs.push({ field: "location", from: voter.latitude ? "set" : null, to: `${lat.toFixed(5)},${lng.toFixed(5)}` });
+      }
     }
 
     const updated = await this.prisma.voter.update({ where: { id }, data });

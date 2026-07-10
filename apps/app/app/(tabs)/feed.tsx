@@ -163,6 +163,27 @@ export default function Feed() {
   const firstName = user?.name?.split(" ")[0] ?? "Worker";
   const [shareItem, setShareItem] = useState<FeedItem | null>(null);
 
+  // Videos must go through the share screen, which burns the banner into the MP4
+  // on-device (compositeVideoWithBanner). BannerShareModal only makes a still
+  // image, so a video shared from it would have no moving banner.
+  const shareTile = (item: FeedItem) => {
+    if (item.type === "video") {
+      router.push(`/share/${item.creativeId}`);
+    } else {
+      setShareItem(item);
+    }
+  };
+
+  // Video tiles open the fullscreen reels player; image tiles keep the
+  // personalize flow.
+  const openTile = (item: FeedItem) => {
+    if (item.type === "video") {
+      router.push(`/reels/${item.creativeId}`);
+    } else {
+      router.push(`/personalize/${item.creativeId}`);
+    }
+  };
+
   if (loading && !data) {
     return (
       <View style={st.fill}>
@@ -281,12 +302,12 @@ export default function Feed() {
         }
         renderItem={({ item: [a, b, c] }) => (
           <View style={st.row}>
-            <Tile item={a} onPress={() => router.push(`/personalize/${a.creativeId}`)} onShare={() => setShareItem(a)} />
+            <Tile item={a} onPress={() => openTile(a)} onShare={() => shareTile(a)} />
             {b ? (
-              <Tile item={b} onPress={() => router.push(`/personalize/${b.creativeId}`)} onShare={() => setShareItem(b)} />
+              <Tile item={b} onPress={() => openTile(b)} onShare={() => shareTile(b)} />
             ) : <View style={st.tilePlaceholder} />}
             {c ? (
-              <Tile item={c} onPress={() => router.push(`/personalize/${c.creativeId}`)} onShare={() => setShareItem(c)} />
+              <Tile item={c} onPress={() => openTile(c)} onShare={() => shareTile(c)} />
             ) : <View style={st.tilePlaceholder} />}
           </View>
         )}

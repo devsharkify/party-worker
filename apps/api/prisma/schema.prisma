@@ -928,6 +928,9 @@ model Voter {
   isVoted      Boolean   @default(false) // election-day turnout mark
   votedAt      DateTime?
   notes        String?
+  // House geotag, marked on the doorstep by the booth worker.
+  latitude     Float?
+  longitude    Float?
 
   updatedById String?
   updatedBy   User?   @relation("VoterUpdates", fields: [updatedById], references: [id])

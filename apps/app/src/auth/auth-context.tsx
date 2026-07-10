@@ -11,6 +11,7 @@ import type { AuthResult, UserPublic } from "@pw/shared";
 import { API_URL, isWeb } from "../config";
 import { tokenStore } from "./token-store";
 import { CONSTITUENCY_NAMES } from "../data/telangana";
+import { clearOnboarded } from "../lib/onboarding";
 
 
 // ---------------------------------------------------------------------------
@@ -81,6 +82,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserPublic | null>(null);
   const [loading, setLoading] = useState(true);
   const accessRef = useRef<string | null>(null);
+  // Single-flight guard: refresh tokens ROTATE, so concurrent 401s must share
+  // one refresh call — parallel refreshes trip reuse-detection and fail.
+  const refreshInFlight = useRef<Promise<string | null> | null>(null);
 
   const rawFetch = useCallback(
     (path: string, opts: RequestInit = {}, token?: string | null) =>
@@ -99,18 +103,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
-  const doRefresh = useCallback(async (): Promise<string | null> => {
-    const refreshToken = await tokenStore.getRefresh();
-    const res = await rawFetch("/auth/refresh", {
-      method: "POST",
-      body: JSON.stringify(isWeb ? {} : { refreshToken }),
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as AuthResult;
-    accessRef.current = data.accessToken;
-    if (!isWeb && data.refreshToken) await tokenStore.setRefresh(data.refreshToken);
-    setUser(data.user);
-    return data.accessToken;
+  const doRefresh = useCallback((): Promise<string | null> => {
+    if (refreshInFlight.current) return refreshInFlight.current;
+    const run = (async (): Promise<string | null> => {
+      try {
+        const refreshToken = await tokenStore.getRefresh();
+        const res = await rawFetch("/auth/refresh", {
+          method: "POST",
+          body: JSON.stringify(isWeb ? {} : { refreshToken }),
+        });
+        if (!res.ok) return null;
+        const data = (await res.json()) as AuthResult;
+        accessRef.current = data.accessToken;
+        if (!isWeb && data.refreshToken) await tokenStore.setRefresh(data.refreshToken);
+        setUser(data.user);
+        return data.accessToken;
+      } finally {
+        refreshInFlight.current = null;
+      }
+    })();
+    refreshInFlight.current = run;
+    return run;
   }, [rawFetch]);
 
   const api = useCallback(
@@ -160,6 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       body: JSON.stringify(isWeb ? {} : { refreshToken }),
     }).catch(() => undefined);
     await tokenStore.setRefresh(null);
+    await clearOnboarded().catch(() => undefined);
     accessRef.current = null;
     setUser(null);
   }, [rawFetch]);
