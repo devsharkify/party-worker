@@ -43,6 +43,7 @@ import { WaGroupsModule } from "./wagroups/wagroups.module";
 import { VoterContactsModule } from "./voter-contacts/voter-contacts.module";
 import { VotersModule } from "./voters/voters.module";
 import { FieldModule } from "./field/field.module";
+import { PannaModule } from "./panna/panna.module";
 import { ManifestoModule } from "./manifesto/manifesto.module";
 import { AppController } from "./app.controller";
 
@@ -92,6 +93,7 @@ import { AppController } from "./app.controller";
     VoterContactsModule,
     VotersModule,
     FieldModule,
+    PannaModule,
     ManifestoModule,
   ],
   controllers: [AppController],

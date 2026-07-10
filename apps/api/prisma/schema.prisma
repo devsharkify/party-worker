@@ -246,6 +246,8 @@ model User {
   voterAccessLogs    VoterAccessLog[] @relation("VoterAccessLogs")
   voterChanges       VoterChange[]    @relation("VoterChanges")
   fieldLocation      FieldLocation?   @relation("FieldLocation")
+  pannaVoters        PannaAssignment[] @relation("PannaWorker")
+  pannaAssignedByMe  PannaAssignment[] @relation("PannaAssignedBy")
 
   createdAt DateTime @default(now())
 
@@ -940,6 +942,7 @@ model Voter {
 
   surveys VoterSurvey[]
   changes VoterChange[]
+  panna   PannaAssignment?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1047,4 +1050,24 @@ model VoterChange {
 
   @@index([voterId, createdAt])
   @@index([userId, createdAt])
+}
+
+/// Panna (page-in-charge) assignment: a worker permanently owns a fixed slice
+/// of the roll — the BJP Saral/Shakti spine. One voter belongs to one worker at
+/// a time (@unique voterId). `knowsPersonally` powers relational organizing:
+/// turnout of voters a worker personally knows lifts 3-5x over cold contact.
+model PannaAssignment {
+  id             String   @id @default(cuid())
+  voterId        String   @unique
+  voter          Voter    @relation(fields: [voterId], references: [id], onDelete: Cascade)
+  workerId       String
+  worker         User     @relation("PannaWorker", fields: [workerId], references: [id], onDelete: Cascade)
+  boothId        String // denormalised from the voter for fast per-booth coverage queries
+  knowsPersonally Boolean @default(false)
+  assignedById   String
+  assignedBy     User     @relation("PannaAssignedBy", fields: [assignedById], references: [id])
+  createdAt      DateTime @default(now())
+
+  @@index([workerId])
+  @@index([boothId])
 }

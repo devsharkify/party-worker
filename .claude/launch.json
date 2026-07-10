@@ -3,12 +3,14 @@
   "configurations": [
     {
       "name": "app-web",
-      "runtimeExecutable": "pnpm",
+      "runtimeExecutable": "/Users/ruthlessravan/party-worker/apps/app/node_modules/.bin/expo",
       "runtimeArgs": [
-        "--filter",
-        "@pw/app",
-        "web"
+        "start",
+        "--web",
+        "--port",
+        "8081"
       ],
+      "cwd": "/Users/ruthlessravan/party-worker/apps/app",
       "port": 8081
     },
     {

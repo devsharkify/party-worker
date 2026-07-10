@@ -27,6 +27,7 @@ interface DrawerItem {
 }
 
 const ITEMS: DrawerItem[] = [
+  { label: "My Voters", labelTe: "నా ఓటర్లు", icon: "users", href: "/panna" },
   { label: "Updates", labelTe: "అప్‌డేట్లు", icon: "bell", href: "/(tabs)/updates" },
   { label: "Grievances", labelTe: "ఫిర్యాదులు", icon: "alert-circle", href: "/(tabs)/grievances" },
   { label: "Voter Roll", labelTe: "ఓటర్ల జాబితా", icon: "users", href: "/voters" },
@@ -38,6 +39,8 @@ const ITEMS: DrawerItem[] = [
 
 /** Leader-only drawer entries (shown when the role can review). */
 const LEADER_ITEMS: DrawerItem[] = [
+  { label: "Panna Coverage", labelTe: "పన్నా కవరేజ్", icon: "grid", href: "/panna/coverage" },
+  { label: "Assign Voters", labelTe: "ఓటర్లు కేటాయించు", icon: "user-check", href: "/panna/assign" },
   { label: "Review Submissions", labelTe: "సమర్పణల సమీక్ష", icon: "check-square", href: "/review-submissions" },
   { label: "Invite via Link", labelTe: "లింక్ ద్వారా ఆహ్వానం", icon: "user-plus", href: "/invite" },
   { label: "Field Team", labelTe: "ఫీల్డ్ టీమ్", icon: "map-pin", href: "/field-team" },
