@@ -252,7 +252,7 @@ export default function VoterDetailScreen() {
             {lang === "te" && voter.nameTe ? <Text style={st.altName}>{voter.nameEn}</Text> : null}
             <View style={st.fieldGrid}>
               <Field label="EPIC" value={voter.epicNo} />
-              <Field label={lang === "te" ? "క్రమ సంఖ్య" : "Serial"} value={voter.serialNo} />
+              <Field label={lang === "te" ? "సీరియల్ నంబర్" : "Serial"} value={voter.serialNo} />
               <Field label={lang === "te" ? "భాగం" : "Part"} value={voter.partNo} />
               <Field label={lang === "te" ? "సెక్షన్" : "Section"} value={voter.sectionNo} />
               <Field label={lang === "te" ? "వయసు" : "Age"} value={voter.age} />
@@ -263,7 +263,7 @@ export default function VoterDetailScreen() {
                     ? lang === "te" ? "తండ్రి" : "Father"
                     : voter.relationType === "husband"
                       ? lang === "te" ? "భర్త" : "Husband"
-                      : lang === "te" ? "సంబంధీకుడు" : "Relation"
+                      : lang === "te" ? "తండ్రి/భర్త పేరు" : "Relation"
                 }
                 value={voter.relationName}
                 wide

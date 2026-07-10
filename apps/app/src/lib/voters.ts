@@ -126,7 +126,7 @@ export const STATUS_COLORS: Record<VotingStatus, string> = {
 
 export const STATUS_LABELS: Record<VotingStatus, { te: string; en: string }> = {
   green: { te: "మద్దతు", en: "Support" },
-  yellow: { te: "తటస్థ", en: "Neutral" },
+  yellow: { te: "న్యూట్రల్", en: "Neutral" },
   red: { te: "వ్యతిరేకం", en: "Opposed" },
   unmarked: { te: "గుర్తించలేదు", en: "Unmarked" },
 };

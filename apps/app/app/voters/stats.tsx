@@ -64,7 +64,7 @@ export default function VoterStatsScreen() {
     void load();
   }, [load]);
 
-  const title = lang === "te" ? "గణాంకాలు" : "Voter Stats";
+  const title = lang === "te" ? "లెక్కలు" : "Voter Stats";
   const turnout =
     stats && stats.total > 0 ? Math.round((stats.voted / stats.total) * 1000) / 10 : null;
 

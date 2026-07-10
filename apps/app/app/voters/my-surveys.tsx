@@ -19,7 +19,7 @@ import type { Survey } from "../../src/lib/voters";
 const SUPPORT_LABELS: Record<string, { te: string; en: string; color: string }> = {
   strong: { te: "బలమైన మద్దతు", en: "Strong", color: "#2B8A3E" },
   leaning: { te: "మొగ్గు", en: "Leaning", color: "#5C940D" },
-  neutral: { te: "తటస్థ", en: "Neutral", color: "#E8A820" },
+  neutral: { te: "న్యూట్రల్", en: "Neutral", color: "#E8A820" },
   opposed: { te: "వ్యతిరేకం", en: "Opposed", color: "#C92A2A" },
 };
 

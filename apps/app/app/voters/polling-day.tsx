@@ -251,7 +251,7 @@ export default function PollingDayScreen() {
                 title={lang === "te" ? "బూత్‌లు లేవు" : "No booths available"}
                 message={
                   lang === "te"
-                    ? "మీ పరిధిలో బూత్‌లు కనబడలేదు"
+                    ? "మీ ఏరియాలో బూత్‌లు కనబడలేదు"
                     : "No booths found in your scope"
                 }
               />
@@ -314,7 +314,7 @@ export default function PollingDayScreen() {
             style={st.searchInput}
             value={q}
             onChangeText={setQ}
-            placeholder={lang === "te" ? "క్రమ సంఖ్య / పేరు" : "Serial or name"}
+            placeholder={lang === "te" ? "సీరియల్ నంబర్ / పేరు" : "Serial or name"}
             placeholderTextColor={colors.textMuted}
             returnKeyType="search"
           />

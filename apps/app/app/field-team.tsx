@@ -63,7 +63,7 @@ export default function FieldTeamScreen() {
   }, [load]);
 
   const onDutyCount = members.filter((m) => m.onDuty).length;
-  const title = lang === "te" ? "క్షేత్ర బృందం" : "Field Team";
+  const title = lang === "te" ? "ఫీల్డ్ టీమ్" : "Field Team";
 
   function openMap(m: FieldTeamMember) {
     if (m.latitude == null || m.longitude == null) return;

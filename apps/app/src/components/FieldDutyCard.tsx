@@ -162,7 +162,7 @@ export function FieldDutyCard() {
           <Feather name="navigation" size={18} color={onDuty ? colors.success : colors.textMuted} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={st.title}>{lang === "te" ? "క్షేత్ర డ్యూటీ" : "Field Duty"}</Text>
+          <Text style={st.title}>{lang === "te" ? "ఫీల్డ్ డ్యూటీ" : "Field Duty"}</Text>
           <Text style={st.state}>
             {loading
               ? "…"

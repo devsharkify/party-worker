@@ -283,7 +283,7 @@ export default function Feed() {
               style={({ pressed }) => [st.voterConnectCard, pressed && { opacity: 0.8 }]}
             >
               <View style={st.voterConnectIcon}>
-                <Feather name="user-plus" size={20} color={colors.primary} />
+                <Feather name="user-plus" size={15} color={colors.primary} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={st.voterConnectTitle}>{lang === "te" ? "ఓటరు నమోదు" : "Voter Connect"}</Text>
@@ -343,10 +343,10 @@ const st = StyleSheet.create({
   crisisIcon: { fontSize: 18 },
   crisisTitle: { fontSize: 13, fontWeight: "900", color: "#fca5a5", fontFamily, lineHeight: lh(13) },
   crisisMsg: { fontSize: 12, color: "#fecaca", fontFamily, lineHeight: lh(12), marginTop: 2 },
-  voterConnectCard: { flexDirection: "row", alignItems: "center", gap: 12, marginHorizontal: 16, marginBottom: 12, backgroundColor: colors.card, borderRadius: radius.lg, padding: 14, borderWidth: 1, borderColor: colors.border },
-  voterConnectIcon: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.primary + "22", alignItems: "center", justifyContent: "center" },
-  voterConnectTitle: { fontSize: 14, fontWeight: "700", color: colors.text, fontFamily, lineHeight: lh(14) },
-  voterConnectSub: { fontSize: 12, color: colors.textMuted, fontFamily, lineHeight: lh(12), marginTop: 2 },
+  voterConnectCard: { flexDirection: "row", alignItems: "center", gap: 10, marginHorizontal: 16, marginBottom: 10, backgroundColor: colors.card, borderRadius: radius.lg, paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: colors.border },
+  voterConnectIcon: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.primary + "22", alignItems: "center", justifyContent: "center" },
+  voterConnectTitle: { fontSize: 13, fontWeight: "700", color: colors.text, fontFamily, lineHeight: lh(13) },
+  voterConnectSub: { fontSize: 11, color: colors.textMuted, fontFamily, lineHeight: lh(11), marginTop: 1 },
 
   // Dashboard header — deep navy with gold accent line
   dashHeader: {

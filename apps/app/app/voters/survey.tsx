@@ -34,7 +34,7 @@ const RELIGION_OPTIONS = [
 const SUPPORT_OPTIONS = [
   { value: "strong", te: "బలమైన మద్దతు", en: "Strong" },
   { value: "leaning", te: "మొగ్గు", en: "Leaning" },
-  { value: "neutral", te: "తటస్థ", en: "Neutral" },
+  { value: "neutral", te: "న్యూట్రల్", en: "Neutral" },
   { value: "opposed", te: "వ్యతిరేకం", en: "Opposed" },
 ];
 

@@ -140,7 +140,7 @@ export default function VotersHub() {
             <View style={st.scopeCard}>
               <Feather name="map-pin" size={16} color={colors.gold} />
               <View style={{ flex: 1 }}>
-                <Text style={st.scopeLabel}>{lang === "te" ? "మీ పరిధి" : "Your scope"}</Text>
+                <Text style={st.scopeLabel}>{lang === "te" ? "మీ ఏరియా" : "Your scope"}</Text>
                 <Text style={st.scopeName} numberOfLines={1}>
                   {access.scopeUnit.name}
                 </Text>
@@ -169,7 +169,7 @@ export default function VotersHub() {
           <View style={st.actionRow}>
             <ActionTile
               icon="bar-chart-2"
-              label={lang === "te" ? "గణాంకాలు" : "Stats"}
+              label={lang === "te" ? "లెక్కలు" : "Stats"}
               onPress={() => router.push("/voters/stats")}
             />
             <ActionTile

@@ -167,7 +167,7 @@ export default function VoterSearch() {
                 title={lang === "te" ? "వెతకడం ప్రారంభించండి" : "Start searching"}
                 message={
                   lang === "te"
-                    ? "మీ పరిధిలోని ఓటర్లందరిలో వెతుకుతుంది"
+                    ? "మీ ఏరియాలోని ఓటర్లందరిలో వెతుకుతుంది"
                     : "Searches all voters in your scope"
                 }
               />
