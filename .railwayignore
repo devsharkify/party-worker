@@ -1,0 +1,19 @@
+# Deploy uploads must stay small — exclude local build caches/artifacts
+# that aren't gitignored but shouldn't ship to Railway.
+node_modules/
+.pnpm-store/
+.buildtmp/
+apps/app/build-out/
+apps/app/android/
+apps/app/ios/
+apps/app/dist/
+apps/app/.expo/
+apps/admin/.next/
+apps/admin/out/
+dist/
+build/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+.git/
