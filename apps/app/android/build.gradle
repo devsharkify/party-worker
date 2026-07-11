@@ -20,5 +20,33 @@ allprojects {
   }
 }
 
+// --- ffmpeg-kit native binary ---------------------------------------------
+// The original com.arthenica:ffmpeg-kit-* binaries were retired (pulled from
+// Maven Central) AND are 4 KB-page aligned — they crash on Android 15+ (16 KB
+// pages) and are rejected by Google Play (targetSdk 35+). The ffmpeg-kit-react-
+// native wrapper still requests `com.arthenica:ffmpeg-kit-min-gpl`, so we
+// substitute it with a community 16 KB-aligned rebuild on Maven Central. It
+// keeps the `com.arthenica.ffmpegkit` Java namespace (verified), so the wrapper
+// links unchanged, and includes libx264 + overlay/scale2ref (verified).
+ext {
+  ffmpegKitPackage = "min-gpl"
+}
+
+allprojects {
+  configurations.all {
+    resolutionStrategy.eachDependency { details ->
+      // Catch ANY com.arthenica ffmpeg-kit variant (min-gpl/https/…) and force
+      // the 16 KB-aligned Maven Central rebuild. eachDependency is more robust
+      // than substitute module — it fires regardless of the requested variant
+      // name or a cached 4 KB resolution.
+      if (details.requested.group == 'com.arthenica' &&
+          details.requested.name.startsWith('ffmpeg-kit')) {
+        details.useTarget 'com.moizhassan.ffmpeg:ffmpeg-kit-16kb:6.1.1'
+        details.because '16 KB page alignment (Android 15 / Play Store)'
+      }
+    }
+  }
+}
+
 apply plugin: "expo-root-project"
 apply plugin: "com.facebook.react.rootproject"

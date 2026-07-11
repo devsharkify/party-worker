@@ -59,6 +59,45 @@ export class SocialService {
     }
   }
 
+  /** Origins we'll fetch media from server-side. Mirrors the IG provider's SSRF guard. */
+  private get trustedMediaHosts(): string[] {
+    return [this.env.STORAGE_PUBLIC_BASE, this.env.R2_PUBLIC_BASE ?? "", this.env.IK_URL_ENDPOINT ?? ""]
+      .filter(Boolean)
+      .map((b) => { try { return new URL(b).hostname; } catch { return ""; } })
+      .filter(Boolean);
+  }
+
+  /**
+   * Fetch media bytes for a server-side publish. Guards against SSRF (host
+   * allowlist), hung upstreams (30s timeout), and OOM (size cap). The mediaUrl
+   * can be caller-supplied, so all three checks are load-bearing, not cosmetic.
+   */
+  private async fetchTrustedMediaBytes(mediaUrl: string): Promise<{ buf: Buffer; name: string }> {
+    let hostname: string;
+    try { hostname = new URL(mediaUrl).hostname; } catch { throw new BadRequestException(`Invalid media URL.`); }
+    if (!this.trustedMediaHosts.includes(hostname)) {
+      throw new BadRequestException(`Media URL host not permitted for server-side fetch: ${hostname}`);
+    }
+    const MAX_BYTES = 200 * 1024 * 1024; // ponytail: 200MB cap; raise if reels ever exceed it
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 30_000);
+    try {
+      const src = await fetch(mediaUrl, { signal: ctrl.signal });
+      if (!src.ok) throw new BadRequestException(`Could not fetch media to share (${src.status}).`);
+      const len = Number(src.headers.get("content-length") ?? 0);
+      if (len > MAX_BYTES) throw new BadRequestException(`Media too large to share (${Math.round(len / 1e6)}MB).`);
+      const buf = Buffer.from(await src.arrayBuffer());
+      if (buf.byteLength > MAX_BYTES) throw new BadRequestException(`Media too large to share.`);
+      const name = mediaUrl.split("?")[0].split("/").pop() || "video.mp4";
+      return { buf, name };
+    } catch (e) {
+      if ((e as Error).name === "AbortError") throw new BadRequestException("Timed out fetching media to share.");
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   private get graphMode(): boolean {
     return this.env.INSTAGRAM_PROVIDER === "graph";
   }
@@ -440,7 +479,7 @@ export class SocialService {
     const snapshot = await this.postizYoutubeIntegrationIds();
     const existing = await this.prisma.socialAccount.count({ where: { userId, platform: "youtube", connected: true } });
     await this.prisma.socialAccount.create({
-      data: { userId, platform: "youtube", type: "creator", connected: false, isPrimary: existing === 0, handle: null, accessTokenEnc: JSON.stringify(snapshot) },
+      data: { userId, platform: "youtube", type: "creator", connected: false, isPrimary: existing === 0, handle: null, accessTokenEnc: JSON.stringify(snapshot ?? []) },
     });
     const url = await this.postizYoutubeConnectUrl();
     return { authorizeUrl: url, mode: "postiz" };
@@ -526,7 +565,8 @@ export class SocialService {
     if (!creative) throw new NotFoundException("Creative not found.");
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     const render = await this.prisma.personalizedRender.findUnique({ where: { userId_creativeId: { userId, creativeId } } });
-    const mediaUrl = this.resolveMediaUrl(mediaUrlOverride ?? render?.cachedUrl ?? creative.sourceKey);
+    // YouTube is always video → prefer the composited banner video, like the IG path.
+    const mediaUrl = this.resolveMediaUrl(mediaUrlOverride ?? render?.cachedVideoUrl ?? render?.cachedUrl ?? creative.sourceKey);
     const caption = this.captionFor(creative.captionVariants, user.preferredLanguage);
     const acct = socialAccountId
       ? await this.prisma.socialAccount.findFirst({ where: { id: socialAccountId, userId } })
@@ -535,13 +575,33 @@ export class SocialService {
     if (!acct || !acct.connected) throw new ForbiddenException("Connect a YouTube channel first.");
     const integrationId = acct.remoteUserId;
     if (!integrationId) throw new ForbiddenException("YouTube channel not linked. Reconnect.");
-    const mediaRes = await fetch(`${this.postizBase}/media`, {
+    // A channel can be disabled on the Postiz side (plan limits / disconnects)
+    // after we linked it — surface that clearly instead of a cryptic 400. Only
+    // trust an actual list from Postiz; a fetch failure returns null, and we
+    // must NOT report a transient outage as "channel disabled".
+    const enabledIds = await this.postizYoutubeIntegrationIds();
+    if (enabledIds !== null && !enabledIds.includes(integrationId)) {
+      throw new ForbiddenException("This YouTube channel is disabled in Postiz. Reconnect a different channel.");
+    }
+    // Postiz has no "POST /media {url}" endpoint (404). The working pattern —
+    // same as the Instagram provider — is: fetch the media bytes (here, the
+    // banner video the PHONE rendered and uploaded to the CDN), then multipart
+    // POST it to /upload, and use the returned {id, path} in the post.
+    const { buf, name } = await this.fetchTrustedMediaBytes(mediaUrl);
+    const form = new FormData();
+    form.append("file", new Blob([buf], { type: "video/mp4" }), name);
+    const mediaRes = await fetch(`${this.postizBase}/upload`, {
       method: "POST",
-      headers: { Authorization: this.env.POSTIZ_API_KEY, "Content-Type": "application/json" },
-      body: JSON.stringify({ url: mediaUrl }),
+      headers: { Authorization: this.env.POSTIZ_API_KEY },
+      body: form,
     });
     let media: any;
     try { media = await mediaRes.json(); } catch { media = {}; }
+    if (!mediaRes.ok || !media?.id) {
+      throw new BadRequestException(`YouTube media upload failed: ${media?.msg ?? media?.message ?? mediaRes.status}`);
+    }
+    // YouTube requires a title; Postiz rejects the post without one.
+    const title = (caption.split("\n")[0] || "myTRS video").slice(0, 100);
     const publishRes = await fetch(`${this.postizBase}/posts`, {
       method: "POST",
       headers: { Authorization: this.env.POSTIZ_API_KEY, "Content-Type": "application/json" },
@@ -550,7 +610,11 @@ export class SocialService {
         date: new Date().toISOString(),
         shortLink: false,
         tags: [],
-        posts: [{ integration: { id: integrationId }, value: [{ content: caption, image: [media] }], settings: { __type: "youtube" } }],
+        posts: [{
+          integration: { id: integrationId },
+          value: [{ content: caption, image: [{ id: media.id, path: media.path }] }],
+          settings: { __type: "youtube", title, type: "public" },
+        }],
       }),
     });
     let json: any;
@@ -560,13 +624,14 @@ export class SocialService {
     return { published: true, remoteId };
   }
 
-  private async postizYoutubeIntegrationIds(): Promise<string[]> {
+  /** Returns enabled YouTube integration ids, or null if Postiz couldn't be reached (outage ≠ disabled). */
+  private async postizYoutubeIntegrationIds(): Promise<string[] | null> {
     try {
       const res = await fetch(`${this.postizBase}/integrations`, { headers: { Authorization: this.env.POSTIZ_API_KEY } });
-      const list: any = await res.json().catch(() => []);
-      if (!res.ok || !Array.isArray(list)) return [];
+      const list: any = await res.json().catch(() => null);
+      if (!res.ok || !Array.isArray(list)) return null;
       return list.filter((i: any) => String(i.identifier ?? "").includes("youtube") && !i.disabled).map((i: any) => String(i.id)).filter(Boolean);
-    } catch { return []; }
+    } catch { return null; }
   }
 
   private async postizYoutubeConnectUrl(): Promise<string> {

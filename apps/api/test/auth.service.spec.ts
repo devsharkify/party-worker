@@ -32,7 +32,7 @@ function makeOtp() {
 }
 
 describe("AuthService.requestOtp", () => {
-  it("test-number (matches OTP_BYPASS_PREFIX): sets devHint and does NOT send SMS", async () => {
+  it("test-number (matches OTP_BYPASS_PREFIX): does NOT send SMS and does NOT leak the code (real provider)", async () => {
     const prisma = {
       otpChallenge: { count: vi.fn().mockResolvedValue(0), create: vi.fn().mockResolvedValue({}) },
     };
@@ -41,9 +41,11 @@ describe("AuthService.requestOtp", () => {
 
     const res = await svc.requestOtp("+919000001234");
 
-    expect(res).toEqual({ sent: true, devHint: "000000" });
+    // Bypass number: skips real SMS but, because a real provider (authkey) is
+    // configured, must NOT echo the code back — devHint is fake-mode-only.
+    expect(res).toEqual({ sent: true, devHint: undefined });
     expect(otp.send).not.toHaveBeenCalled();
-    // challenge stored with the DEV code hash
+    // challenge still stored with the DEV code hash (tester knows it out-of-band)
     const createArg = prisma.otpChallenge.create.mock.calls[0][0];
     expect(createArg.data.codeHash).toBe(sha256("000000"));
     expect(createArg.data.phone).toBe("+919000001234");

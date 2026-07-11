@@ -6,39 +6,53 @@ import * as FileSystem from "expo-file-system/legacy";
  * worker banner PNG at `bottomRatio` from the bottom of the frame, and
  * returns the local path of the composited MP4.
  *
- * The banner is scaled to 1080px wide (matching standard Reel resolution).
- * Uses libx264 ultrafast preset — typically 10-40s on a mid-range phone for
- * a 30-second clip.
+ * Banner is scaled to the actual video width (scale2ref) and placed
+ * bottomRatio% up from the bottom — works for 720/1080/1440-wide reels alike.
+ * Re-encodes video with libx264 + audio to AAC so WhatsApp / Instagram accept
+ * it; silent reels still composite (audio mapping is optional).
  */
 export async function compositeVideoWithBanner(
   videoUrl: string,
   bannerPngUri: string,
   cacheKey: string,
   bottomRatio = 0.15,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _maxDurationSec?: number,
 ): Promise<string> {
   const videoPath = `${FileSystem.cacheDirectory}cv_in_${cacheKey}.mp4`;
   const outPath = `${FileSystem.cacheDirectory}cv_out_${cacheKey}.mp4`;
 
-  // Download source video to local cache
   await FileSystem.downloadAsync(videoUrl, videoPath);
 
-  // Strip file:// prefix — ffmpeg-kit expects absolute paths on Android
+  // ffmpeg-kit wants bare absolute paths, not file:// URIs
   const bannerPath = bannerPngUri.replace(/^file:\/\//, "");
   const videoLocalPath = videoPath.replace(/^file:\/\//, "");
+  const outLocalPath = outPath.replace(/^file:\/\//, "");
 
-  // Scale banner to 1080px wide, overlay at bottomRatio% from bottom.
-  // H = video height, h = scaled banner height.
-  // y = H * (1 - bottomRatio) - h  →  banner top sits (bottomRatio)% above the bottom.
+  // scale2ref scales the banner ([1:v]) to the video's ([0:v]) width, keeping
+  // its aspect ratio, so it spans the frame on any source size. Then overlay at
+  // y = H*(1-bottomRatio) - bannerHeight (bottomRatio up from the bottom edge).
   const yExpr = `H*${(1 - bottomRatio).toFixed(4)}-h`;
+  const filter =
+    `[1:v][0:v]scale2ref=w=iw:h=ow/mdar[bnr][vid];` +
+    `[vid][bnr]overlay=0:${yExpr}:shortest=1[outv]`;
   const cmd = [
     `-i "${videoLocalPath}"`,
-    `-i "${bannerPath}"`,
-    `-filter_complex "[1:v]scale=1080:-1[b];[0:v][b]overlay=0:${yExpr}:shortest=1"`,
+    // -loop 1: the banner is a single still image. Without it, overlay+shortest
+    // ends the output the instant the image "ends" → a 1-frame (0.03s) clip.
+    `-loop 1 -i "${bannerPath}"`,
+    `-filter_complex "${filter}"`,
+    // map the OVERLAID video (not 0:v:0, which is the raw input) + optional
+    // audio (the `?` makes a silent reel still composite)
+    `-map "[outv]"`,
+    `-map 0:a:0?`,
     `-c:v libx264`,
     `-preset ultrafast`,
     `-crf 23`,
-    `-c:a copy`,
-    `-y "${outPath}"`,
+    `-pix_fmt yuv420p`,
+    `-c:a aac`,
+    `-b:a 128k`,
+    `-y "${outLocalPath}"`,
   ].join(" ");
 
   const session = await FFmpegKit.execute(cmd);

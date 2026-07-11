@@ -14,6 +14,18 @@ export interface VideoCompositeInput {
   onProgress?: (p: number) => void;
 }
 
+// Web has no ffmpeg-kit. The banner burn-in is native-only; on web we hand back
+// the source URL unchanged so the share screen still works (no on-device file).
+export async function compositeVideoWithBanner(
+  videoUrl: string,
+  _bannerPngUri?: string,
+  _cacheKey?: string,
+  _bottomRatio?: number,
+  _maxDurationSec?: number,
+): Promise<string> {
+  return videoUrl;
+}
+
 const W = 1080;
 const H = 1920;
 

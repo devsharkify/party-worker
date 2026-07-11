@@ -39,3 +39,7 @@ Thumbs.db
 !.vscode/extensions.json
 .vercel
 .gstack/
+
+# Local APK build outputs (never commit — 80MB+ artifacts)
+.buildtmp/
+apps/app/build-out/

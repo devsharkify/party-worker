@@ -11,7 +11,7 @@ import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Toaster } from "sonner-native";
 import { AuthProvider, useAuth } from "../src/auth/auth-context";
-import { checkOnboarded } from "../src/lib/onboarding";
+import { checkOnboarded, markOnboarded } from "../src/lib/onboarding";
 import { colors, fontFamily, fontWeight, radius, shadow } from "../src/theme";
 import { useHandleDeepLink } from "../src/lib/deeplink";
 
@@ -44,8 +44,13 @@ class RootErrorBoundary extends Component<{ children: ReactNode }, { error: Erro
 
 /**
  * Runs inside the navigator (so useRouter is valid) and inside AuthProvider.
- * After the user is authenticated it checks AsyncStorage for the onboarding
- * flag — if absent, it redirects to the onboarding flow exactly once.
+ * Redirects to onboarding only for a genuinely new user.
+ *
+ * Onboarding status is SERVER-AUTHORITATIVE: if the user's profile already has
+ * constituency + area (set during setup-profile), they've onboarded — even on a
+ * fresh install or a new device where the local flag is missing. The local flag
+ * is only a fast-path cache. This is why a returning user is never asked for
+ * their details (name/constituency/DOB) a second time.
  */
 function OnboardingGuard() {
   const { user, loading } = useAuth();
@@ -56,11 +61,16 @@ function OnboardingGuard() {
     if (loading || !user || redirectedRef.current) return;
     void (async () => {
       if (redirectedRef.current) return;
-      const onboarded = await checkOnboarded();
-      if (!onboarded) {
-        redirectedRef.current = true;
-        router.replace("/onboarding/welcome");
+      const profileComplete = Boolean(user.constituency && user.area);
+      const flag = await checkOnboarded();
+      if (profileComplete || flag) {
+        // Returning user — make the local cache consistent and never redirect.
+        if (profileComplete && !flag) await markOnboarded();
+        return;
       }
+      // Genuinely new user — collect details once.
+      redirectedRef.current = true;
+      router.replace("/onboarding/welcome");
     })();
   }, [user, loading, router]);
 

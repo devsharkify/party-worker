@@ -23,7 +23,7 @@
     },
     "android": {
       "package": "com.devsharkify.mytrs",
-      "versionCode": 3,
+      "versionCode": 4,
       "adaptiveIcon": {
         "foregroundImage": "./assets/trs-logo-square.png",
         "backgroundColor": "#E8A820"
@@ -53,20 +53,21 @@
     "runtimeVersion": "0.1.0",
     "updates": {
       "url": "https://u.expo.dev/721cf13b-a21b-4187-8517-9621c379e0c9",
-      "enabled": true,
-      "checkAutomatically": "ON_LOAD",
+      "enabled": false,
+      "checkAutomatically": "NEVER",
       "fallbackToCacheTimeout": 0
     },
     "plugins": [
       "expo-updates",
       "expo-router",
       "expo-secure-store",
+      "expo-video",
       [
         "expo-location",
         {
           "locationWhenInUsePermission": "myTRS needs your location to verify you are present at the event venue."
         }
-      ],
+      ]
     ],
     "experiments": {
       "typedRoutes": false

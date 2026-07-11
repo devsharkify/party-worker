@@ -16,3 +16,11 @@ export async function checkOnboarded(): Promise<boolean> {
 export async function markOnboarded(): Promise<void> {
   await AsyncStorage.setItem(ONBOARDING_KEY, "true");
 }
+
+/**
+ * Clears the device-local onboarding flag. Call on logout so the next worker
+ * signing in on this phone isn't wrongly treated as already onboarded.
+ */
+export async function clearOnboarded(): Promise<void> {
+  await AsyncStorage.removeItem(ONBOARDING_KEY);
+}

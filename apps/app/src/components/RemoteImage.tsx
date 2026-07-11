@@ -14,6 +14,9 @@ export function RemoteImage({
   radius: r = 0,
   contentFit = "cover",
   placeholderColor = colors.bgElevated,
+  transition = 220,
+  onLoad,
+  onError,
 }: {
   uri?: string | null;
   width?: DimensionValue;
@@ -21,6 +24,10 @@ export function RemoteImage({
   radius?: number;
   contentFit?: ImageContentFit;
   placeholderColor?: string;
+  /** Fade-in duration. Pass 0 when the view will be captured via view-shot. */
+  transition?: number;
+  onLoad?: () => void;
+  onError?: () => void;
 }) {
   return (
     <View
@@ -34,8 +41,10 @@ export function RemoteImage({
           source={{ uri }}
           style={StyleSheet.absoluteFill}
           contentFit={contentFit}
-          transition={220}
+          transition={transition}
           cachePolicy="memory-disk"
+          onLoad={onLoad}
+          onError={onError}
         />
       ) : null}
     </View>

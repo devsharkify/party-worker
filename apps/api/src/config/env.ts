@@ -121,6 +121,10 @@ const DEV_DEFAULT_SECRETS: Record<string, string> = {
 };
 
 export function loadEnv(): Env {
+  // Accept the IMAGEKIT_* var names too (common ImageKit dashboard naming) so
+  // either prefix works. IK_* takes precedence if both are set.
+  process.env.IK_PRIVATE_KEY ??= process.env.IMAGEKIT_PRIVATE_KEY;
+  process.env.IK_URL_ENDPOINT ??= process.env.IMAGEKIT_URL_ENDPOINT;
   const env = EnvSchema.parse(process.env);
   // Fail fast on boot if a production deploy is still running on dev secrets,
   // or if test-login backdoors are left enabled. Better a crash than a breach.

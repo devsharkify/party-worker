@@ -46,11 +46,18 @@ interface Props {
   prefs?: BannerPrefs;
   /** Render width in dp. Everything scales proportionally. Default 1080. */
   width?: number;
+  /**
+   * Fired once the worker photo has loaded (or failed). Used by the share
+   * screen to delay view-shot capture until the face is actually painted —
+   * otherwise the burned-in banner shows the placeholder circle. When set,
+   * the photo also renders with no fade so the capture is fully opaque.
+   */
+  onPhotoReady?: () => void;
 }
 
 // ─── component ───────────────────────────────────────────────────────────────
 
-export function WorkerBanner({ user, prefs = {}, width = BANNER_W }: Props) {
+export function WorkerBanner({ user, prefs = {}, width = BANNER_W, onPhotoReady }: Props) {
   const scale = width / BANNER_W;
   const height = Math.round(BANNER_H * scale);
   const s = (dp: number) => dp * scale;
@@ -123,6 +130,9 @@ export function WorkerBanner({ user, prefs = {}, width = BANNER_W }: Props) {
             height={s(160)}
             radius={s(80)}
             placeholderColor={colors.trsNavy}
+            transition={onPhotoReady ? 0 : 220}
+            onLoad={onPhotoReady}
+            onError={onPhotoReady}
           />
         </View>
       </View>

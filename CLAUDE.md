@@ -35,3 +35,28 @@ before another session's commit.
   --prod --prebuilt` + alias mytrs-worker-app.vercel.app; admin = static export
   from apps/admin then alias admin-zeta-gold-53.vercel.app.
 - Disk is ~96% full — avoid heavy installs; check `df -h /System/Volumes/Data`.
+
+## On-device video banner (share screen)
+
+- Reels shared to WhatsApp/IG/YT get the `WorkerBanner` (1080x240 strip) burned
+  on-device via ffmpeg-kit — zero server render load. Flow: hidden WorkerBanner
+  → `captureRef` PNG → `compositeVideoWithBanner` (overlay+libopenh264) → MP4.
+- **ffmpeg-kit is RETIRED.** The npm JS wrapper `ffmpeg-kit-react-native@6.0.2`
+  still installs, but the native AAR (`com.arthenica:ffmpeg-kit-min-gpl`) was
+  pulled from Maven Central AND is 4 KB-aligned (crashes Android 15+, Play
+  rejects). `apps/app/android/build.gradle` substitutes it with the 16 KB
+  rebuild `com.moizhassan.ffmpeg:ffmpeg-kit-16kb:6.1.1` (Maven Central, same
+  `com.arthenica.ffmpegkit` namespace). Do NOT revert to the arthenica/Aliyun
+  coordinate — it's a Play blocker.
+- **This fork is built `--enable-gpl --enable-libopenh264 --enable-libvpx
+  --enable-mediacodec` — it has NO libx264** (verified by scanning the AAR's
+  libavcodec configure string). `-c:v libx264` fails at runtime with "Unknown
+  encoder 'libx264'". Use `-c:v libopenh264 -b:v 5M` (software H.264, in the
+  build). `h264_mediacodec` (hardware) also exists but ffmpeg's mediacodec
+  ENCODER is flaky across cheap devices — prefer openh264.
+- FFmpeg cmd gotchas baked into `composite.video.ts`: `-loop 1` on the still
+  banner (else `overlay+shortest` → 1-frame 0.03s clip); `scale2ref` so the
+  banner matches any reel width; map `[outv]` not `0:v:0`; `-map 0:a:0?` for
+  silent reels. Verified locally with ffmpeg-static on 1080 + 720 sources.
+- Capture waits for the worker photo's `onLoad` (expo-image is async) before
+  `captureRef`, else the banner burns in the placeholder circle, not the face.

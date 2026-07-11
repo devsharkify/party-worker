@@ -8,12 +8,13 @@ import {
   Text,
   View,
 } from "react-native";
-import { Stack, useLocalSearchParams } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner-native";
 import * as Clipboard from "expo-clipboard";
 import { Image } from "expo-image";
-import { Feather } from "@expo/vector-icons";
 import { captureRef } from "react-native-view-shot";
+import { Feather } from "@expo/vector-icons";
 import { useAuth } from "../../src/auth/auth-context";
 import { SkeletonBlock } from "../../src/components/Skeleton";
 import { StateView } from "../../src/components/StateView";
@@ -69,6 +70,7 @@ export default function ShareScreen() {
   const { t, i18n } = useTranslation();
   const lang = i18n.language as "te" | "en";
   const { api, user } = useAuth();
+  const router = useRouter();
   const [data, setData] = useState<ShareResponse | null>(null);
   const [error, setError] = useState<string | undefined>();
   const [copied, setCopied] = useState(false);
@@ -89,6 +91,15 @@ export default function ShareScreen() {
 
   // Hidden WorkerBanner rendered off-screen for view-shot capture
   const bannerRef = useRef<View>(null);
+  // Resolves when the banner's worker photo has painted, so capture waits for
+  // the real face instead of snapshotting the placeholder circle.
+  const bannerPhotoReadyRef = useRef(false);
+  const bannerPhotoResolveRef = useRef<(() => void) | null>(null);
+  const handleBannerPhotoReady = () => {
+    bannerPhotoReadyRef.current = true;
+    bannerPhotoResolveRef.current?.();
+    bannerPhotoResolveRef.current = null;
+  };
 
   const pop = useRef(new Animated.Value(0.8)).current;
   useEffect(() => {
@@ -140,39 +151,94 @@ export default function ShareScreen() {
    * it onto the video, and return the path to the composited MP4.
    * Only called for video creatives when user data is available.
    */
-  async function getCompositedVideoPath(videoUrl: string): Promise<string> {
-    const bannerPngUri = await captureRef(bannerRef, { format: "png", quality: 1 });
+  async function getCompositedVideoPath(): Promise<string> {
+    // Wait for the worker photo to actually paint before capturing — otherwise
+    // the burned-in banner shows the navy placeholder, not the face. Capped at
+    // 3s so a dead photo URL (or a photoless worker) never hangs the share.
+    const hasPhoto = !!bannerUser?.photoUrl;
+    if (hasPhoto && !bannerPhotoReadyRef.current) {
+      await Promise.race([
+        new Promise<void>((resolve) => {
+          bannerPhotoResolveRef.current = resolve;
+        }),
+        new Promise<void>((resolve) => setTimeout(resolve, 3000)),
+      ]);
+    }
+    // Small settle for layout/paint after load.
+    await new Promise((r) => setTimeout(r, 80));
+    // Capture the rich WorkerBanner (logo + name + area + photo) at native 1080x240.
+    const bannerPngUri = await captureRef(bannerRef, {
+      format: "png",
+      quality: 1,
+      width: 1080,
+      height: 240,
+    });
+
+    // Burn the banner onto the video ON-DEVICE with ffmpeg-kit — hard
+    // requirement: zero server render load. composite.video.native.ts
+    // downloads the reel to cache and runs the overlay + libx264 encode
+    // locally on the phone. Nothing is uploaded anywhere.
+    const videoUrl = data!.personalizedUrl ?? data!.mediaUrl;
     return compositeVideoWithBanner(videoUrl, bannerPngUri, data!.shareEventId);
   }
 
   /**
-   * Upload a local file to the creatives upload endpoint and return the CDN URL.
+   * Upload a local file to the creatives upload endpoint. Returns its storage
+   * key (for server-side ffmpeg) and CDN url (for direct sharing/publishing).
    */
-  async function uploadLocalFile(localPath: string, mimeType: string): Promise<string> {
-    const FileSystem = await import("expo-file-system/legacy");
-    const res = await FileSystem.readAsStringAsync(localPath, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-    const blob = await fetch(`data:${mimeType};base64,${res}`).then((r) => r.blob());
+  async function uploadLocalFile(
+    localPath: string,
+    mimeType: string,
+  ): Promise<{ key: string; url: string }> {
+    const fileUri = localPath.startsWith("file://") ? localPath : `file://${localPath}`;
+    const ext = mimeType.includes("png") ? "png" : mimeType.includes("jpeg") ? "jpg" : "mp4";
     const fd = new FormData();
-    fd.append("file", blob as unknown as Blob, `share-${data!.shareEventId}.mp4`);
-    const { url } = await api<{ key: string; url: string }>("/creatives/upload", {
+    fd.append("file", {
+      uri: fileUri,
+      name: `share-${data!.shareEventId}.${ext}`,
+      type: mimeType,
+    } as unknown as Blob);
+    return api<{ key: string; url: string }>("/creatives/upload", {
       method: "POST",
       body: fd,
     });
-    return url;
   }
 
   /** Share video as MP4 file to WhatsApp directly (no link, actual file). */
   async function shareVideoToWhatsApp() {
-    if (!data || sharing) return;
+    if (!data || sharing || compositing) return;
+    // Web can't burn the banner on-device (no ffmpeg), and expo-sharing on a
+    // remote URL silently throws on desktop browsers → dead button. Fall back to
+    // opening WhatsApp with the tracked link instead.
+    if (Platform.OS === "web") {
+      const title = data.caption.split("|")[0]?.trim() ?? data.caption;
+      const text = `${title}\n${data.trackedLink}`;
+      const { Linking } = await import("react-native");
+      await Linking.openURL(`https://wa.me/?text=${encodeURIComponent(text)}`).catch(() => undefined);
+      await confirmShare("whatsapp");
+      return;
+    }
     setSharing(true);
     setCompositing(true);
-    try {
-      const videoUrl = data.personalizedUrl ?? data.mediaUrl;
-      const localPath = await getCompositedVideoPath(videoUrl);
-      setCompositing(false);
 
+    // Compositing is the part that can genuinely fail. If it does, surface a
+    // toast — do NOT silently fall back to the raw tracking link (the whole
+    // point is that WhatsApp gets the branded MP4, not a URL).
+    let localPath: string;
+    try {
+      localPath = await getCompositedVideoPath();
+    } catch (e) {
+      setCompositing(false);
+      setSharing(false);
+      // Surface the real error (ffmpeg/capture) so failures are diagnosable,
+      // never silently fall back to a tracking link.
+      setSaveToast((e as Error)?.message?.slice(0, 160) ?? "Banner compositing failed");
+      setTimeout(() => setSaveToast(null), 6000);
+      return;
+    }
+    setCompositing(false);
+
+    try {
       const Sharing = await import("expo-sharing");
       await Sharing.shareAsync(localPath, {
         mimeType: "video/mp4",
@@ -180,13 +246,9 @@ export default function ShareScreen() {
         UTI: "public.mpeg-4",
       });
       await confirmShare("whatsapp");
-    } catch (e) {
-      setCompositing(false);
-      // Fallback: share the raw link if compositing fails
-      if (data.deepLinks.whatsapp) {
-        const { Linking } = await import("react-native");
-        await Linking.openURL(data.deepLinks.whatsapp).catch(() => {});
-      }
+    } catch {
+      // User dismissed the share sheet (or no handler app). Not an error —
+      // and never send a tracking link in place of the file.
     } finally {
       setSharing(false);
     }
@@ -194,20 +256,29 @@ export default function ShareScreen() {
 
   /** Save composited video to camera roll + open WA Status. */
   async function shareToWaStatus() {
-    if (!data) return;
+    // Guard: one composite at a time. All flows share `compositing` + the single
+    // banner mount/ref; a second run mid-composite tears the banner out from
+    // under the first capture. (The other four flows already self-guard.)
+    if (!data || compositing) return;
     if (Platform.OS !== "web" && data.type === "video") {
       setCompositing(true);
       try {
-        const videoUrl = data.personalizedUrl ?? data.mediaUrl;
-        const localPath = await getCompositedVideoPath(videoUrl);
+        const localPath = await getCompositedVideoPath();
         setCompositing(false);
         const MediaLibrary = await import("expo-media-library");
         const { status } = await MediaLibrary.requestPermissionsAsync();
-        if (status === "granted") {
-          await MediaLibrary.saveToLibraryAsync(localPath);
+        if (status !== "granted") {
+          setSaveToast(lang === "te" ? "గ్యాలరీ అనుమతి లేదు" : "Gallery permission denied");
+          setTimeout(() => setSaveToast(null), 2800);
+          return; // nothing saved → don't open WA Status with an empty gallery
         }
-      } catch {
+        await MediaLibrary.saveToLibraryAsync(localPath);
+      } catch (e) {
+        // Surface the failure instead of opening WhatsApp with no banner video.
         setCompositing(false);
+        setSaveToast((e as Error)?.message?.slice(0, 160) ?? "Couldn't prepare your video");
+        setTimeout(() => setSaveToast(null), 6000);
+        return;
       }
     } else if (Platform.OS !== "web") {
       // Image: save poster thumbnail
@@ -237,16 +308,16 @@ export default function ShareScreen() {
 
   /** Publish to Instagram: composite video first, upload, then API publish. */
   async function publishToInstagram() {
-    if (!data || igPublishing) return;
+    if (!data || igPublishing || compositing) return;
     setIgPublishing(true);
     setIgToast(null);
     try {
       let mediaUrl: string | undefined;
       if (data.type === "video" && user) {
         setCompositing(true);
-        const localPath = await getCompositedVideoPath(data.personalizedUrl ?? data.mediaUrl);
+        const localPath = await getCompositedVideoPath();
         setCompositing(false);
-        mediaUrl = await uploadLocalFile(localPath, "video/mp4");
+        mediaUrl = (await uploadLocalFile(localPath, "video/mp4")).url;
       }
 
       await Promise.all([
@@ -280,16 +351,16 @@ export default function ShareScreen() {
 
   /** Publish to YouTube: composite video first, upload, then API publish. */
   async function publishToYoutube() {
-    if (!data || ytPublishing) return;
+    if (!data || ytPublishing || compositing) return;
     setYtPublishing(true);
     setYtToast(null);
     try {
       let mediaUrl: string | undefined;
       if (data.type === "video" && user) {
         setCompositing(true);
-        const localPath = await getCompositedVideoPath(data.personalizedUrl ?? data.mediaUrl);
+        const localPath = await getCompositedVideoPath();
         setCompositing(false);
-        mediaUrl = await uploadLocalFile(localPath, "video/mp4");
+        mediaUrl = (await uploadLocalFile(localPath, "video/mp4")).url;
       }
 
       await api<{ published: boolean }>("/social/youtube/publish", {
@@ -308,6 +379,21 @@ export default function ShareScreen() {
       setYtPublishing(false);
       setTimeout(() => setYtToast(null), 3000);
     }
+  }
+
+  /**
+   * YouTube isn't linked yet → send the worker to Profile's Connect YouTube
+   * flow (Google login + channel claim), same as Instagram. Reusing that flow
+   * avoids duplicating the OAuth-return / channel-picker logic here. Once linked,
+   * this button switches to publishToYoutube and posts directly.
+   */
+  function goConnectYoutube() {
+    toast.info(
+      lang === "te"
+        ? "YouTube ఖాతాను Profile లో కనెక్ట్ చేయండి — నేరుగా పోస్ట్ చేయవచ్చు"
+        : "Connect your YouTube channel in Profile to post directly",
+    );
+    router.push("/(tabs)/profile");
   }
 
   const imageUrl = data ? (data.personalizedUrl ?? data.mediaUrl) : null;
@@ -408,9 +494,9 @@ export default function ShareScreen() {
     setTimeout(() => setPackToast(false), 2000);
   }
 
-  /** Save composited video (or image) to the device gallery. */
-  async function saveToDevice() {
-    if (!data || saving) return;
+  /** Save composited video (or image) to the device gallery. Returns true only on a real save. */
+  async function saveToDevice(): Promise<boolean> {
+    if (!data || saving || compositing) return false;
     setSaving(true);
     setSaveToast(null);
     try {
@@ -419,13 +505,13 @@ export default function ShareScreen() {
       if (status !== "granted") {
         setSaveToast(lang === "te" ? "గ్యాలరీ అనుమతి లేదు" : "Gallery permission denied");
         setTimeout(() => setSaveToast(null), 2500);
-        return;
+        return false;
       }
 
       let localPath: string;
       if (isVideo) {
         setCompositing(true);
-        localPath = await getCompositedVideoPath(data.personalizedUrl ?? data.mediaUrl);
+        localPath = await getCompositedVideoPath();
         setCompositing(false);
       } else {
         const FileSystem = await import("expo-file-system/legacy");
@@ -438,13 +524,38 @@ export default function ShareScreen() {
       await MediaLibrary.saveToLibraryAsync(localPath);
       setSaveToast(lang === "te" ? "గ్యాలరీలో సేవ్ అయింది ✓" : "Saved to gallery ✓");
       setTimeout(() => setSaveToast(null), 2500);
+      return true;
     } catch (e) {
       setCompositing(false);
       setSaveToast((e as Error).message ?? (lang === "te" ? "సేవ్ విఫలమైంది" : "Save failed"));
       setTimeout(() => setSaveToast(null), 2500);
+      return false;
     } finally {
       setSaving(false);
     }
+  }
+
+  /**
+   * Instagram/YouTube when the account isn't API-connected. For a VIDEO we can't
+   * push a file straight into those apps, so burn the banner on-device→server,
+   * save the branded MP4 to the gallery, then open the app for a manual post.
+   * (Without this, the deep link opens the app with the RAW, banner-less video.)
+   */
+  async function saveBannerThenOpen(appUrl: string, channel: ShareChannel) {
+    // For a video, don't open the target app (or award points) unless the
+    // branded MP4 actually landed in the gallery — otherwise the user posts the
+    // raw, banner-less clip and still gets share credit.
+    if (isVideo) {
+      const saved = await saveToDevice(); // composites + saves; shows its own toast on failure
+      if (!saved) return;
+    }
+    try {
+      const { Linking } = await import("react-native");
+      await Linking.openURL(appUrl);
+    } catch {
+      /* target app not installed */
+    }
+    await confirmShare(channel);
   }
 
   // Build BannerUser from auth context
@@ -495,14 +606,18 @@ export default function ShareScreen() {
     <View style={st.wrap}>
       <Stack.Screen options={{ title: t("share.title") }} />
 
-      {/* Hidden WorkerBanner at 340dp — captured by view-shot for compositing */}
-      {bannerUser && (
-        <View
-          ref={bannerRef}
-          collapsable={false}
-          style={st.hiddenBanner}
-        >
-          <WorkerBanner user={bannerUser} width={340} />
+      {/* Visible banner preview (videos only). Rendered ON-SCREEN — not hidden —
+          because view-shot capture of an off-screen Fabric view returns blank on
+          many Android devices. This is what gets burned onto the shared video,
+          and lets the worker see their strip before sharing. */}
+      {bannerUser && isVideo && (
+        <View style={st.bannerPreviewWrap}>
+          <Text style={st.bannerPreviewLabel}>
+            {lang === "te" ? "మీ బ్యానర్ (వీడియోపై వస్తుంది)" : "Your banner (added to the video)"}
+          </Text>
+          <View ref={bannerRef} collapsable={false} style={st.bannerPreview}>
+            <WorkerBanner user={bannerUser} width={340} onPhotoReady={handleBannerPhotoReady} />
+          </View>
         </View>
       )}
 
@@ -588,11 +703,7 @@ export default function ShareScreen() {
           disabled={igPublishing}
           onPress={igConnected
             ? () => void publishToInstagram()
-            : () => { void (async () => {
-                const { Linking } = await import("react-native");
-                await Linking.openURL(data.deepLinks.instagram ?? "").catch(() => {});
-                await confirmShare("instagram_story");
-              })(); }
+            : () => void saveBannerThenOpen(data.deepLinks.instagram ?? "instagram://library", "instagram_story")
           }
         />
 
@@ -604,11 +715,7 @@ export default function ShareScreen() {
           disabled={ytPublishing}
           onPress={ytConnected
             ? () => void publishToYoutube()
-            : () => { void (async () => {
-                const { Linking } = await import("react-native");
-                await Linking.openURL(data.deepLinks.youtube ?? "https://studio.youtube.com").catch(() => {});
-                await confirmShare("youtube");
-              })(); }
+            : goConnectYoutube
           }
         />
 
@@ -696,7 +803,22 @@ const st = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.cardMuted },
 
   // Hidden off-screen banner for view-shot capture
-  hiddenBanner: { position: "absolute", top: -9999, left: 0, width: 340 },
+  // On-screen at full opacity so view-shot captures it (off-screen top:-9999
+  // returns blank on Android). Sits behind the zIndex:100 compositing overlay.
+  bannerPreviewWrap: { marginBottom: 14, alignItems: "center" },
+  bannerPreviewLabel: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontFamily,
+    marginBottom: 6,
+    alignSelf: "flex-start",
+  },
+  bannerPreview: {
+    width: 340,
+    borderRadius: radius.md,
+    overflow: "hidden",
+    ...shadow,
+  },
 
   // Compositing overlay
   compositingOverlay: {
