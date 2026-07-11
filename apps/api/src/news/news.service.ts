@@ -29,6 +29,11 @@ export class NewsService {
     });
   }
 
+  /** Published-only lookup for the public share card — never exposes drafts. */
+  async findPublished(id: string) {
+    return this.prisma.newsItem.findFirst({ where: { id, status: "published" } });
+  }
+
   async create(data: {
     handle: string;
     title: string;

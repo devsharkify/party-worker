@@ -17,6 +17,7 @@ import { RemoteImage } from "../../src/components/RemoteImage";
 import { useApi } from "../../src/hooks";
 import { useAuth } from "../../src/auth/auth-context";
 import { colors, fontFamily, lh, radius, shadow } from "../../src/theme";
+import { API_URL } from "../../src/config";
 
 const SCREEN_W = Dimensions.get("window").width;
 const CARD_W = Math.min(SCREEN_W, 480);
@@ -128,7 +129,9 @@ function ShareSheet({
   onClose: () => void;
   onShareDone: () => void;
 }) {
-  const shareText = `${item.title}\n\n${item.body.slice(0, 120)}...${item.sourceUrl ? `\n\n${item.sourceUrl}` : ""}`;
+  const summary = item.body.length > 220 ? `${item.body.slice(0, 220).trimEnd()}…` : item.body;
+  const cardUrl = `${API_URL}/news/${item.id}/card`;
+  const shareText = `📰 ${item.title}\n\n${summary}\n\n${cardUrl}`;
 
   function done() { onShareDone(); onClose(); }
 
